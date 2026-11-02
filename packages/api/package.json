@@ -1,0 +1,25 @@
+{
+  "name": "@notes-learning/api",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@notes-learning/auth": "workspace:*",
+    "@notes-learning/db": "workspace:*",
+    "@orpc/client": "catalog:",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/zod": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@notes-learning/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

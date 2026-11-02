@@ -1,0 +1,43 @@
+{
+  "name": "notes-learning",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "dev:native": "turbo run dev -F native --",
+    "dev:web": "turbo run dev -F web --",
+    "dev:server": "turbo run dev -F server --",
+    "db:push": "turbo run db:push -F @notes-learning/db --",
+    "db:studio": "turbo run db:studio -F @notes-learning/db --",
+    "db:generate": "turbo run db:generate -F @notes-learning/db --",
+    "db:migrate": "turbo run db:migrate -F @notes-learning/db --",
+    "db:start": "docker compose up -d postgres",
+    "db:watch": "docker compose up postgres",
+    "db:stop": "docker compose stop postgres",
+    "db:down": "docker compose down postgres",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
+    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
+    "auth:generate": "cd apps/server && pnpm run auth:generate"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@notes-learning/config": "workspace:*",
+    "@types/node": "catalog:",
+    "turbo": "^2.11.7",
+    "typescript": "^6.0.3",
+    "varlock": "catalog:"
+  },
+  "packageManager": "pnpm@12.11.2"
+}
