@@ -60,4 +60,4 @@ Opening a page also opens a live session. Peers edit the same Yjs document over 
 
 If the relay is unreachable the editor keeps working locally: the live pill reads "Solo", saves continue through Dexie, and reconciliation happens on the next reconnect.
 
-Durable CRDT bytes are not stored server-side yet — the authoritative record is still the page document plus its revisions. Suggested edits and review workflows are follow-on work.
+Durable CRDT bytes are stored per resource and reloaded when a room reopens, so a session survives its room. Suggested edits and review workflows are follow-on work.

@@ -22,16 +22,17 @@ description: What this implementation covers and which subsystems are deliberate
 
 ## Shipped: live co-editing
 
-- Yjs co-editing for page documents over a WebSocket relay, with per-page rooms.
+- Yjs co-editing for page documents and whiteboards over a WebSocket relay, with a room per resource.
 - Live cursors and selection presence in the editor.
 - Conflict-free concurrent typing; both peers converge without conflict snapshots.
-- The document is persisted per page and flushed when the last peer leaves, so a session outlives its room and an edit made just before a tab closes is not lost.
+- Whiteboard edits merge per field, so two people moving different shapes, or editing different fields of one shape, both survive.
+- The document is persisted per resource and flushed when the last peer leaves, so a session outlives its room and an edit made just before a tab closes is not lost.
 
 ## Next: collaboration depth
 
-- CRDT co-editing for whiteboards.
 - Suggested edits and review workflows.
 - Granular block-level comments and discussion resolution at scale.
+- Presence and remote cursors on the whiteboard.
 
 ## Shipped: query console
 
