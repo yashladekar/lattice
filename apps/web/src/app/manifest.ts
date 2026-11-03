@@ -1,25 +1,42 @@
 import type { MetadataRoute } from "next";
 
+export const dynamic = "force-static";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "notes-learning",
-    short_name: "notes-learning",
-    description: "my pwa app",
-    start_url: "/",
+    name: "Lattice — Knowledge OS",
+    short_name: "Lattice",
+    description:
+      "A local-first knowledge OS for writing, visual thinking, connected notes, and learning.",
+    start_url: "/app",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#000000",
+    orientation: "portrait-primary",
+    background_color: "#f8f5ee",
+    theme_color: "#1d1d1a",
+    categories: ["productivity", "education", "utilities"],
     icons: [
       {
-        src: "/favicon/web-app-manifest-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
+        src: "/brand/lattice-mark.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "any",
       },
       {
-        src: "/favicon/web-app-manifest-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
+        src: "/brand/lattice-mark.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "maskable",
       },
     ],
+    share_target: {
+      action: "/app",
+      method: "GET",
+      enctype: "application/x-www-form-urlencoded",
+      params: {
+        title: "title",
+        text: "text",
+        url: "url",
+      },
+    },
   };
 }

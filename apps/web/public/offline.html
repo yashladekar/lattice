@@ -3,28 +3,81 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>You are offline</title>
+    <meta name="referrer" content="no-referrer" />
+    <title>Lattice is offline</title>
     <style>
       :root {
         color-scheme: light dark;
-        font-family: system-ui, sans-serif;
+        font-family: system-ui, -apple-system, sans-serif;
       }
       body {
-        min-height: 90vh;
+        min-height: 100vh;
+        margin: 0;
         display: grid;
         place-content: center;
+        gap: 1rem;
         padding: 1.5rem;
+        background: #f7f4ed;
+        color: #20201b;
+      }
+      main {
+        max-width: 27rem;
+        text-align: center;
+      }
+      .mark {
+        width: 3rem;
+        height: 3rem;
+        margin: 0 auto 1.5rem;
+        display: grid;
+        place-items: center;
+        border-radius: 1rem;
+        background: #1d1d1a;
+        color: #f4efe4;
+        font-size: 1.25rem;
+      }
+      h1 {
+        font-family: Georgia, serif;
+        font-weight: 400;
+        font-size: 2rem;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        font-size: 0.8rem;
+        line-height: 1.6;
+        color: #6b6a60;
       }
       a {
-        color: inherit;
+        display: inline-flex;
+        margin-top: 1rem;
+        padding: 0.55rem 1rem;
+        border-radius: 0.5rem;
+        background: #e8892f;
+        color: #1d1d1a;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #171713;
+          color: #efeade;
+        }
+        p {
+          color: #8d8c82;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>You are offline</h1>
-      <p>Reconnect to the internet to load this page.</p>
-      <a href="/">Try again</a>
+      <div class="mark">lattice</div>
+      <h1>You are offline.</h1>
+      <p>
+        Your notes are still on this device. Open the workspace to keep working locally; sync will
+        resume when the connection returns.
+      </p>
+      <a href="/app">Open local workspace</a>
     </main>
   </body>
 </html>

@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
 import { withPwa } from "./pwa.config";
 
 const nextConfig: NextConfig = {
-  typedRoutes: true,
+  typedRoutes: false,
   reactCompiler: true,
   output: "export",
 };

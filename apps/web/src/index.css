@@ -1,1 +1,659 @@
 @import "@notes-learning/ui/globals.css";
+
+:root {
+  --editor-width: 46rem;
+  --canvas-dot: color-mix(in oklch, var(--foreground) 12%, transparent);
+  --canvas-grid: color-mix(in oklch, var(--foreground) 7%, transparent);
+  --sticky-saffron: oklch(0.91 0.09 75);
+  --sticky-moss: oklch(0.88 0.06 155);
+  --sticky-sky: oklch(0.89 0.055 235);
+  --sticky-lilac: oklch(0.9 0.055 305);
+  --sticky-rose: oklch(0.9 0.06 18);
+  --sticky-slate: oklch(0.89 0.012 75);
+  --sticky-paper: oklch(0.98 0.008 85);
+}
+
+.dark {
+  --canvas-dot: color-mix(in oklch, var(--foreground) 16%, transparent);
+  --canvas-grid: color-mix(in oklch, var(--foreground) 9%, transparent);
+  --sticky-saffron: oklch(0.56 0.1 70);
+  --sticky-moss: oklch(0.48 0.07 155);
+  --sticky-sky: oklch(0.48 0.07 235);
+  --sticky-lilac: oklch(0.5 0.08 305);
+  --sticky-rose: oklch(0.51 0.08 18);
+  --sticky-slate: oklch(0.38 0.012 75);
+  --sticky-paper: oklch(0.26 0.01 75);
+}
+
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--foreground) 16%, transparent);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.serif-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+}
+
+.hairline {
+  border-color: color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+
+.paper-shadow {
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--foreground) 6%, transparent),
+    0 12px 32px -18px color-mix(in oklch, var(--foreground) 28%, transparent);
+}
+
+.dot-grid {
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
+.line-grid {
+  background-image:
+    linear-gradient(to right, var(--canvas-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--canvas-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.fade-mask-b {
+  mask-image: linear-gradient(to bottom, black 82%, transparent 100%);
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 25%, transparent 72%);
+}
+
+.animate-rise {
+  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-rise-delay {
+  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+}
+
+.animate-rise-delay-2 {
+  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+
+/* ---------- Editor ---------- */
+
+.tiptap {
+  outline: none;
+  min-height: 45vh;
+  color: var(--foreground);
+  font-size: 1.02rem;
+  line-height: 1.75;
+  caret-color: var(--primary);
+}
+
+.tiptap > * + * {
+  margin-top: 0.55rem;
+}
+
+.tiptap p {
+  margin: 0;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap h1,
+.tiptap h2,
+.tiptap h3,
+.tiptap h4 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--foreground);
+  scroll-margin-top: 6rem;
+}
+
+.tiptap h1 {
+  font-size: 2.05rem;
+  line-height: 1.15;
+  margin-top: 2.2rem;
+  margin-bottom: 0.65rem;
+}
+
+.tiptap h2 {
+  font-size: 1.55rem;
+  line-height: 1.25;
+  margin-top: 2rem;
+  margin-bottom: 0.4rem;
+}
+
+.tiptap h3 {
+  font-size: 1.22rem;
+  line-height: 1.35;
+  margin-top: 1.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.tiptap h4 {
+  font-size: 1.05rem;
+  margin-top: 1.2rem;
+}
+
+.tiptap strong {
+  font-weight: 650;
+}
+
+.tiptap a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.tiptap ul,
+.tiptap ol {
+  padding-left: 1.4rem;
+  margin: 0.35rem 0;
+}
+
+.tiptap ul {
+  list-style: disc;
+}
+
+.tiptap ol {
+  list-style: decimal;
+}
+
+.tiptap li {
+  margin: 0.15rem 0;
+}
+
+.tiptap li p {
+  margin: 0;
+}
+
+.tiptap li::marker {
+  color: color-mix(in oklch, var(--foreground) 45%, transparent);
+}
+
+.tiptap blockquote {
+  border-left: 2px solid var(--primary);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: color-mix(in oklch, var(--foreground) 78%, transparent);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.55;
+}
+
+.tiptap hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+.tiptap code {
+  border-radius: 0.3rem;
+  background: color-mix(in oklch, var(--foreground) 7%, transparent);
+  padding: 0.12rem 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.tiptap pre {
+  background: oklch(0.19 0.012 75);
+  color: oklch(0.93 0.01 85);
+  border-radius: 0.65rem;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, white 8%, transparent);
+}
+
+.tiptap pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.tiptap .hljs-comment,
+.tiptap .hljs-quote {
+  color: oklch(0.62 0.02 85);
+}
+
+.tiptap .hljs-keyword,
+.tiptap .hljs-selector-tag,
+.tiptap .hljs-literal {
+  color: oklch(0.78 0.12 60);
+}
+
+.tiptap .hljs-string,
+.tiptap .hljs-attr,
+.tiptap .hljs-template-tag {
+  color: oklch(0.78 0.1 155);
+}
+
+.tiptap .hljs-number,
+.tiptap .hljs-symbol {
+  color: oklch(0.78 0.1 235);
+}
+
+.tiptap .hljs-title,
+.tiptap .hljs-function {
+  color: oklch(0.8 0.1 305);
+}
+
+.tiptap img {
+  border-radius: 0.65rem;
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 1px 3px color-mix(in oklch, var(--foreground) 14%, transparent);
+}
+
+.tiptap img.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  table-layout: fixed;
+}
+
+.tiptap th,
+.tiptap td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.65rem;
+  vertical-align: top;
+  position: relative;
+}
+
+.tiptap th {
+  background: color-mix(in oklch, var(--foreground) 4%, transparent);
+  font-weight: 600;
+  text-align: left;
+}
+
+.tiptap .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  pointer-events: none;
+}
+
+.tiptap .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  pointer-events: none;
+}
+
+.tiptap .tableWrapper {
+  overflow-x: auto;
+}
+
+.tiptap .resize-cursor {
+  cursor: col-resize;
+}
+
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.15rem;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+}
+
+.tiptap ul[data-type="taskList"] li > label {
+  margin-top: 0.25rem;
+  flex: 0 0 auto;
+}
+
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.tiptap input[type="checkbox"] {
+  appearance: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1.5px solid color-mix(in oklch, var(--foreground) 32%, transparent);
+  border-radius: 0.25rem;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.tiptap input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.tiptap input[type="checkbox"]:checked::after {
+  content: "";
+  width: 0.45rem;
+  height: 0.25rem;
+  border-left: 2px solid var(--primary-foreground);
+  border-bottom: 2px solid var(--primary-foreground);
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.tiptap mark {
+  background: color-mix(in oklch, var(--saffron) 42%, transparent);
+  color: inherit;
+  border-radius: 0.2rem;
+  padding: 0 0.12rem;
+}
+
+.tiptap .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap details {
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.7rem;
+  margin: 0.6rem 0;
+}
+
+.tiptap details summary {
+  cursor: pointer;
+  font-weight: 550;
+  padding: 0.2rem 0;
+}
+
+.tiptap details > div {
+  padding-top: 0.4rem;
+}
+
+.tiptap [data-type="callout"] {
+  border-radius: 0.6rem;
+}
+
+.callout-block {
+  margin: 1rem 0;
+  border: 1px solid color-mix(in oklch, var(--saffron) 28%, transparent);
+  border-radius: 0.65rem;
+  background: color-mix(in oklch, var(--saffron) 8%, var(--card));
+  padding: 0.8rem 1rem;
+}
+
+.callout-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.callout-content {
+  margin-top: 0.35rem;
+}
+
+.callout-content > p {
+  color: color-mix(in oklch, var(--foreground) 78%, transparent);
+  font-size: 0.9em;
+  line-height: 1.65;
+}
+
+.tiptap-compact {
+  min-height: 0 !important;
+  font-size: 0.82rem;
+}
+
+.tiptap-compact p,
+.tiptap-compact li {
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.tiptap .page-embed,
+.tiptap .bookmark-block,
+.tiptap .database-block {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  padding: 0.8rem 1rem;
+  background: color-mix(in oklch, var(--foreground) 3%, var(--card));
+  color: var(--foreground);
+  font-size: 0.85rem;
+}
+
+
+.tiptap [data-type="pageLink"] {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--primary) 35%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.tiptap [data-type="pageLink"]::before {
+  content: "◇";
+  font-size: 0.7em;
+  margin-right: 0.25rem;
+  opacity: 0.7;
+}
+
+.tiptap [data-type="pageEmbed"],
+.tiptap [data-type="liveBlock"] {
+  margin: 0.8rem 0;
+}
+
+.tiptap .ProseMirror-selectednode {
+  outline: 2px solid color-mix(in oklch, var(--primary) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.tiptap [data-drag-handle] {
+  cursor: grab;
+}
+
+.tiptap .is-node-selected {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+/* ---------- Canvas ---------- */
+
+.sticky-saffron {
+  background: var(--sticky-saffron);
+}
+.sticky-moss {
+  background: var(--sticky-moss);
+}
+.sticky-sky {
+  background: var(--sticky-sky);
+}
+.sticky-lilac {
+  background: var(--sticky-lilac);
+}
+.sticky-rose {
+  background: var(--sticky-rose);
+}
+.sticky-slate {
+  background: var(--sticky-slate);
+}
+.sticky-paper {
+  background: var(--sticky-paper);
+}
+
+.canvas-screen {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.canvas-element {
+  position: absolute;
+  transform-origin: center;
+  box-shadow:
+    0 1px 1px color-mix(in oklch, var(--foreground) 8%, transparent),
+    0 8px 24px -14px color-mix(in oklch, var(--foreground) 22%, transparent);
+}
+
+.canvas-element[data-selected="true"] {
+  outline: 1.5px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.canvas-handle {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--background);
+  border: 1.5px solid var(--primary);
+}
+
+.canvas-resize {
+  cursor: nwse-resize;
+}
+
+.canvas-presentation {
+  cursor: none;
+}
+
+/* ---------- Graph ---------- */
+
+.graph-node {
+  transition: filter 120ms ease;
+}
+
+.graph-node:hover {
+  filter: brightness(1.08);
+}
+
+.graph-edge {
+  transition: opacity 120ms ease;
+}
+
+/* ---------- Utilities ---------- */
+
+.kbd {
+  display: inline-flex;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.3rem;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--foreground) 4%, transparent);
+  padding: 0 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--muted-foreground);
+}
+
+.scroll-fade-y {
+  mask-image: linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+}
+
+.status-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .tiptap {
+    font-size: 1rem;
+  }
+}

@@ -1,0 +1,513 @@
+"use client";
+
+import type { OutlineItem } from "@notes-learning/domain";
+import { formatRelative } from "@notes-learning/domain";
+import { Button } from "@notes-learning/ui/components/button";
+import { Input } from "@notes-learning/ui/components/input";
+import { Textarea } from "@notes-learning/ui/components/textarea";
+import { cn } from "@notes-learning/ui/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowUpRight,
+  Brain,
+  Check,
+  CircleDot,
+  Clock,
+  FileText,
+  Link2,
+  MessageSquare,
+  Plus,
+  Sparkles,
+  Tag as TagIcon,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { useAppData } from "@/components/app-data-provider";
+import {
+  useBacklinks,
+  useOutgoingLinks,
+  usePageComments,
+  usePageFlashcards,
+  usePageTags,
+  useWorkspaceTags,
+} from "@/hooks/use-local-data";
+import {
+  createCommentLocal,
+  createTagLocal,
+  deleteCommentLocal,
+  deleteFlashcardLocal,
+  generateCardsFromPageLocal,
+  resolveCommentLocal,
+  setPageTagsLocal,
+} from "@/lib/local/repository";
+import type { LocalPage } from "@/lib/local/types";
+import { appRouteObject } from "@/lib/navigation";
+import { client } from "@/utils/orpc";
+
+type Tab = "info" | "backlinks" | "comments";
+
+export function PageContextPanel({
+  page,
+  outline,
+  focusBlockId,
+  onClearBlock,
+}: {
+  page: LocalPage;
+  outline: OutlineItem[];
+  focusBlockId: string | null;
+  onClearBlock: () => void;
+}) {
+  const router = useRouter();
+  const { db, user, activeWorkspaceId } = useAppData();
+  const [tab, setTab] = useState<Tab>("info");
+  const [commentText, setCommentText] = useState("");
+  const [tagText, setTagText] = useState("");
+  const comments = usePageComments(page.id);
+  const backlinks = useBacklinks(page.id);
+  const outgoing = useOutgoingLinks(page.id);
+  const tags = usePageTags(page.id);
+  const workspaceTags = useWorkspaceTags();
+  const cards = usePageFlashcards(page.id);
+
+  const membersQuery = useQuery({
+    queryKey: ["workspace-members", activeWorkspaceId],
+    queryFn: async () => {
+      if (!activeWorkspaceId) return [];
+      return client.workspace.members();
+    },
+    enabled: Boolean(activeWorkspaceId),
+  });
+  const memberNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of membersQuery.data ?? []) {
+      map.set(member.userId, member.user.name);
+    }
+    return map;
+  }, [membersQuery.data]);
+
+  const roots = comments.filter((comment) => !comment.parentId && !comment.resolvedAt);
+  const repliesFor = (parentId: string) =>
+    comments.filter((comment) => comment.parentId === parentId && !comment.resolvedAt);
+  const authorName = (authorId: string) =>
+    authorId === user?.id ? "You" : (memberNames.get(authorId) ?? "Teammate");
+
+  const addComment = async () => {
+    if (!db || !user || !activeWorkspaceId || !commentText.trim()) return;
+    await createCommentLocal(db, {
+      workspaceId: activeWorkspaceId,
+      userId: user.id,
+      pageId: page.id,
+      body: commentText.trim(),
+      blockId: focusBlockId,
+    });
+    setCommentText("");
+    toast.success("Comment added");
+  };
+
+  const addTag = async (tagId: string) => {
+    if (!db) return;
+    await setPageTagsLocal(db, page.id, [...tags.map((tag) => tag.id), tagId]);
+  };
+
+  const createAndAddTag = async () => {
+    if (!db || !activeWorkspaceId || !tagText.trim()) return;
+    const tag = await createTagLocal(db, activeWorkspaceId, tagText.trim());
+    await addTag(tag.id);
+    setTagText("");
+  };
+
+  const generateCards = async () => {
+    if (!db || !activeWorkspaceId) return;
+    const created = await generateCardsFromPageLocal(db, {
+      workspaceId: activeWorkspaceId,
+      pageId: page.id,
+    });
+    toast.success(
+      created.length ? `${created.length} cards added to Daily review` : "No new cards found",
+    );
+  };
+
+  return (
+    <aside className="flex h-full w-[286px] shrink-0 flex-col border-l border-border/60 bg-background/45">
+      <div className="flex h-9 items-center gap-0.5 border-b border-border/60 px-2">
+        {(
+          [
+            ["info", "Info", FileText],
+            ["backlinks", "Links", Link2],
+            ["comments", "Discuss", MessageSquare],
+          ] as const
+        ).map(([value, label, Icon]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            className={cn(
+              "inline-flex h-6 items-center gap-1 rounded-md px-2 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground",
+              tab === value && "bg-muted text-foreground",
+            )}
+          >
+            <Icon className="size-3" />
+            {label}
+            {value === "comments" && roots.length ? (
+              <span className="rounded-full bg-saffron/20 px-1 text-[8px] text-saffron">{roots.length}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        {tab === "info" ? (
+          <div className="space-y-5">
+            <section>
+              <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                Page
+              </div>
+              <div className="mt-2 space-y-1.5 text-[10px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Created</span>
+                  <span>{new Date(page.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Updated</span>
+                  <span>{formatRelative(page.updatedAt)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Visibility</span>
+                  <span className="capitalize">{page.visibility.toLowerCase()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="capitalize">{page.type.toLowerCase()}</span>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                  Outline
+                </div>
+                <span className="text-[8px] text-muted-foreground">{outline.length} items</span>
+              </div>
+              <div className="mt-2 space-y-0.5">
+                {outline.length ? (
+                  outline.map((item) => (
+                    <div
+                      key={item.id}
+                      className="truncate rounded px-1 py-0.5 text-[10px] text-muted-foreground"
+                      style={{ paddingLeft: `${(item.level - 1) * 8 + 4}px` }}
+                    >
+                      {item.text || "Untitled heading"}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[9px] text-muted-foreground">Add headings to build an outline.</p>
+                )}
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                  Tags
+                </div>
+                <Plus className="size-3 text-muted-foreground/50" />
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {tags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() =>
+                      void setPageTagsLocal(
+                        db!,
+                        page.id,
+                        tags.filter((entry) => entry.id !== tag.id).map((entry) => entry.id),
+                      )
+                    }
+                    disabled={!db}
+                    className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[8px] text-muted-foreground hover:border-destructive/30 hover:text-destructive"
+                    title="Remove tag"
+                  >
+                    <TagIcon className="size-2" /> {tag.name}
+                    <X className="size-2" />
+                  </button>
+                ))}
+                {!tags.length ? (
+                  <span className="text-[9px] text-muted-foreground">No tags yet.</span>
+                ) : null}
+              </div>
+              <div className="mt-2 flex gap-1">
+                <Input
+                  value={tagText}
+                  onChange={(event) => setTagText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void createAndAddTag();
+                  }}
+                  placeholder="New tag"
+                  className="h-7 rounded-md text-[10px]"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 shrink-0 rounded-md px-2 text-[9px]"
+                  onClick={() => void createAndAddTag()}
+                >
+                  Add
+                </Button>
+              </div>
+              {workspaceTags.filter((tag) => !tags.some((t) => t.id === tag.id)).length ? (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {workspaceTags
+                    .filter((tag) => !tags.some((t) => t.id === tag.id))
+                    .slice(0, 8)
+                    .map((tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => void addTag(tag.id)}
+                        className="rounded-full border border-dashed border-border px-2 py-0.5 text-[8px] text-muted-foreground hover:bg-muted"
+                      >
+                        + {tag.name}
+                      </button>
+                    ))}
+                </div>
+              ) : null}
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                  Learning
+                </div>
+                <span className="text-[8px] text-muted-foreground">{cards.length} cards</span>
+              </div>
+              <div className="mt-2 space-y-1">
+                {cards.slice(0, 3).map((card) => (
+                  <div key={card.id} className="group flex items-start gap-1.5 rounded-md border border-border/60 bg-card/50 px-2 py-1.5">
+                    <span className="mt-0.5">◒</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[9px] leading-snug">{card.front}</span>
+                    <button
+                      type="button"
+                      aria-label="Delete card"
+                      onClick={() => db && void deleteFlashcardLocal(db, card.id)}
+                      className="opacity-0 hover:text-destructive group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-2.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 h-7 w-full rounded-md text-[9px]"
+                onClick={() => void generateCards()}
+              >
+                <Brain className="size-3" /> Generate cards from this page
+              </Button>
+            </section>
+
+            <section className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+              <div className="flex items-center gap-1.5 text-[9px] font-medium">
+                <Sparkles className="size-3 text-saffron" /> Ask about this page
+              </div>
+              <p className="mt-1 text-[8.5px] leading-relaxed text-muted-foreground">
+                Use the Ask button in the top bar to summarize, find connections, or explain this page.
+              </p>
+            </section>
+          </div>
+        ) : null}
+
+        {tab === "backlinks" ? (
+          <div className="space-y-5">
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                  Backlinks
+                </div>
+                <span className="text-[8px] text-muted-foreground">{backlinks.length}</span>
+              </div>
+              <div className="mt-2 space-y-1">
+                {backlinks.map((backlink) => (
+                  <button
+                    key={backlink.id}
+                    type="button"
+                    onClick={() => router.push(appRouteObject({ view: "page", id: backlink.id }))}
+                    className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-card/50 px-2 py-1.5 text-left hover:bg-muted/50"
+                  >
+                    <span className="text-[10px]">{backlink.icon ?? "◇"}</span>
+                    <span className="min-w-0 flex-1 truncate text-[10px]">{backlink.title}</span>
+                    <ArrowUpRight className="size-2.5 text-muted-foreground/50" />
+                  </button>
+                ))}
+                {!backlinks.length ? (
+                  <p className="text-[9px] text-muted-foreground">
+                    No other page links here yet. Use [[ from another note.
+                  </p>
+                ) : null}
+              </div>
+            </section>
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                  Outgoing
+                </div>
+                <span className="text-[8px] text-muted-foreground">{outgoing.length}</span>
+              </div>
+              <div className="mt-2 space-y-1">
+                {outgoing.map((link) => (
+                  <button
+                    key={link.id}
+                    type="button"
+                    onClick={() => router.push(appRouteObject({ view: "page", id: link.id }))}
+                    className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-card/50 px-2 py-1.5 text-left hover:bg-muted/50"
+                  >
+                    <span className="text-[10px]">{link.icon ?? "◇"}</span>
+                    <span className="min-w-0 flex-1 truncate text-[10px]">{link.title}</span>
+                    <ArrowUpRight className="size-2.5 text-muted-foreground/50" />
+                  </button>
+                ))}
+                {!outgoing.length ? (
+                  <p className="text-[9px] text-muted-foreground">
+                    This page does not reference others yet.
+                  </p>
+                ) : null}
+              </div>
+            </section>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-full rounded-md text-[9px]"
+              onClick={() => router.push(appRouteObject({ view: "graph" }))}
+            >
+              Open in knowledge graph <ArrowUpRight className="size-3" />
+            </Button>
+          </div>
+        ) : null}
+
+        {tab === "comments" ? (
+          <div className="space-y-3">
+            {focusBlockId ? (
+              <div className="flex items-center gap-1.5 rounded-md border border-saffron/30 bg-saffron/[0.06] px-2 py-1.5 text-[9px] text-muted-foreground">
+                <CircleDot className="size-3 text-saffron" />
+                Anchored to a block
+                <button type="button" onClick={onClearBlock} className="ml-auto text-foreground">
+                  <X className="size-2.5" />
+                </button>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              {roots.map((thread) => (
+                <div key={thread.id} className="rounded-lg border border-border/60 bg-card/45 p-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="grid size-4 place-items-center rounded-full bg-moss/20 text-[7px] font-semibold text-moss">
+                      {authorName(thread.authorId).slice(0, 1)}
+                    </span>
+                    <span className="text-[9px] font-medium">{authorName(thread.authorId)}</span>
+                    <span className="ml-auto text-[8px] text-muted-foreground">
+                      {formatRelative(thread.createdAt)}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 whitespace-pre-wrap text-[10px] leading-relaxed">{thread.body}</p>
+                  <div className="mt-1.5 flex items-center gap-2 text-[8px] text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        db &&
+                        void resolveCommentLocal(db, thread.id, true).then(() =>
+                          toast.success("Thread resolved"),
+                        )
+                      }
+                      className="inline-flex items-center gap-0.5 hover:text-moss"
+                    >
+                      <Check className="size-2.5" /> Resolve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!db || !user || !activeWorkspaceId) return;
+                        const reply = window.prompt("Reply");
+                        if (!reply?.trim()) return;
+                        void createCommentLocal(db, {
+                          workspaceId: activeWorkspaceId,
+                          userId: user.id,
+                          pageId: page.id,
+                          parentId: thread.id,
+                          body: reply.trim(),
+                        });
+                      }}
+                      className="hover:text-foreground"
+                    >
+                      Reply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => db && void deleteCommentLocal(db, thread.id)}
+                      className="ml-auto hover:text-destructive"
+                    >
+                      <Trash2 className="size-2.5" />
+                    </button>
+                  </div>
+                  {repliesFor(thread.id).map((reply) => (
+                    <div key={reply.id} className="mt-2 border-l border-border/70 pl-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[8px] font-medium">{authorName(reply.authorId)}</span>
+                        <span className="text-[7px] text-muted-foreground">
+                          {formatRelative(reply.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 whitespace-pre-wrap text-[9px] leading-relaxed text-muted-foreground">
+                        {reply.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {!roots.length ? (
+                <div className="py-8 text-center">
+                  <MessageSquare className="mx-auto size-5 text-muted-foreground/40" />
+                  <p className="mt-2 text-[10px] text-muted-foreground">No open discussions.</p>
+                  <p className="mt-1 text-[8px] text-muted-foreground">
+                    Comments sync asynchronously with your team.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <div className="sticky bottom-0 bg-background/80 pt-2 backdrop-blur">
+              <Textarea
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    void addComment();
+                  }
+                }}
+                placeholder="Add a comment…"
+                className="min-h-16 rounded-lg text-[11px]"
+              />
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1 text-[8px] text-muted-foreground">
+                  <Clock className="size-2.5" /> ⌘↵ to send
+                </span>
+                <Button
+                  size="sm"
+                  className="h-7 rounded-md text-[9px]"
+                  disabled={!commentText.trim()}
+                  onClick={() => void addComment()}
+                >
+                  Comment
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </aside>
+  );
+}

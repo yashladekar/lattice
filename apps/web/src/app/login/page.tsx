@@ -1,16 +1,17 @@
-"use client";
+import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { useState } from "react";
+import { AuthView } from "@/components/auth/auth-view";
 
-import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to Lattice, your local-first knowledge workspace.",
+};
 
 export default function LoginPage() {
-  const [showSignIn, setShowSignIn] = useState(false);
-
-  return showSignIn ? (
-    <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-  ) : (
-    <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-background" />}>
+      <AuthView />
+    </Suspense>
   );
 }
