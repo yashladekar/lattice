@@ -25,11 +25,10 @@ description: What this implementation covers and which subsystems are deliberate
 - Yjs co-editing for page documents over a WebSocket relay, with per-page rooms.
 - Live cursors and selection presence in the editor.
 - Conflict-free concurrent typing; both peers converge without conflict snapshots.
-- Durable CRDT snapshots per room (byte-level Yjs history) are still next.
+- The document is persisted per page and flushed when the last peer leaves, so a session outlives its room and an edit made just before a tab closes is not lost.
 
 ## Next: collaboration depth
 
-- Persisting the CRDT state itself, so history survives an empty room.
 - CRDT co-editing for whiteboards.
 - Suggested edits and review workflows.
 - Granular block-level comments and discussion resolution at scale.

@@ -82,4 +82,4 @@ Pull and snapshot responses filter private pages and dependent nodes, edges, com
 
 Page bodies are bound to a Yjs document while a page is open, relayed by the server on a per-page WebSocket room. Concurrent edits merge in the CRDT and each peer persists the converged JSON, so the revision machinery below stays the safety net for offline and single-writer cases rather than a source of conflicts during a live session.
 
-The CRDT is a live layer, not the durable record: the room is in memory, the room is seeded by its first peer (or by the local document when the relay is unreachable), and the stored page document remains the system of record.
+The CRDT is a live layer with its own durability, not the system of record: the room is in memory, the document is persisted per page and flushed when the last peer leaves, and the stored page document remains the system of record. Writing a page outside a live session — a version restore, a Markdown-mode save, an import — drops the stored CRDT, because that write is newer than anything the CRDT knows about.
