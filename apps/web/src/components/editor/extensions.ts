@@ -1,4 +1,6 @@
 import { createId } from "@notes-learning/domain";
+import { Collaboration } from "@tiptap/extension-collaboration";
+import { CollaborationCaret } from "@tiptap/extension-collaboration-caret";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
 import Highlight from "@tiptap/extension-highlight";
@@ -26,13 +28,21 @@ const lowlight = createLowlight(common);
 export function createEditorExtensions({
   getItems,
   callbacks,
+  collaboration,
 }: {
   getItems: (kind: EditorMenuKind, query: string) => Promise<EditorMenuItem[]>;
   callbacks: EditorSuggestionCallbacks;
+  collaboration?: {
+    doc: import("yjs").Doc;
+    provider: { awareness: unknown };
+    user: { name: string; color: string };
+  } | null;
 }) {
   return [
     StarterKit.configure({
       codeBlock: false,
+      // Yjs owns history while a live session is active.
+      undoRedo: collaboration ? false : undefined,
       heading: { levels: [1, 2, 3, 4] },
       link: {
         openOnClick: false,
@@ -91,5 +101,18 @@ export function createEditorExtensions({
     }),
     ...customEditorNodes,
     ...createEditorSuggestionExtensions({ getItems, callbacks }),
+    ...(collaboration
+      ? [
+          Collaboration.configure({
+            document: collaboration.doc,
+            field: "default",
+            provider: collaboration.provider,
+          }),
+          CollaborationCaret.configure({
+            provider: collaboration.provider,
+            user: collaboration.user,
+          }),
+        ]
+      : []),
   ];
 }

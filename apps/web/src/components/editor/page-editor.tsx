@@ -24,6 +24,7 @@ import {
 } from "@notes-learning/ui/components/dropdown-menu";
 import { cn } from "@notes-learning/ui/lib/utils";
 import DragHandle from "@tiptap/extension-drag-handle-react";
+import { getSchema } from "@tiptap/core";
 import type { Editor, Range } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -68,10 +69,13 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { prosemirrorJSONToYDoc } from "@tiptap/y-tiptap";
+import * as Y from "yjs";
 
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
 import { usePage, usePageDocument, useWorkspacePages } from "@/hooks/use-local-data";
+import { CollabProvider, collaborationUrl, type CollabPeer, type CollabStatus } from "@/lib/collab";
 import { downloadTextFile } from "@/lib/download";
 import { uploadFile } from "@/lib/upload";
 import {
@@ -113,6 +117,8 @@ interface AiResult {
   suggestions?: Array<{ pageId: string; title: string; score: number; reason: string }>;
 }
 
+const pendingCollabTeardown = new WeakMap<object, ReturnType<typeof setTimeout>>();
+
 export function PageEditor({
   pageId,
   onShare,
@@ -152,6 +158,11 @@ export function PageEditor({
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [remoteUpdate, setRemoteUpdate] = useState(false);
   const [peers, setPeers] = useState<Array<{ userId: string; name: string; image: string | null }>>([]);
+  const [collab] = useState<CollabProvider | null>(() =>
+    pageId && activeWorkspaceId && online ? new CollabProvider() : null,
+  );
+  const [collabStatus, setCollabStatus] = useState<CollabStatus>("disconnected");
+  const [collabPeers, setCollabPeers] = useState<CollabPeer[]>([]);
   const editorRef = useRef<Editor | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadImageRef = useRef<((file: File, at?: number) => void) | null>(null);
@@ -335,6 +346,13 @@ export function PageEditor({
     () =>
       createEditorExtensions({
         getItems: (kind, query) => getItemsRef.current(kind, query),
+        collaboration: collab
+          ? {
+              doc: collab.doc,
+              provider: collab,
+              user: { name: user?.name ?? "Someone", color: "#e8892f" },
+            }
+          : null,
         callbacks: {
           onStart: (kind, props) => {
             setMenuIndex(0);
@@ -362,11 +380,12 @@ export function PageEditor({
           onKeyDown: (event) => menuKeyRef.current(event),
         },
       }),
-    [],
+    [collab, user?.name],
   );
 
-  const editor = useEditor({
-    extensions,
+  const editor = useEditor(
+    {
+      extensions,
     immediatelyRender: false,
     content: undefined as TipTapDoc | undefined,
     editorProps: {
@@ -408,8 +427,73 @@ export function PageEditor({
       if (saveTimer.current) clearTimeout(saveTimer.current);
       void persist(safeDoc(instance.getJSON()));
     },
-  });
+    },
+    [collab],
+  );
   editorRef.current = editor;
+
+  const seedFromLocal = useCallback(async () => {
+    if (!collab || !db) return;
+    if (collab.doc.getXmlFragment("default").length > 0) return;
+    const local = await db.pageDocuments.get(pageId);
+    const content = local?.content;
+    if (!content?.content?.length) return;
+    // Seeding an empty body leaves a bare paragraph in the fragment, which the
+    // position tracker cannot map. Let the binding initialize those instead.
+    const hasBody = content.content.some(
+      (node) =>
+        node.type !== "paragraph" ||
+        (Array.isArray(node.content) && node.content.length > 0),
+    );
+    if (!hasBody) return;
+    const schema = getSchema(extensions);
+    const seeded = prosemirrorJSONToYDoc(schema, content as never, "default");
+    Y.applyUpdate(collab.doc, Y.encodeStateAsUpdate(seeded), "seed");
+    seeded.destroy();
+  }, [collab, db, pageId, extensions]);
+
+  useEffect(() => {
+    if (!collab) return;
+    const pendingTeardown = pendingCollabTeardown.get(collab);
+    if (pendingTeardown) {
+      clearTimeout(pendingTeardown);
+      pendingCollabTeardown.delete(collab);
+    }
+    if (user) collab.setUser({ name: user.name, color: "#e8892f" });
+    collab.onStatus = setCollabStatus;
+    collab.onPeers = setCollabPeers;
+    collab.onSeedRequest = () => {
+      void seedFromLocal();
+    };
+    collab.connect(collaborationUrl(activeWorkspaceId ?? "", pageId));
+    return () => {
+      collab.onStatus = undefined;
+      collab.onPeers = undefined;
+      collab.onSeedRequest = undefined;
+      collab.close();
+      // React re-runs effects immediately in development; only tear down if the
+      // session really stayed closed.
+      pendingCollabTeardown.set(
+        collab,
+        setTimeout(() => {
+          pendingCollabTeardown.delete(collab);
+          collab.destroy();
+        }, 150),
+      );
+    };
+  }, [collab, seedFromLocal, activeWorkspaceId, pageId, user?.name]);
+
+  // If the relay never answers, seed from the local document so a page is
+  // never blank just because live sync is unavailable.
+  useEffect(() => {
+    if (!collab) return;
+    const timer = setTimeout(() => {
+      if (collab.doc.getXmlFragment("default").length === 0) {
+        void seedFromLocal();
+      }
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [collab, seedFromLocal]);
 
   const uploadImageFile = async (file: File, at?: number) => {
     if (!db || !user || !activeWorkspaceId) {
@@ -461,6 +545,8 @@ export function PageEditor({
     if (!editor || !document || loaded.current) return;
     loaded.current = true;
     lastRev.current = document.rev;
+    // With a live session, Yjs owns the document body.
+    if (collab) return;
     // TipTap's React node views flush synchronously. Deferring to a microtask
     // keeps that flush out of React's own commit phase.
     queueMicrotask(() => {
@@ -468,7 +554,7 @@ export function PageEditor({
       editor.commands.setContent(document.content, { emitUpdate: false });
       setSaveStatus("saved");
     });
-  }, [editor, document]);
+  }, [editor, document, collab]);
 
   useEffect(() => {
     if (!page) return;
@@ -495,6 +581,7 @@ export function PageEditor({
   }, [db, activeWorkspaceId]);
 
   useEffect(() => {
+    if (collab) return;
     if (!document || !editor || dirty.current || document.rev === lastRev.current) return;
     const currentText = extractPlainText(safeDoc(editor.getJSON()));
     if (currentText !== document.plainText) {
@@ -502,7 +589,7 @@ export function PageEditor({
     } else {
       lastRev.current = document.rev;
     }
-  }, [document?.rev, editor]);
+  }, [document?.rev, editor, collab]);
 
   useEffect(() => {
     if (!online || !activeWorkspaceId) return;
@@ -878,6 +965,10 @@ export function PageEditor({
       }
     : { words: 0 };
 
+  const livePeers = collab
+    ? collabPeers.map((peer) => ({ id: String(peer.clientId), name: peer.name }))
+    : peers.map((peer) => ({ id: peer.userId, name: peer.name }));
+
   return (
     <div className="relative mx-auto w-full max-w-3xl px-5 pb-32 pt-7 md:px-10 md:pt-10">
       <div className="flex items-center justify-between gap-3">
@@ -1042,19 +1133,45 @@ export function PageEditor({
         <button type="button" onClick={onOpenContext} className="hover:text-foreground">
           Page context
         </button>
-        {peers.length ? (
-          <span className="inline-flex items-center gap-1" title={peers.map((peer) => peer.name).join(", ")}>
+        {livePeers.length ? (
+          <span className="inline-flex items-center gap-1" title={livePeers.map((peer) => peer.name).join(", ")}>
             <span className="flex -space-x-1">
-              {peers.slice(0, 3).map((peer) => (
+              {livePeers.slice(0, 3).map((peer) => (
                 <span
-                  key={peer.userId}
+                  key={peer.id}
                   className="grid size-4 place-items-center rounded-full border border-background bg-moss/20 text-[7px] font-semibold text-moss"
                 >
                   {peer.name.slice(0, 1).toUpperCase()}
                 </span>
               ))}
             </span>
-            <span className="text-[8px]">viewing</span>
+            <span className="text-[8px]">editing</span>
+          </span>
+        ) : null}
+        {collab ? (
+          <span
+            className="inline-flex items-center gap-1"
+            title={
+              collabStatus === "connected"
+                ? "Live session connected"
+                : collabStatus === "connecting"
+                  ? "Connecting to a live session"
+                  : "Live session offline — edits still save locally"
+            }
+          >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                collabStatus === "connected"
+                  ? "bg-moss"
+                  : collabStatus === "connecting"
+                    ? "bg-saffron"
+                    : "bg-border",
+              )}
+            />
+            <span className="text-[8px]">
+              {collabStatus === "connected" ? "Live" : collabStatus === "connecting" ? "Connecting" : "Solo"}
+            </span>
           </span>
         ) : null}
         <span className="ml-auto inline-flex items-center gap-1">
