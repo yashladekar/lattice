@@ -70,6 +70,21 @@ Both the API and clients share this package, so a relation type or card schedule
 | Local storage | One IndexedDB database per user id; the workspace is a partition key. |
 | AI | Server-configured provider only; no arbitrary base URLs from users. |
 | Public share | Hashed tokens, read-only payloads, outbound page links stripped. |
+| Query console | Read-only transaction, workspace-bound views, no access to the base tables. |
+
+## Query console
+
+Settings → **Query** runs read-only SQL against the workspace. The base tables are
+not reachable: the server keeps a `console` schema of views, each filtered by a
+`lattice.workspace_id` setting bound for the duration of a transaction that is
+opened `READ ONLY` with a statement timeout and a search path that excludes
+`public`. Postgres itself then refuses writes, whatever the query says.
+
+On top of that, a validator in the domain package rejects anything that is not a
+single `SELECT` or `WITH`, blocks other schemas and system catalogs, and refuses
+names that are not console views — after blanking comments and string bodies so
+neither can hide a keyword. Results are capped at 500 rows and long cells are
+truncated.
 
 ## Storage split
 
