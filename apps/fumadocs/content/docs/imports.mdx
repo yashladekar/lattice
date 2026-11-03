@@ -30,8 +30,31 @@ properties, so you can trace a page back to its file. Titles come from the file
 name (`code-of-conduct.md` becomes “code of conduct”, `media/readme.md` becomes
 “media README”). Images stay linked by their original URL.
 
-This is a one-way import. Two-way Git sync, including pushing edits back to a
-repository, is on the roadmap.
+This import records each file's path, branch, blob SHA, and the hash of the body
+it round-trips to. That bookkeeping is what lets the repository be synced both
+ways afterwards.
+
+## Two-way Git sync
+
+Settings → Sync & backup → **Sync with Git** compares the pages bound to a
+repository against its current tree. Checking costs one request, and each page
+comes back as one of:
+
+| State | Meaning | Action offered |
+| --- | --- | --- |
+| In sync | Remote SHA and local body both match the last sync. | None |
+| Local ahead | Only the body changed here. | Push |
+| Remote ahead | Only the blob changed on the remote. | Pull |
+| Conflict | Both changed since the last sync. | Keep mine, or take remote |
+| New here | Never pushed. | Publish |
+| Deleted remotely | The file is gone from the remote. | Push to recreate it |
+
+A push sends the blob SHA it expects to replace, so a file that moved on the
+remote is refused with a conflict rather than overwritten. A file deleted
+remotely never deletes the page — the page is the copy you still have.
+
+The token is used for the session only and is never stored, so a scheduled
+background sync is not part of this release.
 
 ## Obsidian and Notion vaults
 
