@@ -14,3 +14,4 @@ export * from "./diagrams";
 export * from "./templates";
 export * from "./vault";
 export * from "./console";
+export * from "./git-sync";
