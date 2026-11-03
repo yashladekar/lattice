@@ -323,6 +323,7 @@ export interface CreatePageLocalInput {
   type?: PageType;
   visibility?: Visibility;
   content?: TipTapDoc;
+  properties?: Record<string, unknown>;
   templateId?: string | null;
   sortOrder?: number;
 }
@@ -333,9 +334,9 @@ export async function createPageLocal(
 ): Promise<{ page: LocalPage; document: LocalPageDocument }> {
   const timestamp = now();
   const pageId = createId();
-  const content =
-    input.content ??
-    (input.templateId ? templateById(input.templateId).content : emptyDoc());
+  const template = input.templateId ? templateById(input.templateId) : null;
+  const content = input.content ?? template?.content ?? emptyDoc();
+  const properties = input.properties ?? template?.properties ?? {};
   const page: LocalPage = {
     id: pageId,
     workspaceId: input.workspaceId,
@@ -345,7 +346,7 @@ export async function createPageLocal(
     title: input.title?.trim() || "Untitled",
     icon: input.icon ?? "◇",
     coverUrl: null,
-    properties: {},
+    properties,
     visibility: input.visibility ?? "WORKSPACE",
     sortOrder: input.sortOrder ?? nextOrder(),
     createdById: input.userId,
@@ -442,9 +443,9 @@ export async function updatePageLocal(
     ...(input.notebookId !== undefined ? { notebookId: input.notebookId } : {}),
     ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
     ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
-    ...(input.properties !== undefined
-      ? { properties: { ...existing.properties, ...input.properties } }
-      : {}),
+    // Properties are replaced, not merged: callers pass the full set, which is
+    // what lets a property be deleted.
+    ...(input.properties !== undefined ? { properties: input.properties } : {}),
     ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
     updatedAt: now(),
     updatedById: existing.updatedById,

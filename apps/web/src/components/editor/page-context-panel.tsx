@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -43,12 +43,80 @@ import {
   generateCardsFromPageLocal,
   resolveCommentLocal,
   setPageTagsLocal,
+  updatePagePropertiesLocal,
 } from "@/lib/local/repository";
 import type { LocalPage } from "@/lib/local/types";
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
 type Tab = "info" | "backlinks" | "comments";
+
+function propertyText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+  return String(value);
+}
+
+function PropertyRow({
+  name,
+  value,
+  onCommit,
+  onRemove,
+}: {
+  name: string;
+  value: unknown;
+  onCommit: (next: string) => void;
+  onRemove: () => void;
+}) {
+  const initial = propertyText(value);
+  const [draft, setDraft] = useState(initial);
+
+  useEffect(() => {
+    setDraft(initial);
+  }, [initial]);
+
+  return (
+    <div className="group flex items-center gap-1">
+      <span
+        className="w-16 shrink-0 truncate text-[9px] text-muted-foreground"
+        title={name}
+      >
+        {name}
+      </span>
+      <input
+        value={draft}
+        aria-label={`Value for ${name}`}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          if (draft !== initial) onCommit(draft);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+          if (event.key === "Escape") {
+            setDraft(initial);
+            event.currentTarget.blur();
+          }
+        }}
+        className="h-6 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[10px] outline-none hover:border-border focus:border-primary/40 focus:bg-background"
+      />
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${name}`}
+        className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/30 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+      >
+        <X className="size-2.5" />
+      </button>
+    </div>
+  );
+}
 
 export function PageContextPanel({
   page,
@@ -66,6 +134,8 @@ export function PageContextPanel({
   const [tab, setTab] = useState<Tab>("info");
   const [commentText, setCommentText] = useState("");
   const [tagText, setTagText] = useState("");
+  const [propertyKey, setPropertyKey] = useState("");
+  const [propertyValue, setPropertyValue] = useState("");
   const comments = usePageComments(page.id);
   const backlinks = useBacklinks(page.id);
   const outgoing = useOutgoingLinks(page.id);
@@ -111,6 +181,33 @@ export function PageContextPanel({
   const addTag = async (tagId: string) => {
     if (!db) return;
     await setPageTagsLocal(db, page.id, [...tags.map((tag) => tag.id), tagId]);
+  };
+
+  const properties = page.properties ?? {};
+  const propertyEntries = Object.entries(properties).filter(([key]) => key.trim());
+
+  const setProperty = async (key: string, value: string) => {
+    if (!db) return;
+    await updatePagePropertiesLocal(db, page.id, { ...properties, [key]: value });
+  };
+
+  const removeProperty = async (key: string) => {
+    if (!db) return;
+    const next = { ...properties };
+    delete next[key];
+    await updatePagePropertiesLocal(db, page.id, next);
+    toast.success(`Removed “${key}”`);
+  };
+
+  const addProperty = async () => {
+    if (!db || !propertyKey.trim()) return;
+    const key = propertyKey.trim();
+    await updatePagePropertiesLocal(db, page.id, {
+      ...properties,
+      [key]: propertyValue.trim(),
+    });
+    setPropertyKey("");
+    setPropertyValue("");
   };
 
   const createAndAddTag = async () => {
@@ -183,6 +280,54 @@ export function PageContextPanel({
                   <span className="text-muted-foreground">Type</span>
                   <span className="capitalize">{page.type.toLowerCase()}</span>
                 </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                  Properties
+                </div>
+                <span className="text-[8px] text-muted-foreground">{propertyEntries.length}</span>
+              </div>
+              <div className="mt-2 space-y-0.5">
+                {propertyEntries.map(([key, value]) => (
+                  <PropertyRow
+                    key={key}
+                    name={key}
+                    value={value}
+                    onCommit={(next) => void setProperty(key, next)}
+                    onRemove={() => void removeProperty(key)}
+                  />
+                ))}
+                {!propertyEntries.length ? (
+                  <p className="text-[9px] text-muted-foreground">No properties yet.</p>
+                ) : null}
+              </div>
+              <div className="mt-2 flex gap-1">
+                <input
+                  value={propertyKey}
+                  onChange={(event) => setPropertyKey(event.target.value)}
+                  placeholder="Property"
+                  className="h-6 w-16 shrink-0 rounded border border-border bg-background px-1 text-[9px] outline-none focus:border-primary/40"
+                />
+                <input
+                  value={propertyValue}
+                  onChange={(event) => setPropertyValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void addProperty();
+                  }}
+                  placeholder="Value"
+                  className="h-6 min-w-0 flex-1 rounded border border-border bg-background px-1 text-[9px] outline-none focus:border-primary/40"
+                />
+                <Button
+                  size="sm"
+                  className="h-6 rounded px-1.5 text-[8px]"
+                  disabled={!propertyKey.trim()}
+                  onClick={() => void addProperty()}
+                >
+                  <Plus className="size-2.5" />
+                </Button>
               </div>
             </section>
 

@@ -64,7 +64,8 @@ review, learning note, decision log, and troubleshooting guide. Custom
 templates are grouped under **Your templates** and can be deleted from the
 picker.
 
-Templates are workspace records, so they sync like any other content.
+Templates are workspace records, so they sync like any other content. A page
+created from a template also inherits the template's properties.
 
 ## Diagrams
 
@@ -90,9 +91,18 @@ Markdown also renders as a diagram in read-only views.
 
 The right panel contains:
 
-- **Info** — properties, outline, tags, source cards, AI entry points.
+- **Info** — page properties, outline, tags, source cards, AI entry points.
 - **Links** — backlinks and outgoing page links.
 - **Discuss** — page and block-anchored comments with resolve state.
+
+### Properties
+
+The Info tab lists the page's properties and lets you add, edit, and remove
+them. Properties are key/value text pairs stored on the page record, so they
+sync and appear in the JSON export.
+
+Creating a page from a template copies the template's properties as well as its
+body.
 
 ## Modes
 

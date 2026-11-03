@@ -24,6 +24,7 @@ interface TemplateOption {
   icon: string;
   category: string;
   content: TipTapDoc;
+  properties: Record<string, unknown>;
   custom: boolean;
 }
 
@@ -35,6 +36,7 @@ function builtInOption(template: PageTemplateDefinition): TemplateOption {
     icon: template.icon,
     category: template.category,
     content: template.content,
+    properties: template.properties ?? {},
     custom: false,
   };
 }
@@ -63,6 +65,7 @@ export function TemplatePickerDialog({
       icon: template.icon ?? "◇",
       category: template.category || "Custom",
       content: template.content,
+      properties: template.properties ?? {},
       custom: true,
     }));
     return [...saved, ...PAGE_TEMPLATES.map(builtInOption)];
@@ -100,6 +103,7 @@ export function TemplatePickerDialog({
         title: option.name,
         icon: option.icon,
         content: option.content,
+        properties: option.properties,
       });
       onClose();
       router.push(appRouteObject({ view: "page", id: created.page.id }));
