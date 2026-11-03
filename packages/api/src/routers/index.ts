@@ -5,6 +5,7 @@ import { aiRouter } from "./ai";
 import { canvasRouter } from "./canvas";
 import { captureRouter } from "./capture";
 import { commentRouter } from "./comment";
+import { consoleRouter } from "./console";
 import { graphRouter } from "./graph";
 import { learningRouter } from "./learning";
 import { notebookRouter } from "./notebook";
@@ -44,6 +45,7 @@ export const appRouter = {
   device: deviceRouter,
   template: templateRouter,
   attachment: attachmentRouter,
+  console: consoleRouter,
 };
 
 export type AppRouter = typeof appRouter;
