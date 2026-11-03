@@ -36,6 +36,19 @@ A `pageLink` node stores the target page id and display title. On save Lattice d
 
 Removing a link soft-deletes its derived edge. Manual typed relations are separate and never removed by link cleanup.
 
+## Templates
+
+**Page actions → Save as template** copies a page's body and properties into a
+workspace template. Later edits to the source page do not change it.
+
+Templates are available from **⌘K → New page from template**, alongside the
+built-in set: blank, meeting notes, ADR, research brief, project brief, weekly
+review, learning note, decision log, and troubleshooting guide. Custom
+templates are grouped under **Your templates** and can be deleted from the
+picker.
+
+Templates are workspace records, so they sync like any other content.
+
 ## Diagrams
 
 The `diagram` block renders Mermaid as SVG. It is a first-class block, not a

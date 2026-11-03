@@ -41,6 +41,7 @@ import {
   Heading1,
   Highlighter,
   Italic,
+  LayoutTemplate,
   Link2,
   List,
   ListChecks,
@@ -76,6 +77,7 @@ import {
   createCanvasLocal,
   createFlashcardLocal,
   createPageLocal,
+  createTemplateFromPageLocal,
   deletePageLocal,
   duplicatePageLocal,
   ensureDeckLocal,
@@ -143,6 +145,7 @@ export function PageEditor({
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [versions, setVersions] = useState<Array<{ id: string; version: number; title: string; createdAt: string; note: string | null }>>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [remoteUpdate, setRemoteUpdate] = useState(false);
@@ -876,6 +879,9 @@ export function PageEditor({
               <DropdownMenuItem onClick={insertOutlineDiagram}>
                 <GitBranch className="size-3.5" /> Diagram from outline
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTemplateOpen(true)}>
+                <LayoutTemplate className="size-3.5" /> Save as template
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={toggleMarkdown}>
                 <Code2 className="size-3.5" /> {markdownMode ? "Close Markdown mode" : "Markdown mode"}
@@ -1065,7 +1071,112 @@ export function PageEditor({
         onClose={() => setVersionOpen(false)}
         onRestore={(id) => void restoreVersion(id)}
       />
+
+      <SaveTemplateDialog
+        open={templateOpen}
+        defaultName={page.title}
+        onClose={() => setTemplateOpen(false)}
+        onSave={async (name, category) => {
+          if (!db || !user || !activeWorkspaceId) return;
+          const template = await createTemplateFromPageLocal(db, {
+            workspaceId: activeWorkspaceId,
+            userId: user.id,
+            pageId,
+            name,
+            category,
+            icon: page.icon,
+          });
+          if (template) {
+            toast.success(`Saved “${template.name}” as a template`);
+            setTemplateOpen(false);
+          } else {
+            toast.error("Could not save this page as a template");
+          }
+        }}
+      />
     </div>
+  );
+}
+
+function SaveTemplateDialog({
+  open,
+  defaultName,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  defaultName: string;
+  onClose: () => void;
+  onSave: (name: string, category: string) => void | Promise<void>;
+}) {
+  const [name, setName] = useState(defaultName);
+  const [category, setCategory] = useState("Work");
+
+  useEffect(() => {
+    if (open) setName(defaultName);
+  }, [open, defaultName]);
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Save as template"
+      description="Reuse this page's structure in any notebook."
+      footer={
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[9px] text-muted-foreground">
+            Templates stay in this workspace and sync with it.
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-[11px]" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 rounded-lg text-[11px]"
+              disabled={!name.trim()}
+              onClick={() => void onSave(name.trim(), category)}
+            >
+              Save template
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+            Template name
+          </span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary/40"
+            autoFocus
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+            Category
+          </span>
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className="h-9 w-full rounded-lg border border-border bg-background px-2 text-[12px] outline-none focus:border-primary/40"
+          >
+            {["Work", "Writing", "Research", "Learning", "Engineering", "Personal"].map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="text-[9.5px] leading-relaxed text-muted-foreground">
+          The page body and properties are copied. Later edits to this page do not change the
+          template.
+        </p>
+      </div>
+    </Modal>
   );
 }
 

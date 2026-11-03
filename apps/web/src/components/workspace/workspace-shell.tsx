@@ -15,6 +15,7 @@ import { CommandPalette } from "@/components/workspace/command-palette";
 import { ConflictResolver } from "@/components/workspace/conflict-resolver";
 import { BootErrorBanner, WorkspaceEmptyState } from "@/components/workspace/empty-state";
 import { QuickCaptureDialog, type CaptureInitial } from "@/components/workspace/quick-capture";
+import { TemplatePickerDialog } from "@/components/workspace/template-picker";
 import { WorkspaceSidebar } from "@/components/workspace/sidebar";
 import { TabStrip } from "@/components/workspace/tab-strip";
 import { WorkspaceTopbar } from "@/components/workspace/topbar";
@@ -67,6 +68,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
@@ -375,6 +377,10 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
           setCommandOpen(false);
           setAiOpen(true);
         }}
+        onOpenTemplates={() => {
+          setCommandOpen(false);
+          setTemplateOpen(true);
+        }}
       />
       <QuickCaptureDialog
         open={captureOpen}
@@ -384,6 +390,11 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
           setSharedCapture(null);
         }}
         onSaved={() => router.push(appHref({ view: "inbox" }))}
+      />
+      <TemplatePickerDialog
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        notebookId={route.notebook ?? null}
       />
       <ShareDialog
         open={shareOpen}

@@ -62,12 +62,14 @@ export function CommandPalette({
   route,
   onQuickCapture,
   onOpenAsk,
+  onOpenTemplates,
 }: {
   open: boolean;
   onClose: () => void;
   route: AppRoute;
   onQuickCapture: () => void;
   onOpenAsk: () => void;
+  onOpenTemplates: () => void;
 }) {
   const router = useRouter();
   const { setTheme } = useTheme();
@@ -157,6 +159,15 @@ export function CommandPalette({
         icon: <FilePlus2 className="size-3.5" />,
         keywords: "note document write",
         onSelect: () => void createPage(),
+      },
+      {
+        id: "new-from-template",
+        label: "New page from template",
+        description: "Start from a saved or built-in structure",
+        group: "Create",
+        icon: <FilePlus2 className="size-3.5" />,
+        keywords: "template adr meeting research structure",
+        onSelect: onOpenTemplates,
       },
       {
         id: "new-canvas",
@@ -292,7 +303,16 @@ export function CommandPalette({
       });
     }
     return items;
-  }, [activeWorkspace, activeWorkspaceId, workspaces, notebooks, route.notebook, db, user]);
+  }, [
+    activeWorkspace,
+    activeWorkspaceId,
+    workspaces,
+    notebooks,
+    route.notebook,
+    db,
+    user,
+    onOpenTemplates,
+  ]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return [];
