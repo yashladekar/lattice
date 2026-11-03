@@ -11,6 +11,7 @@ import {
   Check,
   Cloud,
   Download,
+  FolderUp,
   GitBranch,
   HardDrive,
   Loader2,
@@ -30,6 +31,7 @@ import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { GithubImportDialog } from "@/components/workspace/github-import";
+import { VaultImportDialog } from "@/components/workspace/vault-import";
 import { authClient } from "@/lib/auth-client";
 import { downloadTextFile } from "@/lib/download";
 import {
@@ -82,6 +84,7 @@ export function SettingsView() {
   const [busy, setBusy] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const [githubOpen, setGithubOpen] = useState(false);
+  const [vaultOpen, setVaultOpen] = useState(false);
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -481,6 +484,14 @@ export function SettingsView() {
                 >
                   <GitBranch className="size-3" /> Import from GitHub
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-md text-[9px]"
+                  onClick={() => setVaultOpen(true)}
+                >
+                  <FolderUp className="size-3" /> Import a vault
+                </Button>
               </div>
               <p className="mt-2 text-[8px] text-muted-foreground">
                 Last sync {syncState.lastSyncedAt ? new Date(syncState.lastSyncedAt).toLocaleString() : "not yet"}.
@@ -608,6 +619,7 @@ export function SettingsView() {
       </div>
 
       <GithubImportDialog open={githubOpen} onClose={() => setGithubOpen(false)} />
+      <VaultImportDialog open={vaultOpen} onClose={() => setVaultOpen(false)} />
     </div>
   );
 }
