@@ -1,0 +1,51 @@
+---
+title: Intelligence
+description: Optional AI with retrieval, citations, and a fully functional local fallback.
+---
+
+The intelligence layer is optional. Lattice is useful without any model provider.
+
+## Modes
+
+| Mode | Behavior |
+| --- | --- |
+| Provider | Server calls an OpenAI-compatible chat endpoint with retrieved note context |
+| Local | Token-overlap retrieval from the workspace, with passages and citations |
+
+The UI labels responses as **Local mode** or the configured model. It never presents heuristic retrieval as a synthesized answer.
+
+## Configuration
+
+```dotenv
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=...
+AI_MODEL=gpt-4.1-mini
+```
+
+The base URL is server-controlled. User input never becomes an outbound AI endpoint, avoiding an SSRF surface.
+
+## Retrieval
+
+1. Resolve pages visible to the requesting member (private pages excluded unless allowed).
+2. Rank title, body, and scope by token relevance.
+3. Limit the context window and keep source excerpts.
+4. Ask the provider to cite sources by index.
+5. Return the answer with structured `{ pageId, title, excerpt }` citations.
+
+## Capabilities
+
+- Ask across a workspace or a specific page scope.
+- Summarize a page.
+- Explain a concept with a concrete example.
+- Find missing connections using shared vocabulary + graph structure.
+- Generate flashcards from a page.
+- Generate a mind-map outline.
+- Identify likely outdated notes (age or unresolved TODO).
+- Surface knowledge gaps from dependency edges and card mastery.
+
+## Guardrails
+
+- AI can propose; it cannot silently write. Applying cards, connections, or pages is a user action.
+- AI-created records carry `aiGenerated` where the schema supports it.
+- Answers include source references; unsupported claims should be treated as untrusted.
+- The Ask panel is separate from the editor; it does not rewrite content in place.

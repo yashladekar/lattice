@@ -1,0 +1,56 @@
+---
+title: Security
+description: Authentication, workspace isolation, authorization checks, share tokens, and boundaries.
+---
+
+Security is enforced at the API boundary and mirrored in the UI, not trusted from the client.
+
+## Authentication
+
+Better Auth handles email/password sessions and Expo session forwarding. Cookies are `HttpOnly`, `SameSite=None`, `Secure` for cross-origin web and desktop flows. Native stores the session in SecureStore and forwards it explicitly.
+
+## Workspace scoping
+
+Every workspace-scoped procedure resolves membership server-side using the session user and `x-workspace-id`. Handlers derive the workspace from that verified membership; payload workspace ids are not trusted.
+
+For sync writes:
+
+- Existing entity ids are checked against the workspace.
+- Parent chains (notebook, parent page, canvas) are validated.
+- Page moves reject cycles.
+- Cross-tenant id collisions are rejected, not upserted.
+
+## Authorization
+
+Role rank gates mutations. Page access additionally considers creator, visibility, and explicit resource permissions.
+
+- Private page content is removed from pull/snapshot for other members.
+- Explicitly shared pages require a matching resource permission.
+- Guests cannot see workspace-wide resources.
+
+## Share tokens
+
+- 32 random bytes, base64url encoded.
+- SHA-256 hash stored in Postgres.
+- Expiry and revocation checked on every public request.
+- Public payloads never include sibling pages, workspace member data, or private linked titles.
+- `Referrer-Policy: no-referrer` is set on the public share layout.
+
+## Rate limiting
+
+Express applies a per-IP budget to RPC and auth endpoints, with a stricter budget for auth. Share lookups are additionally constrained by expired/revoked checks.
+
+## Uploads
+
+`POST /uploads` requires a valid session, accepts one raw file body up to 25 MB, writes to a server-owned directory with a generated filename, and serves only the file URL. Files are not executed.
+
+## Explicitly deferred
+
+The schema and service boundaries include hooks for, but this release does not claim:
+
+- end-to-end encryption,
+- SSO / SCIM,
+- legally binding enterprise retention or legal hold,
+- a full audit-grade compliance program.
+
+Those are product-level programs, not UI states. See [Roadmap](/docs/roadmap).

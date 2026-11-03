@@ -1,0 +1,83 @@
+---
+title: Local-first sync
+description: The versioned change log, idempotent pushes, tombstones, cursors, and conflict snapshots.
+---
+
+Lattice treats the device as the primary read/write surface and the server as a sync and collaboration authority.
+
+## Local store
+
+Each user gets a Dexie database named `lattice-${userId}` with tables for:
+
+`workspaces`, `members`, `notebooks`, `pages`, `pageDocuments`, `canvases`, `nodes`, `edges`, `tags`, `pageTags`, `captures`, `templates`, `decks`, `flashcards`, `reviewLogs`, `comments`, `attachments`, `conflicts`, `outbox`, `meta`.
+
+A write does three things atomically:
+
+1. Updates the local table.
+2. Derives dependent records (plain text, page-link edges, graph nodes).
+3. Enqueues an outbox op keyed by `entity:entityId`.
+
+The editor autosaves with a debounce and flushes on blur and teardown.
+
+## Server change log
+
+The sync stream is not ordered by wall-clock timestamps. Each workspace has a monotonic `syncVersion`.
+
+```text
+BEGIN
+  apply op(s)
+  UPDATE workspace SET syncVersion = syncVersion + 1
+  INSERT sync_change(version, entity, entityId, op, data) for each changed row
+COMMIT
+```
+
+Clients pull with a composite cursor `(version, id)` and apply changes idempotently. Deletes are soft deletes and appear in the stream as tombstones, so removed content cannot resurrect.
+
+## Push contract
+
+```ts
+type SyncOp = {
+  opId: string;        // client-generated, unique, retry-safe
+  entity: SyncEntity;  // page, pageDocument, canvas, node, ...
+  entityId: string;
+  op: "UPSERT" | "DELETE";
+  baseRev?: number;    // required for document revisions
+  payload: Record<string, unknown>;
+};
+```
+
+Inside one transaction the server:
+
+1. Validates workspace membership and resource access.
+2. Skips duplicate `opId`s using `sync_op` (idempotency).
+3. Checks `baseRev` for `pageDocument` and `canvas`.
+4. Applies the mutation, scoped by workspace.
+5. Appends change-log rows at one new workspace version.
+6. Returns accepted revisions, conflicts, and the new version.
+
+## Conflicts
+
+If a page body has changed remotely since the client's `baseRev`:
+
+- The server writes the current remote document into `PageVersion`.
+- It records a `SyncConflict` with both payloads.
+- It rejects the push with a conflict result.
+- The client keeps its local document and shows a compare dialog.
+
+Nothing is silently overwritten. The user can keep the local version (server snapshots the remote first) or keep the server version (local reader updates immediately).
+
+## Multi-tab and offline behavior
+
+- A Web Locks leader (`lattice-sync-<userId>`) owns push/pull; other tabs read the same IndexedDB.
+- Online/offline and visibility events drive retries.
+- The sync chip exposes `synced`, `syncing`, `offline`, `queued`, and `conflict` states.
+- Initial boot calls `workspace.ensure`, then a snapshot, then incremental pulls.
+- `sync.snapshot` is also the repair path if a device's cursor is older than the retained change log.
+
+## Access filtering
+
+Pull and snapshot responses filter private pages and dependent nodes, edges, comments, attachments, and cards for non-admin members. Admins see the workspace for governance; creators always see their own private content.
+
+## What is deliberately asynchronous
+
+This pass does **not** use a CRDT for live text co-editing. It provides async multi-device sync, comments, mentions, and presence. Document-level revisions plus conflict snapshots are the safety net. A Yjs/Automerge transport can be added later without changing the knowledge model.

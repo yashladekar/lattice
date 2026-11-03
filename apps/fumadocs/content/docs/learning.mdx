@@ -1,0 +1,46 @@
+---
+title: Learning
+description: Card generation, SM-2 scheduling, quizzes, mastery, and learning paths.
+---
+
+Learning is built on the notes you already wrote. No separate authoring silo.
+
+## Generation
+
+The deterministic generator extracts:
+
+- definition patterns (`Term is …`, `Term: …`),
+- key takeaways under headings,
+- list items with clear term/definition shape,
+- callout summaries.
+
+Cards record their source page and block id. Generation is idempotent against existing card fronts on the same page.
+
+An AI provider can produce richer cards when configured; generated cards still require an explicit add action.
+
+## Scheduling
+
+Lattice uses an SM-2-style scheduler with four ratings:
+
+- **Again** — reset repetitions, lower ease, short relearn interval.
+- **Hard** — small interval increase, lower ease.
+- **Good** — normal interval growth based on ease.
+- **Easy** — larger jump and a small ease increase.
+
+Every review creates a `ReviewLog`; cards store due date, interval, ease, reps, and lapses. The same queue is used on web and mobile.
+
+## Quiz
+
+Quizzes are assembled from cards with plausible distractors from the same deck. They are a retrieval check, not a permanent grade.
+
+## Mastery and paths
+
+Mastery combines interval, repetition count, and ease. Learning paths order graph concepts by dependency shape and mastery, while gap detection highlights concepts with inbound dependencies but weak recall.
+
+## Retention loop
+
+1. Read or write a note.
+2. Generate cards from the page or a selection.
+3. Review in the learning view.
+4. Let due dates schedule the next encounter.
+5. Use gaps and paths to choose what to learn next.

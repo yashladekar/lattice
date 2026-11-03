@@ -1,0 +1,76 @@
+---
+title: Getting started
+description: Run Postgres, the API, the web workspace, and the mobile companion.
+---
+
+## Requirements
+
+- Node.js 26+
+- pnpm 12+
+- Docker (for Postgres)
+- Optional: Rust + Tauri toolchain for desktop builds
+- Optional: Expo tooling for iOS / Android
+
+## Install and run
+
+```bash
+pnpm install
+pnpm db:start          # Postgres on localhost:5434
+pnpm db:generate
+pnpm db:push
+pnpm dev               # web on 3101, API on 3100, docs on 4000
+```
+
+The scaffold's original ports (3000/3001) are intentionally moved to **3100/3101** so Lattice can coexist with other local stacks. Postgres uses host port **5434**.
+
+Open:
+
+- Web: [http://localhost:3101](http://localhost:3101)
+- API health: [http://localhost:3100](http://localhost:3100)
+- Docs: [http://localhost:4000/docs](http://localhost:4000/docs)
+
+## Create the first workspace
+
+1. Open `/login` and create an account.
+2. Lattice calls `workspace.ensure`, creating a personal workspace, a default notebook, and seed pages.
+3. The browser pulls a sync snapshot into a per-user IndexedDB database.
+4. From that point, navigation, search, and editing read from IndexedDB first.
+
+## Environment
+
+`apps/server/.env` is the source of truth for the API:
+
+```dotenv
+BETTER_AUTH_SECRET=...
+BETTER_AUTH_URL=http://localhost:3100
+CORS_ORIGIN=http://localhost:3101
+DATABASE_URL=postgresql://postgres:password@localhost:5434/notes-learning
+POLAR_ACCESS_TOKEN=
+POLAR_SUCCESS_URL=http://localhost:3101/success
+```
+
+### Payments are opt-in
+
+Polar is disabled unless `POLAR_ENABLED=true` **and** a valid access token is present. This prevents an expired billing token from blocking signup.
+
+### Optional AI
+
+```dotenv
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=...
+AI_MODEL=gpt-4.1-mini
+```
+
+No key means local retrieval mode. See [Intelligence](/docs/intelligence).
+
+## Useful commands
+
+```bash
+pnpm check-types
+pnpm --filter @notes-learning/domain test
+pnpm --filter web build
+pnpm --filter server build
+pnpm --filter fumadocs build
+pnpm --filter native check-types
+pnpm --filter web desktop:dev
+```

@@ -1,0 +1,42 @@
+---
+title: Knowledge graph
+description: Automatic edges, typed relationships, filters, orphan detection, and AI suggestions.
+---
+
+The graph is derived from the same records the editor and canvas use. It is not a separate index that can drift out of date.
+
+## Nodes
+
+Every page and canvas has a graph node. Additional topic, concept, project, person, and resource nodes can be created manually. Nodes carry title, kind, optional pinned position, color, and an `aiGenerated` flag.
+
+## Edges
+
+| Relation | Meaning |
+| --- | --- |
+| `RELATED_TO` | Loose conceptual connection |
+| `DEPENDS_ON` | Requires the target |
+| `PART_OF` | Belongs to a larger whole |
+| `EXPLAINS` | Clarifies or teaches |
+| `EXAMPLE_OF` | Concrete instance |
+| `CONTRADICTS` | Conflicts with the target |
+| `PREREQUISITE_OF` | Learn before the target |
+| `REFERENCES` | Automatic internal page link |
+| `CREATED_FROM` | Derived from another object |
+| `CONNECTED_THROUGH` | Shared canvas or theme |
+
+`REFERENCES` edges are maintained automatically when a document with `pageLink` nodes is saved. Manual edges carry `origin: "MANUAL"`; AI suggestions can be accepted into manual edges or left as pending suggestions.
+
+## Graph view
+
+- Force-directed layout with a custom simulation.
+- Zoom, pan, node dragging, and pinned positions.
+- Filters by kind, notebook, tag, relation, and orphans.
+- Degree-aware labels and cluster coloring.
+- Node panel with incoming / outgoing relations.
+- Create a topic; connect it to any existing node.
+- Orphan detection for disconnected notes.
+- Shared read-only graph links.
+
+## Learning path
+
+Dependency-shaped graphs feed the learning view. `PREREQUISITE_OF` and `DEPENDS_ON` edges order concepts; card mastery adds a per-node score. Nodes with inbound dependencies and low mastery are surfaced as knowledge gaps.

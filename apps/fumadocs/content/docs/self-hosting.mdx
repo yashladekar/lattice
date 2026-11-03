@@ -1,0 +1,75 @@
+---
+title: Self-hosting
+description: Ports, environment, Docker, desktop packaging, runtime config, and backups.
+---
+
+## Local stack
+
+| Service | Port | Notes |
+| --- | --- | --- |
+| Web | 3101 | Next static export / dev server |
+| API | 3100 | Express + oRPC |
+| Postgres | 5434 | Host mapping of container 5432 |
+| Docs | 4000 | Fumadocs |
+| Native dev | 8081 | Expo |
+
+The ports are intentionally not 3000/3001 to avoid collisions with other local projects.
+
+## Docker
+
+```bash
+pnpm docker:build
+pnpm docker:up
+pnpm docker:logs
+pnpm docker:down
+```
+
+Postgres data uses the `notes-learning_postgres_data` volume. API uploads use the server storage directory; mount it persistently in production.
+
+## Web runtime configuration
+
+`apps/web/public/config.js`:
+
+```js
+window.__LATTICE_CONFIG__ = window.__LATTICE_CONFIG__ || {
+  apiBaseUrl: "",
+};
+```
+
+Leave `apiBaseUrl` empty to use `NEXT_PUBLIC_SERVER_URL`. Set it for a desktop bundle or a static web deployment pointed at a self-hosted API. The file is loaded before the app bundle.
+
+## Desktop (Tauri)
+
+```bash
+pnpm --filter web desktop:dev
+pnpm --filter web desktop:build
+```
+
+The desktop shell loads the static export. Point `public/config.js` at an HTTPS API for production. Tauri origins (`tauri://localhost`, `http://tauri.localhost`) are trusted by the API.
+
+## Mobile (Expo)
+
+```bash
+pnpm --filter native dev
+pnpm --filter native ios
+pnpm --filter native android
+```
+
+Set `EXPO_PUBLIC_SERVER_URL` to the API. The companion supports sign-in, workspace switching, recent/notebook browsing, page reading, capture, search, and card review.
+
+## Backup
+
+1. **Local export** — Settings → Export this workspace (full JSON).
+2. **Postgres** — `pg_dump` the database on a schedule.
+3. **Uploads** — back up the server storage directory.
+4. **Attachments** — attachments are server-hosted after upload; link them to the same backup policy.
+
+IndexedDB is not a backup. Browsers can evict non-persistent origins. Grant persistence in Settings and keep a sync server or regular export.
+
+## AI
+
+Add `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` to the API environment. Keep the provider key server-side. Without it, Ask Lattice runs local retrieval.
+
+## Polar
+
+Polar is opt-in: `POLAR_ENABLED=true` plus a valid access token. Leave it off if you do not need billing; expired billing credentials cannot block signup.

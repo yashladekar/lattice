@@ -1,0 +1,83 @@
+---
+title: Architecture
+description: The monorepo, request flow, domain boundaries, and the single knowledge model.
+---
+
+## Shape of the system
+
+```text
+┌──────────────────────────────┐        ┌──────────────────────────┐
+│ apps/web / apps/native       │        │ apps/fumadocs            │
+│ Next static SPA · Expo       │        │ product documentation    │
+└──────────────┬───────────────┘        └──────────────────────────┘
+               │ oRPC over HTTP (cookies / bearer)
+┌──────────────▼───────────────┐
+│ apps/server                  │
+│ Express · CORS · uploads     │
+│ /rpc · /api/auth · /uploads  │
+└──────────────┬───────────────┘
+               │
+┌──────────────▼───────────────┐        ┌──────────────────────────┐
+│ packages/api                 │───────▶│ packages/domain          │
+│ authz · sync · AI retrieval  │        │ types · schemas · graph  │
+└──────────────┬───────────────┘        │ learning · canvas · edit │
+               │                        └──────────────────────────┘
+┌──────────────▼───────────────┐
+│ packages/db (Prisma/Postgres)│
+└──────────────────────────────┘
+```
+
+### Why a static web app
+
+`apps/web` uses `output: "export"` and query-param routing under `/app`. That makes the same build usable as:
+
+- a browser application,
+- an installable PWA,
+- a Tauri desktop application,
+- a static bundle for an internal self-hosted portal.
+
+The API is separate. Runtime configuration lives in `public/config.js`, so a desktop bundle can point at a self-hosted API without rebuilding.
+
+### Shared domain package
+
+`packages/domain` is pure TypeScript. It contains:
+
+- Serialized entity types used by local storage and transport.
+- Zod contracts for sync operations and API inputs.
+- Permission helpers and role ranking.
+- TipTap JSON extraction: plain text, page links, tags, outlines, Markdown.
+- Graph derivation, degree, clusters, orphans, learning paths.
+- SM-2 scheduling, flashcard generation, quiz generation.
+- Canvas document types, templates, mind map and diagram builders.
+- Search ranking and related-note suggestions.
+
+Both the API and clients share this package, so a relation type or card schedule cannot drift between platforms.
+
+### Request flow
+
+1. The client sends `x-workspace-id` plus its Better Auth cookie / bearer token.
+2. `workspaceProcedure` verifies workspace membership and role.
+3. The handler uses the server-derived workspace id, never a trusted payload id.
+4. Mutations that sync reads or collab depend on serialize through the change log.
+5. Public share endpoints use `publicProcedure` with hashed tokens and a separate read-only shape.
+
+## Data boundaries
+
+| Boundary | Rule |
+| --- | --- |
+| Tenant | Every query with a workspace-scoped procedure includes `workspaceId`. |
+| Page privacy | Private pages are filtered from sync snapshots and pulls for non-creators. |
+| Local storage | One IndexedDB database per user id; the workspace is a partition key. |
+| AI | Server-configured provider only; no arbitrary base URLs from users. |
+| Public share | Hashed tokens, read-only payloads, outbound page links stripped. |
+
+## Storage split
+
+Page metadata and page bodies are intentionally separate:
+
+- `Page` — title, icon, visibility, tree position.
+- `PageDocument` — TipTap JSON, plain text, schema version, revision.
+
+This keeps navigation lists light and gives document conflicts an explicit revision token. Canvas documents follow the same model.
+
+See [Local-first sync](/docs/local-first-sync) for the mutation protocol.

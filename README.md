@@ -1,149 +1,215 @@
-# notes-learning
+# Lattice
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Express, ORPC, and more.
+**A local-first knowledge OS for people who think in connections.**
 
-## Features
+Lattice combines a block editor, infinite whiteboard, typed knowledge graph, capture inbox, spaced-repetition learning, and optional AI into one workspace with a single knowledge model. It runs on the web, installs as a PWA, packages as a Tauri desktop app, and ships with an Expo mobile companion.
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **React Native** - Build mobile apps using React
-- **Expo** - Tools for React Native development
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Express** - Fast, unopinionated web framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **Node.js** - Runtime environment
-- **Prisma** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **PWA** - Progressive Web App support
-- **Tauri** - Build native desktop applications
-- **Turborepo** - Optimized monorepo build system
+The repository/package names remain `notes-learning` from the original scaffold; the product is **Lattice**.
 
-## Getting Started
+## What is implemented
 
-First, install the dependencies:
+- **Multi-tenant workspaces** — personal workspaces, organizations, invites, nested notebooks/pages, roles, visibility, resource permissions, audit log.
+- **Block editor** — TipTap 3 with slash menu, `@` mentions, `[[` page links, drag handle, bubble formatting, callouts, tasks, tables, code, math, media embeds, page embeds, synced blocks, database block, comments, versions, templates, Markdown mode, focus mode.
+- **Infinite whiteboard** — pan/zoom, sticky notes, shapes, text, pen, connectors, frames, images, linked live note cards, nested canvases, grouping/alignment/layers, undo/redo, templates, presentation, SVG/PNG/PDF export.
+- **Knowledge graph** — automatic page-link edges, typed manual relations, custom topics, force layout, filters by notebook/tag/kind/relation, orphan detection, node side panel, AI suggestions, shareable public graph.
+- **Local-first storage & sync** — per-user IndexedDB, outbox, versioned server change log, tombstones, idempotent pushes, revision-aware document conflicts, snapshot repair, sync status, full JSON export/import.
+- **Capture inbox** — quick capture, links, uploads, URL preview, capture-to-page, tag/related-note suggestions. Includes a PWA share target and an MV3 browser extension in `extensions/lattice-clip`.
+- **Learning** — generated/manual flashcards, SM-2 review, quizzes, mastery, learning paths, knowledge gaps, daily due queue.
+- **Optional AI** — OpenAI-compatible provider when configured; retrieval + citations + local fallback otherwise. Never writes without an apply action.
+- **Navigation** — dashboard with configurable widgets, command palette (`⌘/Ctrl+K`), search, tabs, keyboard shortcuts, timeline, trash.
+- **Collaboration** — comments with block anchors and mentions, notifications, presence heartbeat, async multi-device sync, public read-only sharing.
+- **Platforms** — web/PWA, Tauri desktop config, Expo companion for capture/browse/search/review.
+- **Self-hosting** — Docker Compose, runtime web config, hashed share/invite tokens, rate limiting, authenticated uploads.
+
+## Stack
+
+| Layer | Choice |
+| --- | --- |
+| Monorepo | pnpm workspaces + Turborepo |
+| Web / PWA / desktop | Next.js 16 static export + Tauri 2 |
+| Mobile | Expo + Expo Router + HeroUI Native + Uniwind |
+| API | Express 5 + oRPC |
+| Database | PostgreSQL + Prisma 7 |
+| Auth | Better Auth |
+| Editor | TipTap 3 |
+| Local storage | Dexie / IndexedDB |
+| Docs | Fumadocs |
+| Payments | Polar (opt-in) |
+
+## Quick start
+
+Requirements: Node 26+, pnpm 12+, Docker.
 
 ```bash
 pnpm install
+pnpm db:start        # Postgres on localhost:5434
+pnpm db:generate
+pnpm db:push
+pnpm dev             # web: 3101 · API: 3100 · docs: 4000
 ```
 
-## Database Setup
+Open:
 
-Generate the Prisma client before development, typechecking, or building, including in CI and deployment builds. Run this again after changing the Prisma schema:
+- Web workspace: <http://localhost:3101>
+- API health: <http://localhost:3100>
+- Documentation: <http://localhost:4000/docs>
+
+The scaffold's original ports were moved:
+
+| Service | Port |
+| --- | --- |
+| Web | 3101 |
+| API | 3100 |
+| Postgres (host) | 5434 |
+| Docs | 4000 |
+| Expo dev server | 8081 |
+
+### Environment
+
+`apps/server/.env`:
+
+```dotenv
+NODE_ENV=development
+BETTER_AUTH_SECRET=...
+BETTER_AUTH_URL=http://localhost:3100
+CORS_ORIGIN=http://localhost:3101
+DATABASE_URL=postgresql://postgres:password@localhost:5434/notes-learning
+POLAR_ACCESS_TOKEN=
+POLAR_SUCCESS_URL=http://localhost:3101/success?checkout_id={CHECKOUT_ID}
+# POLAR_ENABLED=true
+```
+
+**Payments are opt-in.** Polar is only enabled when `POLAR_ENABLED=true` and a valid token is present, so a stale billing credential cannot block signup.
+
+**AI is optional.** Add:
+
+```dotenv
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=...
+AI_MODEL=gpt-4.1-mini
+```
+
+Without a key, Ask Lattice uses local retrieval and labeled citations.
+
+## Architecture
+
+```text
+apps/web            Next static SPA + Tauri + PWA       full product
+apps/native         Expo companion                       capture / read / review
+apps/server         Express + oRPC host, uploads
+apps/fumadocs       product & architecture docs
+extensions          browser capture extension (MV3)
+packages/domain     shared types, Zod, graph, learning, editor, canvas, search
+packages/db         Prisma schema + generated client
+packages/api        routers, authorization, sync engine, AI retrieval
+packages/auth       Better Auth
+packages/ui         shared UI primitives + design tokens
+```
+
+### One knowledge model
+
+Pages, canvases, topics, relations, captures, cards, and learning logs are first-class records. Views are lenses:
+
+- **Explorer** — tree navigation.
+- **Editor** — document blocks.
+- **Canvas** — spatial arrangement of references.
+- **Graph** — relation topology.
+- **Database** — structured block views.
+- **Timeline** — activity chronology.
+- **Learn** — retrieval schedule over source notes.
+
+Page documents and canvases are stored separately from metadata and carry `schemaVersion` + `rev`. Page/canvas revisions drive explicit conflict handling.
+
+### Local-first sync
+
+Writes go to IndexedDB first, then queue an op. The server applies ops in a transaction, increments a per-workspace `syncVersion`, and appends a change-log row per entity. Clients pull with a composite `(version, id)` cursor. Deletes are soft deletes and appear as tombstones. Duplicate pushes are safe through `opId` idempotency. Document `baseRev` mismatches create a version snapshot and a conflict record; the client keeps its local copy and shows a compare/choose dialog.
+
+See [`docs`](./apps/fumadocs/content/docs/local-first-sync.mdx) for the full protocol.
+
+### Workspace access
+
+Roles: `OWNER > ADMIN > MEMBER > EDITOR > VIEWER > GUEST`.
+
+Workspace-scoped procedures verify membership server-side from the session plus `x-workspace-id`. Pull/snapshot filter private pages and dependent graph/comments/attachments for non-creators. Public share links store only token hashes, enforce expiry/revocation, and strip outbound links to unshared pages.
+
+## Platforms
+
+### Desktop (Tauri)
 
 ```bash
-pnpm run db:generate
+pnpm --filter web desktop:dev
+pnpm --filter web desktop:build
 ```
 
-This project uses PostgreSQL with Prisma.
+The static export is loaded by Tauri. `apps/web/public/config.js` can point the desktop bundle at a self-hosted API without rebuilding.
 
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
-
-3. Apply the schema to your database:
+### Mobile (Expo)
 
 ```bash
-pnpm run db:push
+pnpm --filter native dev
+pnpm --filter native ios
+pnpm --filter native android
 ```
 
-Then, run the development server:
+The mobile app supports sign-in, workspace switching, recent pages, notebook browse, page reading, quick capture, search, and due-card review. Deep editing and the whiteboard remain web/desktop-first.
+
+### PWA
+
+Production builds register `public/sw.js`: app-shell precache, network-first navigation, cache-first hashed assets, and no caching of `/rpc`, `/api/auth`, or uploads. The manifest includes a share target for capture.
+
+## Commands
 
 ```bash
-pnpm run dev
+pnpm dev                 # all apps
+pnpm dev:web             # web only
+pnpm dev:server          # API only
+pnpm dev:native          # Expo
+pnpm build               # all builds
+pnpm check-types         # TypeScript across packages
+pnpm test                # domain unit tests
+pnpm db:start|stop|down  # Postgres lifecycle
+pnpm db:push|generate|migrate|studio
+pnpm docker:build|up|down|logs
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-From `apps/native`, run the `ios` script for iOS or the `android` script for Android to build and launch the app. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) for device setup.
-The API is running at [http://localhost:3000](http://localhost:3000).
-
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
+## Verification
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+pnpm db:start
+pnpm db:generate
+pnpm db:push
+pnpm --filter @notes-learning/domain test
+pnpm check-types
+pnpm --filter web build
+pnpm --filter server build
+pnpm --filter fumadocs build
+pnpm --filter native check-types
 ```
 
-Import shared components like this:
+The production build prerenders `/`, `/app`, `/login`, `/invite`, `/share`, `/success`, and the manifest.
 
-```tsx
-import { Button } from "@notes-learning/ui/components/button";
-```
+## Scope boundaries
 
-### Add app-specific blocks
+This pass is a complete core vertical, not every enterprise subsystem in the original brief. Explicitly deferred:
 
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
+- CRDT/live co-editing and live cursors (async sync + comments/presence are implemented).
+- End-to-end encryption, SSO/SCIM, legal hold.
+- App-store signing and native full editor/whiteboard parity.
+- Plugin sandbox/runtime, custom object-type editor, automation builder.
+- Email ingestion, speech-to-text, Git/GitHub sync, executable SQL/API playgrounds.
 
-## Environment Configuration
+Those interfaces are modeled/documented in the [roadmap](./apps/fumadocs/content/docs/roadmap.mdx) rather than pretended as complete.
 
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `pnpm run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
+## Documentation
 
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
+- [Architecture](apps/fumadocs/content/docs/architecture.mdx)
+- [Sync protocol](apps/fumadocs/content/docs/local-first-sync.mdx)
+- [Editor](apps/fumadocs/content/docs/editor.mdx)
+- [Whiteboard](apps/fumadocs/content/docs/whiteboard.mdx)
+- [Knowledge graph](apps/fumadocs/content/docs/knowledge-graph.mdx)
+- [Learning](apps/fumadocs/content/docs/learning.mdx)
+- [Intelligence](apps/fumadocs/content/docs/intelligence.mdx)
+- [Security](apps/fumadocs/content/docs/security.mdx)
+- [Roadmap](apps/fumadocs/content/docs/roadmap.mdx)
 
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-## Deployment
-
-### Docker Compose
-
-- Target: server
-- Config: `docker-compose.yml` (app Dockerfiles live in `apps/*/Dockerfile`)
-- Build images: pnpm run docker:build
-- Start: pnpm run docker:up
-- Logs: pnpm run docker:logs
-- Stop: pnpm run docker:down
-
-Environment variables are read from each app's `.env` file (baked into web builds for public variables) and overridden in `docker-compose.yml` for container networking.
-
-For more details, see the guide on [Deploying with Docker Compose](https://www.better-t-stack.dev/docs/guides/docker).
-
-## Project Structure
-
-```
-notes-learning/
-├── apps/
-│   ├── web/         # Frontend application (Next.js)
-│   ├── native/      # Mobile application (React Native, Expo)
-│   └── server/      # Backend API (Express, ORPC)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run dev:web`: Start only the web application
-- `pnpm run dev:server`: Start only the server
-- `pnpm run check-types`: Check TypeScript types across all apps
-- `pnpm run dev:native`: Start the React Native/Expo development server
-- `pnpm run db:push`: Push schema changes to database
-- `pnpm run db:generate`: Generate database client/types
-- `pnpm run db:migrate`: Run database migrations
-- `pnpm run db:studio`: Open database studio UI
-- `cd apps/web && pnpm run generate-pwa-assets`: Generate PWA assets
-- `cd apps/web && pnpm run desktop:dev`: Start Tauri desktop app in development
-- `cd apps/web && pnpm run desktop:build`: Build Tauri desktop app
-- Note: Desktop builds package static web assets. Next.js needs a static/export build configuration before desktop packaging will work.
-- `pnpm run docker:build`: Build the Docker Compose images
-- `pnpm run docker:up`: Build and start the Docker Compose stack
-- `pnpm run docker:logs`: Tail logs from the Docker Compose stack
-- `pnpm run docker:down`: Stop the Docker Compose stack
-
-## Better Auth Schema Generation
-
-After changing auth plugins or schema options, run `pnpm run auth:generate` from the project root. The script runs the Better Auth CLI through `varlock run` from the owning app directory, loading the auth instance from `src/services.ts`. Review the schema changes, then use your ORM's migration workflow to apply them.
+Run the docs app with `pnpm --filter fumadocs dev`.

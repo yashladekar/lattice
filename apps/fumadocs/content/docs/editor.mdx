@@ -1,0 +1,67 @@
+---
+title: Editor
+description: The block-based writing surface, commands, page links, embeds, and databases.
+---
+
+## Writing model
+
+The editor is TipTap 3 with a Notion-like block experience. Top-level blocks receive stable `blockId`s through the UniqueID extension. Those ids anchor comments, live sync blocks, and source references for generated cards.
+
+A page has two records: metadata (`Page`) and the document (`PageDocument`). The editor autosaves JSON into the local document, recomputes plain text and page-link edges, then queues a sync op.
+
+## Menus
+
+| Trigger | Menu |
+| --- | --- |
+| `/` | Block inserter, grouped by basic, rich, media, and knowledge blocks |
+| `[[` | Link another page |
+| `@` | Mention a page, teammate, or date |
+| Selection | Bubble toolbar for formatting and block actions |
+| Block hover | Drag handle for reordering |
+
+## Blocks
+
+Paragraphs, H1–H4, bulleted / numbered / task lists, toggles, quotes, callouts, dividers, code with syntax highlighting, tables, images, bookmarks, YouTube embeds, equations, page links, page embeds, synced blocks, and a structured database block.
+
+The database block supports table, list, board, gallery, and calendar views over the same field/row JSON. It is intentionally lightweight: a structured block inside a page, not a separate product surface.
+
+## Page links and backlinks
+
+A `pageLink` node stores the target page id and display title. On save Lattice derives:
+
+- a `REFERENCES` edge from source node to target node,
+- backlink membership for the target,
+- graph connectivity,
+- link suggestions for related pages.
+
+Removing a link soft-deletes its derived edge. Manual typed relations are separate and never removed by link cleanup.
+
+## Page context
+
+The right panel contains:
+
+- **Info** — properties, outline, tags, source cards, AI entry points.
+- **Links** — backlinks and outgoing page links.
+- **Discuss** — page and block-anchored comments with resolve state.
+
+## Modes
+
+- **Document** — the default writing surface.
+- **Focus** — chrome hidden, wider calm.
+- **Markdown** — round-trip the document through a Markdown serializer/importer.
+- **Outline** — heading and list structure in the context panel.
+
+## Versions
+
+Explicit versions can be saved. Conflicts also create snapshots. Restoring a version always creates a new snapshot first, so history is never destructive.
+
+## Shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `⌘/Ctrl + K` | Command palette |
+| `⌘/Ctrl + N` | New page |
+| `⌘/Ctrl + Shift + C` | Quick capture |
+| `⌘/Ctrl + \` | Toggle sidebar |
+| `⌘/Ctrl + Z` / `Shift + Z` | Undo / redo |
+| `Space` | Reveal a flashcard answer (learning view) |

@@ -1,0 +1,51 @@
+---
+title: Whiteboard
+description: The infinite canvas, visual elements, document integration, and export.
+---
+
+The whiteboard is a custom SVG/DOM canvas engine rather than a separately licensed drawing product. It shares the workspace's local store and sync protocol.
+
+## Interactions
+
+- Pan with drag, space-drag, or middle mouse.
+- Zoom with `⌘`/`Ctrl` + scroll or pinch.
+- Select, shift-select, marquee select.
+- Move, resize, nudge, align, group, and layer.
+- Undo / redo with a 60-step document history.
+- Copy, paste, and duplicate.
+- Snap to an 8px grid; toggle the grid when you want pure placement.
+
+## Elements
+
+| Element | Purpose |
+| --- | --- |
+| Sticky note | Quick idea, color-coded |
+| Shape | Rectangle, ellipse, diamond, parallelogram, hexagon, cylinder |
+| Text | Free typography on the canvas |
+| Pen | Freehand strokes |
+| Connector | Bound arrows between elements, with labels |
+| Frame | Presentation slide or region |
+| Image | URL-based visual reference |
+| Linked note | Live page card that reflects title and excerpt |
+| Nested canvas | A card that opens another whiteboard |
+
+Linked note and nested canvas cards are references, not copies. Opening a card navigates to the source object.
+
+## Document integration
+
+- Insert a linked note from the toolbar.
+- Drop a page into a board as a live card.
+- Generate a mind map from any page outline (editor page actions).
+- Use frames for presentation mode.
+- Future: push a selected diagram outline back into a documentation page.
+
+## Templates
+
+Starter templates cover brainstorm, research, software architecture, flowcharts, UML, ER diagrams, learning boards, and widescreen presentations.
+
+## Export and presentation
+
+- SVG export with text wrapping, shapes, connectors, images, and cards.
+- PNG export via an SVG rasterization pass.
+- Print / Save as PDF through the browser print dialog.
+- Presentation mode fits each frame and navigates with arrow keys or the control bar.

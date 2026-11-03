@@ -1,0 +1,57 @@
+---
+title: Collaboration & sharing
+description: Roles, visibility, comments, invites, public links, and async collaboration.
+---
+
+Lattice's collaboration model is async-first. It prioritizes durable shared knowledge and explicit safety over live co-editing in this release.
+
+## Roles
+
+| Role | Capability |
+| --- | --- |
+| Owner | Everything, including workspace deletion and ownership transfer |
+| Admin | Members, settings, audit log, all content |
+| Member | Create/edit/share content, comments, invites? no |
+| Editor | Edit existing content and comment |
+| Viewer | Read and comment |
+| Guest | Only explicitly shared resources |
+
+Role rank is `GUEST < VIEWER < EDITOR < MEMBER < ADMIN < OWNER`.
+
+## Page visibility
+
+- `PRIVATE` — creator and admins only.
+- `SHARED` — explicit resource permissions.
+- `WORKSPACE` — all active members.
+- `PUBLIC` — exposed only through an unrevoked share link.
+
+Private content is filtered from sync snapshots and incremental pulls for other members, including node titles, edges, comments, attachments, and cards derived from those pages.
+
+## Invites
+
+Admins create an invite for an email and role. The invite stores a SHA-256 token hash, expires in 14 days, and can be accepted once by a signed-in user with the matching email. The accepted workspace is selected immediately.
+
+## Comments
+
+- Page-level threads with replies.
+- Block anchoring through stable `blockId`s.
+- Resolve state.
+- Mentions create notifications for workspace members.
+- Comments sync through the same change log; presence is online-only and ephemeral.
+
+## Sharing
+
+Share links are created for a page, canvas, notebook, or graph.
+
+- The raw token is returned only at creation; the database stores only its hash.
+- Links support expiry and revocation.
+- Public page payloads strip page links and embeds that point outside the shared object.
+- Public notebooks exclude private pages.
+- Public graphs exclude nodes whose source page is private.
+- Public share lookups use a separate anonymous API surface with no workspace metadata beyond the shared resource.
+
+## Async behavior
+
+Remote changes arrive on pull. If a page is open and has no pending local edits, the editor shows a "newer version" banner. If there are pending local edits, sync's conflict path preserves both versions rather than overwriting the open document.
+
+Live co-editing, shared cursors, and suggested edits are follow-on work. The domain and transport are structured so a CRDT can be added without changing the knowledge model.

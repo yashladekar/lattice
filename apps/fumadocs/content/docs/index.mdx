@@ -1,13 +1,44 @@
 ---
-title: Hello World
-description: Your first document
+title: Lattice guide
+description: A local-first knowledge OS for writing, visual thinking, connection, and learning.
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+Lattice is a knowledge workspace built around five verbs: **Create, Connect, Visualize, Understand, and Build**.
 
-## What is Next?
+It is not a note app with a graph bolted on. Pages, whiteboards, topics, typed relations, captures, and flashcards all share one underlying model. Every view is a lens over the same records.
 
-<Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+## Start here
+
+- [Getting started](/docs/getting-started) — run the stack and create a workspace.
+- [Architecture](/docs/architecture) — how the monorepo and knowledge model fit together.
+- [Local-first sync](/docs/local-first-sync) — versioned change log, tombstones, conflicts.
+- [Editor](/docs/editor) — blocks, slash commands, page links, embeds, and databases.
+- [Whiteboard](/docs/whiteboard) — infinite canvas and document integration.
+- [Knowledge graph](/docs/knowledge-graph) — automatic links, typed relations, filters.
+- [Learning](/docs/learning) — flashcards, spaced repetition, quizzes, paths.
+- [Intelligence](/docs/intelligence) — optional AI with citations and local fallback.
+- [Security](/docs/security) — tenancy, permissions, sharing, and risk boundaries.
+- [Self-hosting](/docs/self-hosting) — environment, ports, Docker, desktop, mobile.
+- [Roadmap](/docs/roadmap) — what is implemented now and what comes next.
+
+## Product principles
+
+1. **One knowledge model.** A whiteboard card and a page refer to the same object. A database row can link to a page. A flashcard remembers its source block.
+2. **Local-first by default.** Reads and writes go to IndexedDB before the network. Sync is a feature, not a prerequisite for opening your workspace.
+3. **Connections are first-class.** Automatic page-link edges and manually typed relations live in the same graph.
+4. **AI is optional and accountable.** Every answer cites notes. Generated content is labeled and requires an explicit action to keep.
+5. **Calm software.** Dense capability without visual noise. Keyboard-first, but never keyboard-only.
+
+## What is in this repository
+
+| Surface | Location |
+| --- | --- |
+| Web app, PWA, Tauri desktop | `apps/web` |
+| Expo mobile companion | `apps/native` |
+| Express + oRPC API | `apps/server` |
+| Documentation | `apps/fumadocs` |
+| Shared domain logic | `packages/domain` |
+| Prisma schema and client | `packages/db` |
+| API, authorization, sync, AI | `packages/api` |
+| Better Auth configuration | `packages/auth` |
+| Shared UI primitives | `packages/ui` |
