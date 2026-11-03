@@ -10,6 +10,7 @@ import {
   Brain,
   Check,
   Cloud,
+  Database,
   Download,
   FolderUp,
   GitBranch,
@@ -32,6 +33,7 @@ import { toast } from "sonner";
 import { useAppData } from "@/components/app-data-provider";
 import { GithubImportDialog } from "@/components/workspace/github-import";
 import { VaultImportDialog } from "@/components/workspace/vault-import";
+import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
 import { authClient } from "@/lib/auth-client";
 import { downloadTextFile } from "@/lib/download";
 import {
@@ -43,7 +45,7 @@ import {
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
-type SettingsTab = "general" | "members" | "sync" | "ai" | "devices" | "audit";
+type SettingsTab = "general" | "members" | "sync" | "ai" | "devices" | "audit" | "query";
 
 const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "general", label: "General", icon: HardDrive },
@@ -52,6 +54,7 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "ai", label: "Intelligence", icon: Brain },
   { id: "devices", label: "Devices", icon: Monitor },
   { id: "audit", label: "Audit log", icon: Shield },
+  { id: "query", label: "Query", icon: Database },
 ];
 
 const ROLES: Role[] = ["OWNER", "ADMIN", "MEMBER", "EDITOR", "VIEWER", "GUEST"];
@@ -608,6 +611,20 @@ export function SettingsView() {
               )}
             </SettingsCard>
           </section>
+        ) : null}
+
+        {tab === "query" ? (
+          !online ? (
+            <section className="space-y-4">
+              <SettingsCard title="Query" description="Run read-only SQL against this workspace.">
+                <OfflineNotice />
+              </SettingsCard>
+            </section>
+          ) : (
+            <section className="space-y-4">
+              <SqlConsolePanel />
+            </section>
+          )
         ) : null}
 
         <div className="mt-6 flex items-center justify-between border-t border-border/60 pt-3 text-[8px] text-muted-foreground">
