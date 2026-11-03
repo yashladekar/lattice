@@ -15,6 +15,7 @@ const MESSAGE_AWARENESS = 1;
 const MESSAGE_SEED_REQUEST = 2;
 
 const ROOM_IDLE_MS = 30_000;
+const PERSIST_DEBOUNCE_MS = 2_000;
 
 interface Connection {
   socket: WebSocket;
@@ -31,9 +32,12 @@ interface Room {
   connections: Set<Connection>;
   needsSeed: boolean;
   idleTimer: NodeJS.Timeout | null;
+  persistTimer: NodeJS.Timeout | null;
+  dirty: boolean;
 }
 
 const rooms = new Map<string, Room>();
+const pendingRooms = new Map<string, Promise<Room>>();
 const wss = new WebSocketServer({ noServer: true });
 
 function roomKey(workspaceId: string, pageId: string): string {
@@ -78,9 +82,13 @@ function createRoom(workspaceId: string, pageId: string): Room {
     connections: new Set(),
     needsSeed: true,
     idleTimer: null,
+    persistTimer: null,
+    dirty: false,
   };
 
   room.doc.on("update", (update: Uint8Array, origin: unknown) => {
+    room.dirty = true;
+    schedulePersist(room);
     const message = syncMessage((encoder) => syncProtocol.writeUpdate(encoder, update));
     for (const connection of room.connections) {
       if (connection === origin) continue;
@@ -118,10 +126,98 @@ function scheduleRoomCleanup(room: Room): void {
   if (room.idleTimer) clearTimeout(room.idleTimer);
   room.idleTimer = setTimeout(() => {
     if (room.connections.size > 0) return;
-    room.doc.destroy();
-    room.awareness.destroy();
-    rooms.delete(room.key);
+    void flushPersist(room).finally(() => {
+      room.doc.destroy();
+      room.awareness.destroy();
+      rooms.delete(room.key);
+    });
   }, ROOM_IDLE_MS);
+}
+
+/**
+ * Writes the merged document so a session outlives its room. Debounced while
+ * people are typing, and flushed the moment the last peer leaves, which is what
+ * rescues an edit made just before a tab is closed or crashes.
+ */
+function schedulePersist(room: Room): void {
+  if (room.persistTimer) return;
+  room.persistTimer = setTimeout(() => {
+    room.persistTimer = null;
+    void flushPersist(room);
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+async function flushPersist(room: Room): Promise<void> {
+  if (room.persistTimer) {
+    clearTimeout(room.persistTimer);
+    room.persistTimer = null;
+  }
+  if (!room.dirty) return;
+  room.dirty = false;
+  const state = Buffer.from(Y.encodeStateAsUpdate(room.doc));
+  if (!state.length) return;
+  try {
+    await db.collabDocument.upsert({
+      where: { pageId: room.pageId },
+      create: {
+        pageId: room.pageId,
+        workspaceId: room.workspaceId,
+        state,
+        size: state.length,
+      },
+      update: { state, size: state.length },
+    });
+  } catch {
+    // Keep it dirty so the next change, or the next disconnect, tries again.
+    room.dirty = true;
+  }
+}
+
+/**
+ * A page document written outside a live session — a version restore, a
+ * Markdown-mode save, an import — makes the stored CRDT stale, so it is
+ * dropped and the next session seeds from that document instead.
+ */
+export async function invalidateCollabState(workspaceId: string, pageId: string): Promise<void> {
+  if (rooms.has(roomKey(workspaceId, pageId))) return;
+  try {
+    await db.collabDocument.delete({ where: { pageId } });
+  } catch {
+    // Nothing stored, nothing to drop.
+  }
+}
+
+/**
+ * Loads any stored document before the first peer attaches, so joining a page
+ * resumes the conversation instead of re-seeding it. Room creation is guarded
+ * so two peers arriving together share one load.
+ */
+async function getOrCreateRoom(workspaceId: string, pageId: string): Promise<Room> {
+  const key = roomKey(workspaceId, pageId);
+  const existing = rooms.get(key);
+  if (existing) return existing;
+
+  const pending = pendingRooms.get(key);
+  if (pending) return pending;
+
+  const created = (async () => {
+    const room = createRoom(workspaceId, pageId);
+    try {
+      const stored = await db.collabDocument.findUnique({ where: { pageId } });
+      if (stored?.state?.length) {
+        Y.applyUpdate(room.doc, new Uint8Array(stored.state), "persisted");
+        room.needsSeed = false;
+        room.dirty = false;
+      }
+    } catch {
+      // Without the stored state a peer seeds the room as before.
+    }
+    pendingRooms.delete(key);
+    return room;
+  })();
+
+  pendingRooms.set(key, created);
+  return created;
 }
 
 function handleConnection(room: Room, socket: WebSocket, userId: string): void {
@@ -197,6 +293,8 @@ function handleConnection(room: Room, socket: WebSocket, userId: string): void {
     );
     room.connections.delete(connection);
     if (room.connections.size === 0) {
+      // Nobody left to re-send this, so make it durable before the room idles.
+      void flushPersist(room);
       scheduleRoomCleanup(room);
       return;
     }
@@ -258,9 +356,9 @@ export function attachCollaboration(server: Server): void {
           return;
         }
         wss.handleUpgrade(request, socket, head, (ws) => {
-          const key = roomKey(identity.workspaceId, identity.pageId);
-          const room = rooms.get(key) ?? createRoom(identity.workspaceId, identity.pageId);
-          handleConnection(room, ws, identity.userId);
+          void getOrCreateRoom(identity.workspaceId, identity.pageId).then((room) => {
+            handleConnection(room, ws, identity.userId);
+          });
         });
       })
       .catch(() => {

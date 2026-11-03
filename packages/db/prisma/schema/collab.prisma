@@ -93,3 +93,17 @@ model Device {
   @@index([userId])
   @@map("device")
 }
+
+/// Persisted Yjs document for a page, so a live session survives its room and
+/// a peer that disconnects mid-edit does not take the edit with it.
+model CollabDocument {
+  pageId      String   @id
+  workspaceId String
+  state       Bytes    @db.ByteA
+  /// Size of the persisted update, for observability rather than logic.
+  size        Int      @default(0)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@map("collab_document")
+}
