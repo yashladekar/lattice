@@ -78,6 +78,8 @@ Nothing is silently overwritten. The user can keep the local version (server sna
 
 Pull and snapshot responses filter private pages and dependent nodes, edges, comments, attachments, and cards for non-admin members. Admins see the workspace for governance; creators always see their own private content.
 
-## What is deliberately asynchronous
+## Live co-editing
 
-This pass does **not** use a CRDT for live text co-editing. It provides async multi-device sync, comments, mentions, and presence. Document-level revisions plus conflict snapshots are the safety net. A Yjs/Automerge transport can be added later without changing the knowledge model.
+Page bodies are bound to a Yjs document while a page is open, relayed by the server on a per-page WebSocket room. Concurrent edits merge in the CRDT and each peer persists the converged JSON, so the revision machinery below stays the safety net for offline and single-writer cases rather than a source of conflicts during a live session.
+
+The CRDT is a live layer, not the durable record: the room is in memory, the room is seeded by its first peer (or by the local document when the relay is unreachable), and the stored page document remains the system of record.

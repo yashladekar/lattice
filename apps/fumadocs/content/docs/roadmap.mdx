@@ -20,10 +20,17 @@ description: What this implementation covers and which subsystems are deliberate
 - Web, PWA shell, Tauri packaging config, Expo companion, self-host Docker.
 - Fumadocs product/architecture documentation.
 
+## Shipped: live co-editing
+
+- Yjs co-editing for page documents over a WebSocket relay, with per-page rooms.
+- Live cursors and selection presence in the editor.
+- Conflict-free concurrent typing; both peers converge without conflict snapshots.
+- Durable CRDT snapshots per room (byte-level Yjs history) are still next.
+
 ## Next: collaboration depth
 
-- CRDT co-editing for page documents and whiteboards.
-- Live cursors and selection presence.
+- Persisting the CRDT state itself, so history survives an empty room.
+- CRDT co-editing for whiteboards.
 - Suggested edits and review workflows.
 - Granular block-level comments and discussion resolution at scale.
 
@@ -60,4 +67,4 @@ description: What this implementation covers and which subsystems are deliberate
 
 ## Explicit non-goals for this release
 
-This build does not claim production-grade E2E encryption, SSO/SCIM, live co-editing, app-store signing, or a plugin runtime. The data model and service boundaries are designed so these can be added without replacing the knowledge model.
+This build does not claim production-grade E2E encryption, SSO/SCIM, app-store signing, or a plugin runtime. The data model and service boundaries are designed so these can be added without replacing the knowledge model.
