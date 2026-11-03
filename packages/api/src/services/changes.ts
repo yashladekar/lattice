@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
 
 import { Prisma, type TransactionClient } from "@notes-learning/db";
-import { extractPageLinks, safeDoc, type SyncEntity } from "@notes-learning/domain";
+import {
+  dedupeChanges,
+  extractPageLinks,
+  safeDoc,
+  type PendingSyncChange,
+  type SyncEntity,
+} from "@notes-learning/domain";
 
-export interface PendingChange {
+export interface PendingChange extends PendingSyncChange {
   entity: SyncEntity;
-  entityId: string;
-  op: "UPSERT" | "DELETE";
   data: Record<string, unknown>;
 }
 
@@ -30,6 +34,10 @@ export async function appendChanges(
 
   if (!changes.length) return workspace.syncVersion;
 
+  // One batch can touch the same entity more than once — creating a page also
+  // creates its document, for example. Record only the final write.
+  const finalChanges = dedupeChanges(changes);
+
   const updated = await tx.workspace.update({
     where: { id: workspaceId },
     data: { syncVersion: { increment: 1 } },
@@ -37,7 +45,7 @@ export async function appendChanges(
   });
 
   await tx.syncChange.createMany({
-    data: changes.map((change) => ({
+    data: finalChanges.map((change) => ({
       id: `sc_${randomUUID()}`,
       workspaceId,
       version: updated.syncVersion,

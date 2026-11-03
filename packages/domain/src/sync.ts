@@ -40,6 +40,26 @@ export function normalizedSyncOps(ops: SyncOpInput[]): SyncOpInput[] {
   return [...seen.values()];
 }
 
+export interface PendingSyncChange {
+  entity: string;
+  entityId: string;
+  op: "UPSERT" | "DELETE";
+}
+
+/**
+ * Collapses repeated writes to one entity inside a single sync batch. The
+ * change log stores state, not events, so only the final write should be
+ * recorded — otherwise two rows share a version and the stale one can be
+ * applied last on pull.
+ */
+export function dedupeChanges<T extends PendingSyncChange>(changes: T[]): T[] {
+  const latest = new Map<string, T>();
+  for (const change of changes) {
+    latest.set(`${change.entity}:${change.entityId}`, change);
+  }
+  return [...latest.values()];
+}
+
 export function isEntityPayload(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
