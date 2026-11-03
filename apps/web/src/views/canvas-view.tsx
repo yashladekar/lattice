@@ -16,6 +16,7 @@ import {
   type CanvasShapeElement,
   type CanvasTextElement,
   type StickyColor,
+  mergeCanvasDocument,
 } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import {
@@ -88,6 +89,7 @@ import {
   printCanvas,
 } from "@/lib/canvas-export";
 import { saveCanvasLocal, updateCanvasLocal } from "@/lib/local/repository";
+import { useCanvasCollaboration } from "@/lib/canvas-collab";
 import { appRouteObject } from "@/lib/navigation";
 import type { LocalCanvas } from "@/lib/local/types";
 import { usePage, usePageDocument } from "@/hooks/use-local-data";
@@ -245,7 +247,7 @@ type DragState =
 
 export function CanvasView({ canvasId }: { canvasId: string | null }) {
   const router = useRouter();
-  const { db, user, activeWorkspaceId } = useAppData();
+  const { db, user, activeWorkspaceId, online } = useAppData();
   const canvas = useCanvas(canvasId);
   const pages = useWorkspacePages();
   const canvases = useWorkspaceCanvases();
@@ -452,6 +454,21 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       }
     }, 650);
   }, [document, db, canvas?.id]);
+
+  const collab = useCanvasCollaboration({
+    canvasId: canvasId ?? "",
+    workspaceId: activeWorkspaceId,
+    enabled: Boolean(canvasId && activeWorkspaceId) && online,
+    userName: user?.name ?? "Someone",
+    onRemote: (elements, knownIds) => {
+      // The save effect below picks the merged document up and persists it.
+      setDocument((current) => mergeCanvasDocument(current, elements, knownIds));
+    },
+  });
+
+  useEffect(() => {
+    collab.publish(document);
+  }, [collab, document]);
 
   const mutate = useCallback(
     (updater: (current: CanvasDocument) => CanvasDocument, record = true) => {

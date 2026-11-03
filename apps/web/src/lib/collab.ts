@@ -17,9 +17,13 @@ export interface CollabPeer {
   color: string;
 }
 
-export function collaborationUrl(workspaceId: string, pageId: string): string {
+export function collaborationUrl(
+  workspaceId: string,
+  resourceId: string,
+  resourceType: "page" | "canvas" = "page",
+): string {
   const base = getApiBaseUrl().replace(/^http/, "ws");
-  const params = new URLSearchParams({ workspaceId, pageId });
+  const params = new URLSearchParams({ workspaceId, id: resourceId, type: resourceType });
   return `${base}/collab?${params.toString()}`;
 }
 
