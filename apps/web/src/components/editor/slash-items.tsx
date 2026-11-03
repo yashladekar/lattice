@@ -10,6 +10,7 @@ import {
   Heading2,
   Heading3,
   Image as ImageIcon,
+  ImagePlus,
   Link2,
   List,
   ListChecks,
@@ -31,6 +32,7 @@ import type { EditorMenuItem } from "./menu-types";
 
 export interface SlashActions {
   requestPage: (mode: "link" | "embed" | "live", editor: Editor, range: Range) => void;
+  uploadImage: () => void;
 }
 
 function chain(editor: Editor, range: Range) {
@@ -231,6 +233,18 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
         const src = window.prompt("Image URL");
         if (!src) return;
         chain(editor, range).setImage({ src }).run();
+      },
+    },
+    {
+      id: "image-upload",
+      label: "Upload image",
+      description: "Pick a file, or paste and drop one into the page",
+      group: "Media",
+      keywords: "attach file photo screenshot paste drop",
+      icon: <ImagePlus className="size-3.5" />,
+      select: (editor, range) => {
+        chain(editor, range).run();
+        actions.uploadImage();
       },
     },
     {

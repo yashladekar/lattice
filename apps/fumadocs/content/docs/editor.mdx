@@ -36,6 +36,20 @@ A `pageLink` node stores the target page id and display title. On save Lattice d
 
 Removing a link soft-deletes its derived edge. Manual typed relations are separate and never removed by link cleanup.
 
+## Images and attachments
+
+Images can be referenced by URL or uploaded. **Upload image** in the `/` menu
+opens a file picker; pasting or dropping an image file straight into the page
+does the same thing.
+
+Uploads go to the authenticated `/uploads` endpoint, are recorded as workspace
+attachments (name, mime, size, URL, page), and sync like any other record. The
+image node itself stores the served URL, so a note renders without refetching
+the original file.
+
+Only image files are embedded inline. Other files land in the capture inbox via
+quick capture instead.
+
 ## API requests
 
 The `request` block documents an endpoint and can call it from the page.

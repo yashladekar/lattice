@@ -73,7 +73,9 @@ import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
 import { usePage, usePageDocument, useWorkspacePages } from "@/hooks/use-local-data";
 import { downloadTextFile } from "@/lib/download";
+import { uploadFile } from "@/lib/upload";
 import {
+  addAttachmentLocal,
   createCanvasLocal,
   createFlashcardLocal,
   createPageLocal,
@@ -151,6 +153,8 @@ export function PageEditor({
   const [remoteUpdate, setRemoteUpdate] = useState(false);
   const [peers, setPeers] = useState<Array<{ userId: string; name: string; image: string | null }>>([]);
   const editorRef = useRef<Editor | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadImageRef = useRef<((file: File, at?: number) => void) | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
@@ -235,7 +239,10 @@ export function PageEditor({
     async (kind: EditorMenuKind, query: string): Promise<EditorMenuItem[]> => {
       const normalized = query.trim().toLowerCase();
       if (kind === "slash") {
-        return createSlashItems({ requestPage }).filter((item) => {
+        return createSlashItems({
+          requestPage,
+          uploadImage: () => fileInputRef.current?.click(),
+        }).filter((item) => {
           if (!normalized) return true;
           return `${item.label} ${item.description ?? ""} ${item.keywords ?? ""}`
             .toLowerCase()
@@ -367,6 +374,26 @@ export function PageEditor({
         class: "tiptap",
         spellcheck: "true",
       },
+      handlePaste: (_view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
+          file.type.startsWith("image/"),
+        );
+        if (!files.length) return false;
+        event.preventDefault();
+        for (const file of files) void uploadImageRef.current?.(file);
+        return true;
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;
+        const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+          file.type.startsWith("image/"),
+        );
+        if (!files.length) return false;
+        event.preventDefault();
+        const point = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        for (const file of files) void uploadImageRef.current?.(file, point?.pos);
+        return true;
+      },
     },
     onUpdate: ({ editor: instance }) => {
       dirty.current = true;
@@ -383,6 +410,52 @@ export function PageEditor({
     },
   });
   editorRef.current = editor;
+
+  const uploadImageFile = async (file: File, at?: number) => {
+    if (!db || !user || !activeWorkspaceId) {
+      toast.error("Sign in to upload files.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files can be embedded.");
+      return;
+    }
+    const toastId = toast.loading(`Uploading ${file.name}…`);
+    try {
+      const uploaded = await uploadFile(file);
+      await addAttachmentLocal(db, {
+        workspaceId: activeWorkspaceId,
+        userId: user.id,
+        pageId,
+        name: uploaded.name,
+        mime: uploaded.mime,
+        size: uploaded.size,
+        url: uploaded.url,
+      });
+      const active = editorRef.current;
+      if (active && !active.isDestroyed) {
+        if (typeof at === "number") {
+          active
+            .chain()
+            .insertContentAt(at, {
+              type: "image",
+              attrs: { src: uploaded.url, alt: uploaded.name },
+            })
+            .focus()
+            .run();
+        } else {
+          active.chain().focus().setImage({ src: uploaded.url, alt: uploaded.name }).run();
+        }
+      }
+      toast.success("Image uploaded", { id: toastId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed", { id: toastId });
+    }
+  };
+
+  useEffect(() => {
+    uploadImageRef.current = (file, at) => void uploadImageFile(file, at);
+  });
 
   useEffect(() => {
     if (!editor || !document || loaded.current) return;
@@ -1053,6 +1126,19 @@ export function PageEditor({
         mode={pagePicker?.mode ?? "link"}
         onClose={() => setPagePicker(null)}
         onPick={applyPagePick}
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = "";
+          for (const file of files) void uploadImageFile(file);
+        }}
       />
 
       <AiResultDialog
