@@ -28,6 +28,7 @@ import {
   Plus,
   Search,
   Settings,
+  Share2,
   Sparkles,
   Tag,
   Trash2,
@@ -135,6 +136,7 @@ export function WorkspaceSidebar({
   onOpenPalette,
   onQuickCapture,
   onOpenConflicts,
+  onShareNotebook,
   onClose,
   mobile = false,
 }: {
@@ -142,6 +144,7 @@ export function WorkspaceSidebar({
   onOpenPalette: () => void;
   onQuickCapture: () => void;
   onOpenConflicts: () => void;
+  onShareNotebook: (notebookId: string, name: string) => void;
   onClose?: () => void;
   mobile?: boolean;
 }) {
@@ -480,6 +483,11 @@ export function WorkspaceSidebar({
                           }}
                         >
                           <Pencil className="size-3" /> Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onShareNotebook(notebook.id, notebook.name)}
+                        >
+                          <Share2 className="size-3" /> Share notebook
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"

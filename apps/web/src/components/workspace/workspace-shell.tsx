@@ -68,6 +68,11 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareOverride, setShareOverride] = useState<{
+    type: "NOTEBOOK";
+    id: string;
+    title: string;
+  } | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [conflictsOpen, setConflictsOpen] = useState(false);
@@ -181,6 +186,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
   }, [newPage]);
 
   const shareTarget = useMemo(() => {
+    if (shareOverride) return shareOverride;
     if (route.view === "page" && page) {
       return { type: "PAGE" as const, id: page.id, title: page.title };
     }
@@ -195,7 +201,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
       };
     }
     return null;
-  }, [route.view, page, canvas, activeWorkspace]);
+  }, [shareOverride, route.view, page, canvas, activeWorkspace]);
 
   const handleTabSelect = (tab: (typeof tabs)[number]) => {
     setActiveKey(tab.key);
@@ -273,6 +279,10 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
             onOpenPalette={() => setCommandOpen(true)}
             onQuickCapture={() => setCaptureOpen(true)}
             onOpenConflicts={() => setConflictsOpen(true)}
+            onShareNotebook={(id, name) => {
+              setShareOverride({ type: "NOTEBOOK", id, title: name });
+              setShareOpen(true);
+            }}
           />
         </div>
       ) : null}
@@ -298,6 +308,11 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
                 setCaptureOpen(true);
               }}
               onOpenConflicts={() => setConflictsOpen(true)}
+              onShareNotebook={(id, name) => {
+                setSidebarOpen(false);
+                setShareOverride({ type: "NOTEBOOK", id, title: name });
+                setShareOpen(true);
+              }}
               onClose={() => setSidebarOpen(false)}
             />
           </div>
@@ -398,7 +413,10 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
       />
       <ShareDialog
         open={shareOpen}
-        onClose={() => setShareOpen(false)}
+        onClose={() => {
+          setShareOpen(false);
+          setShareOverride(null);
+        }}
         resourceType={shareTarget?.type ?? "PAGE"}
         resourceId={shareTarget?.id ?? null}
         title={shareTarget?.title ?? "This resource"}
