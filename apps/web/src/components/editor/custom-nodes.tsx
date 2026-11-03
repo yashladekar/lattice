@@ -1,6 +1,10 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 
+import { DEFAULT_DIAGRAM_SOURCE, normalizeDiagramSource } from "@notes-learning/domain";
+
+import { DiagramNodeView } from "../diagram/diagram-node-view";
+
 import {
   BookmarkView,
   DatabaseNodeView,
@@ -315,4 +319,58 @@ export const Database = Node.create({
   },
 });
 
-export const customEditorNodes = [PageLink, Callout, PageEmbed, LiveBlock, Bookmark, Database];
+export const Diagram = Node.create({
+  name: "diagram",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      source: { default: DEFAULT_DIAGRAM_SOURCE },
+      caption: { default: "" },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        tag: 'pre[data-type="diagram"]',
+        getAttrs: (element) =>
+          element instanceof HTMLElement
+            ? {
+                source: element.textContent ?? DEFAULT_DIAGRAM_SOURCE,
+                caption: element.getAttribute("data-caption") ?? "",
+              }
+            : false,
+      },
+    ];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "pre",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "diagram",
+        "data-caption": node.attrs.caption ?? "",
+        class: "diagram-block",
+      }),
+      [
+        "code",
+        { class: "language-mermaid" },
+        normalizeDiagramSource(String(node.attrs.source ?? DEFAULT_DIAGRAM_SOURCE)),
+      ],
+    ];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(DiagramNodeView);
+  },
+});
+
+export const customEditorNodes = [
+  PageLink,
+  Callout,
+  PageEmbed,
+  LiveBlock,
+  Bookmark,
+  Database,
+  Diagram,
+];

@@ -19,6 +19,7 @@ const BLOCK_TYPES = new Set([
   "bookmark",
   "mathBlock",
   "youtube",
+  "diagram",
 ]);
 
 export function emptyDoc(): TipTapDoc {
@@ -85,6 +86,10 @@ export function nodePlainText(node: TipTapNode | undefined): string {
   }
   if (node.type === "database") {
     return "Database";
+  }
+  if (node.type === "diagram") {
+    const caption = node.attrs?.caption;
+    return typeof caption === "string" && caption.trim() ? caption.trim() : "Diagram";
   }
   const children = node.content ?? [];
   const text = children.map((child) => nodePlainText(child)).join("");
@@ -363,6 +368,12 @@ function blockMarkdown(node: TipTapNode, depth = 0): string {
       return `> **Live block**\n\n`;
     case "database":
       return `> **Database block** — open in Lattice to edit.\n\n`;
+    case "diagram": {
+      const source = typeof node.attrs?.source === "string" ? node.attrs.source : "";
+      const caption = typeof node.attrs?.caption === "string" ? node.attrs.caption : "";
+      const fence = `\`\`\`mermaid\n${source.trim()}\n\`\`\``;
+      return `${caption ? `${fence}\n\n*${caption}*\n\n` : `${fence}\n\n`}`;
+    }
     case "bookmark": {
       const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
       const title = typeof node.attrs?.title === "string" ? node.attrs.title : url;

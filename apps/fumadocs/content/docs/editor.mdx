@@ -36,6 +36,26 @@ A `pageLink` node stores the target page id and display title. On save Lattice d
 
 Removing a link soft-deletes its derived edge. Manual typed relations are separate and never removed by link cleanup.
 
+## Diagrams
+
+The `diagram` block renders Mermaid as SVG. It is a first-class block, not a
+screenshot, so it stays editable, themes with the app, and prints cleanly.
+
+- Insert from the `/` menu, or use **Page actions → Diagram from outline** to
+  turn the page's heading tree into a flowchart.
+- Edit the Mermaid source inline; `⌘↵` applies, `Escape` cancels.
+- Flowcharts, sequence, class, state, ER, gantt, pie, journey, mindmap, and the
+  other Mermaid diagram types all render.
+- Mermaid is lazy-loaded, so notes without diagrams never pay for it.
+
+Diagrams render in the editor, the read-only page reader, transclusions, and
+public share pages. The mobile companion shows the diagram source instead,
+because Mermaid needs a DOM.
+
+Markdown export writes a ```` ```mermaid ```` fence, so diagrams survive a
+round-trip through Markdown. A ```` ```mermaid ```` code block imported from
+Markdown also renders as a diagram in read-only views.
+
 ## Page context
 
 The right panel contains:

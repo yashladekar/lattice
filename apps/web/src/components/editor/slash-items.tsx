@@ -5,6 +5,7 @@ import {
   Code2,
   Database,
   Frame,
+  GitBranch,
   Heading1,
   Heading2,
   Heading3,
@@ -22,6 +23,8 @@ import {
   Type,
   Video,
 } from "lucide-react";
+
+import { DEFAULT_DIAGRAM_SOURCE } from "@notes-learning/domain";
 
 import type { EditorMenuItem } from "./menu-types";
 
@@ -162,6 +165,21 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
       keywords: "snippet pre",
       icon: <Code2 className="size-3.5" />,
       select: (editor, range) => chain(editor, range).setCodeBlock().run(),
+    },
+    {
+      id: "diagram",
+      label: "Diagram",
+      description: "Mermaid flowchart, sequence, or state diagram",
+      group: "Rich blocks",
+      keywords: "mermaid graph chart flowchart sequence uml architecture",
+      icon: <GitBranch className="size-3.5" />,
+      select: (editor, range) =>
+        chain(editor, range)
+          .insertContent({
+            type: "diagram",
+            attrs: { source: DEFAULT_DIAGRAM_SOURCE, caption: "" },
+          })
+          .run(),
     },
     {
       id: "table",

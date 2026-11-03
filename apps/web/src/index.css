@@ -518,6 +518,38 @@ body {
   font-size: 0.85rem;
 }
 
+.diagram-surface {
+  position: relative;
+  overflow: auto;
+  border-radius: 0.65rem;
+  background: color-mix(in oklch, var(--foreground) 2.5%, var(--card));
+  padding: 0.85rem;
+}
+
+.diagram-svg {
+  display: flex;
+  justify-content: center;
+}
+
+.diagram-svg svg {
+  max-width: 100% !important;
+  height: auto;
+}
+
+.diagram-surface-error {
+  border: 1px dashed color-mix(in oklch, var(--destructive) 40%, transparent);
+  background: color-mix(in oklch, var(--destructive) 4%, var(--card));
+}
+
+.diagram-block {
+  display: block;
+}
+
+.diagram-expanded {
+  position: relative;
+  z-index: 5;
+}
+
 
 .tiptap [data-type="pageLink"] {
   color: var(--primary);

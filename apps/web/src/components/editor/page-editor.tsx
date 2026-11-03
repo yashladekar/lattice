@@ -7,6 +7,7 @@ import {
   extractOutline,
   extractPlainText,
   formatRelative,
+  outlineToMermaid,
   safeDoc,
   type OutlineItem,
   type TipTapDoc,
@@ -35,6 +36,7 @@ import {
   Download,
   FileText,
   Focus,
+  GitBranch,
   GripVertical,
   Heading1,
   Highlighter,
@@ -574,6 +576,30 @@ export function PageEditor({
     downloadTextFile(`${title || "page"}.md`, markdown, "text/markdown");
   };
 
+  const insertOutlineDiagram = () => {
+    if (!editor || editor.isDestroyed) return;
+    const doc = safeDoc(editor.getJSON());
+    const outline = extractOutline(doc);
+    if (!outline.length) {
+      toast.error("Add a few headings first — the diagram is built from your outline.");
+      return;
+    }
+    const source = outlineToMermaid(doc, { title: page?.title ?? undefined });
+    if (!source) {
+      toast.error("Nothing to chart yet.");
+      return;
+    }
+    editor
+      .chain()
+      .insertContentAt(editor.state.doc.content.size, {
+        type: "diagram",
+        attrs: { source, caption: "Page outline" },
+      })
+      .focus("end")
+      .run();
+    toast.success("Diagram inserted from the page outline");
+  };
+
   const saveVersion = async () => {
     if (!activeWorkspaceId || !online) {
       toast.error("Version history needs a connection to the sync server.");
@@ -846,6 +872,9 @@ export function PageEditor({
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportMarkdown()}>
                 <Download className="size-3.5" /> Export Markdown
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={insertOutlineDiagram}>
+                <GitBranch className="size-3.5" /> Diagram from outline
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={toggleMarkdown}>

@@ -9,7 +9,7 @@ The repository/package names remain `notes-learning` from the original scaffold;
 ## What is implemented
 
 - **Multi-tenant workspaces** — personal workspaces, organizations, invites, nested notebooks/pages, roles, visibility, resource permissions, audit log.
-- **Block editor** — TipTap 3 with slash menu, `@` mentions, `[[` page links, drag handle, bubble formatting, callouts, tasks, tables, code, math, media embeds, page embeds, synced blocks, database block, comments, versions, templates, Markdown mode, focus mode.
+- **Block editor** — TipTap 3 with slash menu, `@` mentions, `[[` page links, drag handle, bubble formatting, callouts, tasks, tables, code, math, Mermaid diagrams, media embeds, page embeds, synced blocks, database block, comments, versions, templates, Markdown mode, focus mode.
 - **Infinite whiteboard** — pan/zoom, sticky notes, shapes, text, pen, connectors, frames, images, linked live note cards, nested canvases, grouping/alignment/layers, undo/redo, templates, presentation, SVG/PNG/PDF export.
 - **Knowledge graph** — automatic page-link edges, typed manual relations, custom topics, force layout, filters by notebook/tag/kind/relation, orphan detection, node side panel, AI suggestions, shareable public graph.
 - **Local-first storage & sync** — per-user IndexedDB, outbox, versioned server change log, tombstones, idempotent pushes, revision-aware document conflicts, snapshot repair, sync status, full JSON export/import.

@@ -1,5 +1,24 @@
-import type { TipTapDoc, TipTapNode } from "@notes-learning/domain";
-import { Text, View, Image } from "react-native";
+import { diagramTypeOf, type TipTapDoc, type TipTapNode } from "@notes-learning/domain";
+import { Text, View, Image, ScrollView } from "react-native";
+
+function DiagramFallback({ source, caption }: { source: string; caption: string }) {
+  const trimmed = source.trim();
+  if (!trimmed) return null;
+  return (
+    <View className="rounded-xl border border-border bg-surface-secondary p-3">
+      <View className="flex-row items-center justify-between">
+        <Text className="text-[10px] uppercase tracking-widest text-muted">
+          {diagramTypeOf(trimmed)} diagram
+        </Text>
+        <Text className="text-[9px] text-muted">renders on web</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-2">
+        <Text className="font-mono text-[11px] leading-5 text-foreground/80">{trimmed}</Text>
+      </ScrollView>
+      {caption ? <Text className="mt-2 text-[10px] text-muted">{caption}</Text> : null}
+    </View>
+  );
+}
 
 function inlineText(node: TipTapNode | undefined): string {
   if (!node) return "";
@@ -80,12 +99,22 @@ function NodeView({ node, index }: { node: TipTapNode; index: number }) {
           <Text className="text-[15px] italic leading-7 text-foreground/75">{inlineText(node)}</Text>
         </View>
       );
-    case "codeBlock":
+    case "codeBlock": {
+      const language = typeof node.attrs?.language === "string" ? node.attrs.language : "";
+      if (language.toLowerCase() === "mermaid") {
+        return <DiagramFallback key={index} source={inlineText(node)} caption="" />;
+      }
       return (
         <View key={index} className="rounded-xl bg-neutral-900 p-3">
           <Text className="font-mono text-[12px] leading-5 text-neutral-100">{inlineText(node)}</Text>
         </View>
       );
+    }
+    case "diagram": {
+      const source = typeof node.attrs?.source === "string" ? node.attrs.source : "";
+      const caption = typeof node.attrs?.caption === "string" ? node.attrs.caption : "";
+      return <DiagramFallback key={index} source={source} caption={caption} />;
+    }
     case "horizontalRule":
       return <View key={index} className="my-2 h-px bg-border" />;
     case "image": {

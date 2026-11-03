@@ -10,4 +10,5 @@ export * from "./graph";
 export * from "./learning";
 export * from "./search";
 export * from "./canvas";
+export * from "./diagrams";
 export * from "./templates";

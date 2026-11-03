@@ -81,6 +81,7 @@ export function createEditorExtensions({
         "liveBlock",
         "database",
         "bookmark",
+        "diagram",
         "details",
         "table",
       ],

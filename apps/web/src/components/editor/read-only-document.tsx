@@ -2,6 +2,8 @@ import { cn } from "@notes-learning/ui/lib/utils";
 
 import type { TipTapDoc, TipTapNode } from "@notes-learning/domain";
 
+import { MermaidDiagram } from "../diagram/mermaid-diagram";
+
 function renderMarks(
   node: TipTapNode,
   text: React.ReactNode,
@@ -96,9 +98,13 @@ function renderNode(
       return <blockquote key={key}>{children}</blockquote>;
     case "codeBlock": {
       const language = typeof node.attrs?.language === "string" ? node.attrs.language : "";
+      const code = node.content?.map((child) => child.text ?? "").join("") ?? "";
+      if (language.toLowerCase() === "mermaid" && code.trim()) {
+        return <MermaidDiagram key={key} source={code} className="my-4 max-h-96" />;
+      }
       return (
         <pre key={key} data-language={language}>
-          <code>{node.content?.map((child) => child.text ?? "").join("")}</code>
+          <code>{code}</code>
         </pre>
       );
     }
@@ -139,6 +145,21 @@ function renderNode(
           <span className="text-[0.75em]">{icon}</span>
           {title}
         </button>
+      );
+    }
+    case "diagram": {
+      const source = typeof node.attrs?.source === "string" ? node.attrs.source : "";
+      const caption = typeof node.attrs?.caption === "string" ? node.attrs.caption : "";
+      if (!source.trim()) return null;
+      return (
+        <figure key={key} className="my-4">
+          <MermaidDiagram source={source} className="max-h-96" />
+          {caption ? (
+            <figcaption className="mt-2 text-center text-[9.5px] text-muted-foreground">
+              {caption}
+            </figcaption>
+          ) : null}
+        </figure>
       );
     }
     case "pageEmbed": {
