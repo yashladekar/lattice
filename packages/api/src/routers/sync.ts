@@ -40,6 +40,9 @@ export const syncRouter = {
           ? (pageId: string) =>
               context.collab!.isActive(context.workspaceId, pageId, context.userId)
           : undefined,
+        invalidateCollab: context.collab
+          ? (pageId: string) => context.collab!.invalidate(context.workspaceId, pageId)
+          : undefined,
       });
     }),
 

@@ -43,6 +43,8 @@ interface ApplyContext {
   role: Role;
   /** True when this user has the page open in a live collaborative session. */
   isCollaborating?: (pageId: string) => boolean;
+  /** Records a page whose stored CRDT no longer matches the document. */
+  markCollabStale?: (pageId: string) => void;
 }
 
 interface ApplyResult {
@@ -528,6 +530,7 @@ async function applyPageDocument(
     where: { id: page.id },
     data: { updatedAt: new Date(), updatedById: userId },
   });
+  if (!collaborating) ctx.markCollabStale?.(page.id);
   changes.push({
     entity: "pageDocument",
     entityId: page.id,
@@ -1583,10 +1586,12 @@ export async function pushSync(
     userId: string;
     ops: SyncOpInput[];
     isCollaborating?: (pageId: string) => boolean;
+    invalidateCollab?: (pageId: string) => void;
   },
 ): Promise<SyncPushResponse> {
   const membership = await requireMembership(db, input.userId, input.workspaceId, "EDITOR");
-  return db.$transaction(
+  const staleCollab: string[] = [];
+  const response = await db.$transaction(
     async (tx) => {
       const duplicateOps = await tx.syncOp.findMany({
         where: { id: { in: input.ops.map((op) => op.opId) } },
@@ -1612,6 +1617,7 @@ export async function pushSync(
             userId: input.userId,
             role: membership.role,
             isCollaborating: input.isCollaborating,
+            markCollabStale: (pageId: string) => staleCollab.push(pageId),
           },
           op,
           changes,
@@ -1655,6 +1661,13 @@ export async function pushSync(
     },
     { timeout: 30_000 },
   );
+
+  // Anything written outside a live session makes a stored CRDT stale, and the
+  // drop has to happen after the commit so a rolled back push cannot clear it.
+  for (const pageId of new Set(staleCollab)) {
+    input.invalidateCollab?.(pageId);
+  }
+  return response;
 }
 
 export async function pullSync(
