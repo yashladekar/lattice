@@ -17,6 +17,12 @@ export const queryClient = new QueryClient({
   }),
 });
 
+let activeWorkspaceId: string | null = null;
+
+export function setWorkspaceHeader(workspaceId: string | null): void {
+  activeWorkspaceId = workspaceId;
+}
+
 async function expoFetch(request: Request, init?: RequestInit) {
   const { fetch } = await import("expo/fetch");
 
@@ -39,10 +45,18 @@ export const link = new RPCLink({
     });
   },
   async headers() {
-    if (Platform.OS === "web") {
-      return {};
-    }
     const headers = new Map<string, string>();
+    let workspaceId = activeWorkspaceId;
+    if (!workspaceId && Platform.OS !== "web") {
+      const SecureStore = await import("expo-secure-store");
+      workspaceId = await SecureStore.getItemAsync("lattice.activeWorkspace");
+    }
+    if (workspaceId) {
+      headers.set("x-workspace-id", workspaceId);
+    }
+    if (Platform.OS === "web") {
+      return Object.fromEntries(headers);
+    }
     const cookies = await authClient.getCookie();
     if (cookies) {
       headers.set("Cookie", cookies);

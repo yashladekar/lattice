@@ -19,6 +19,7 @@
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@notes-learning/api": "workspace:*",
+    "@notes-learning/domain": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/tanstack-query": "catalog:",
     "@polar-sh/better-auth": "catalog:",
