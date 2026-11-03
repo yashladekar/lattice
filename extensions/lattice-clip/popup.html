@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clip to Lattice</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      body {
+        width: 300px;
+        margin: 0;
+        padding: 14px;
+        background: #faf8f2;
+        color: #20201b;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        background: #1d1d1a;
+        color: #f4efe4;
+        font-size: 13px;
+      }
+      p {
+        margin: 0 0 10px;
+        color: #6b6a60;
+        font-size: 10px;
+        line-height: 1.5;
+      }
+      input,
+      textarea {
+        box-sizing: border-box;
+        width: 100%;
+        border: 1px solid #ddd8cb;
+        border-radius: 7px;
+        background: #fffdf8;
+        padding: 7px 8px;
+        font: inherit;
+        font-size: 11px;
+        color: #20201b;
+        outline: none;
+        margin-bottom: 7px;
+      }
+      textarea {
+        min-height: 68px;
+        resize: vertical;
+      }
+      button {
+        width: 100%;
+        border: 0;
+        border-radius: 7px;
+        background: #e8892f;
+        color: #1d1d1a;
+        padding: 8px;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        margin-top: 6px;
+        background: #ece7dc;
+      }
+      label {
+        display: block;
+        margin: 10px 0 4px;
+        font-size: 9px;
+        color: #6b6a60;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #171713;
+          color: #efeade;
+        }
+        p,
+        label {
+          color: #8d8c82;
+        }
+        input,
+        textarea {
+          border-color: #38382f;
+          background: #1f1f1b;
+          color: #efeade;
+        }
+        button.secondary {
+          background: #2b2b25;
+          color: #efeade;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand"><span class="mark">✦</span> Lattice Clip</div>
+    </header>
+    <p>Send this page to your knowledge inbox. It will be saved locally and synced when available.</p>
+    <input id="title" placeholder="Title" />
+    <input id="url" placeholder="https://…" />
+    <textarea id="text" placeholder="Why does this matter? (optional)"></textarea>
+    <button id="save">Save to Lattice</button>
+    <label>Lattice URL</label>
+    <input id="appUrl" placeholder="http://localhost:3101" />
+    <button id="saveSettings" class="secondary">Save connection</button>
+    <script src="popup.js"></script>
+  </body>
+</html>
