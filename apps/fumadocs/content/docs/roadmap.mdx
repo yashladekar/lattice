@@ -26,13 +26,13 @@ description: What this implementation covers and which subsystems are deliberate
 - Live cursors and selection presence in the editor.
 - Conflict-free concurrent typing; both peers converge without conflict snapshots.
 - Whiteboard edits merge per field, so two people moving different shapes, or editing different fields of one shape, both survive.
+- Presence and live cursors on the whiteboard, at canvas coordinates.
 - The document is persisted per resource and flushed when the last peer leaves, so a session outlives its room and an edit made just before a tab closes is not lost.
 
 ## Next: collaboration depth
 
 - Suggested edits and review workflows.
 - Granular block-level comments and discussion resolution at scale.
-- Remote cursors on the whiteboard. Presence ships today; the pointer itself does not.
 
 ## Shipped: query console
 
