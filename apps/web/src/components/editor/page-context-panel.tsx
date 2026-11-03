@@ -8,6 +8,7 @@ import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
+  RotateCcw,
   ArrowUpRight,
   Brain,
   Check,
@@ -133,6 +134,7 @@ export function PageContextPanel({
   const { db, user, activeWorkspaceId } = useAppData();
   const [tab, setTab] = useState<Tab>("info");
   const [commentText, setCommentText] = useState("");
+  const [showResolved, setShowResolved] = useState(false);
   const [tagText, setTagText] = useState("");
   const [propertyKey, setPropertyKey] = useState("");
   const [propertyValue, setPropertyValue] = useState("");
@@ -160,6 +162,7 @@ export function PageContextPanel({
   }, [membersQuery.data]);
 
   const roots = comments.filter((comment) => !comment.parentId && !comment.resolvedAt);
+  const resolvedRoots = comments.filter((comment) => !comment.parentId && comment.resolvedAt);
   const repliesFor = (parentId: string) =>
     comments.filter((comment) => comment.parentId === parentId && !comment.resolvedAt);
   const authorName = (authorId: string) =>
@@ -613,6 +616,51 @@ export function PageContextPanel({
                   ))}
                 </div>
               ))}
+              {resolvedRoots.length ? (
+                <div className="mt-2 border-t border-border/60 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowResolved((current) => !current)}
+                    className="text-[8.5px] text-muted-foreground hover:text-foreground"
+                  >
+                    {showResolved ? "Hide" : "Show"} {resolvedRoots.length} resolved
+                  </button>
+                  {showResolved ? (
+                    <div className="mt-2 space-y-2">
+                      {resolvedRoots.map((thread) => (
+                        <div
+                          key={thread.id}
+                          className="rounded-lg border border-border/60 bg-background/40 px-2.5 py-2"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-medium text-muted-foreground">
+                              {authorName(thread.authorId)}
+                            </span>
+                            <span className="ml-auto text-[8px] text-muted-foreground">
+                              {formatRelative(thread.createdAt)}
+                            </span>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-muted-foreground">
+                            {thread.body}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              db &&
+                              void resolveCommentLocal(db, thread.id, false).then(() =>
+                                toast.success("Thread reopened"),
+                              )
+                            }
+                            className="mt-1.5 inline-flex items-center gap-0.5 text-[8px] text-muted-foreground hover:text-foreground"
+                          >
+                            <RotateCcw className="size-2.5" /> Reopen
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               {!roots.length ? (
                 <div className="py-8 text-center">
                   <MessageSquare className="mx-auto size-5 text-muted-foreground/40" />
