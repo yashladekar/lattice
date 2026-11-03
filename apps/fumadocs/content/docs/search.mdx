@@ -1,0 +1,48 @@
+---
+title: Search
+description: Instant local search with tag, type, and notebook filters.
+---
+
+Search runs against the local workspace index: page titles and bodies, canvas
+text, and captured links. It does not need a network round trip, so results
+appear as you type, including offline.
+
+## Filters
+
+The query field accepts operators alongside free text:
+
+| Operator | Example | Meaning |
+| --- | --- | --- |
+| `tag:` | `tag:research` | Pages carrying that tag |
+| `#` | `#research` | Shorthand for `tag:research` |
+| `type:` | `type:canvas` | Limit to `page`, `canvas`, or `capture` |
+| `notebook:` | `notebook:"My knowledge"` | Limit to a notebook by id or name |
+| `in:` | `in:research` | Alias for `notebook:` |
+
+Quoted values keep spaces: `tag:"deep work"`.
+
+Multiple terms combine:
+
+```text
+architecture type:page tag:engineering
+```
+
+- Free words are ranked across title, body, and recency.
+- Multiple `tag:` terms must all be present.
+- Multiple `type:` terms are a union.
+- Tags only exist on pages, so a tag filter narrows results to pages.
+
+The chips under the input reflect the parsed query. **Clear filters** keeps the
+free text and drops the operators, and clicking a tag in the sidebar opens
+search pre-filtered to that tag.
+
+## Ranking
+
+`rankRecords` in `@notes-learning/domain` scores:
+
+1. exact and prefix title matches,
+2. term overlap with the body,
+3. recency.
+
+The same scoring powers the command palette, which additionally lets you open a
+result directly.

@@ -31,6 +31,92 @@ const STOP_WORDS = new Set([
   "with",
 ]);
 
+export type SearchType = "page" | "canvas" | "capture";
+
+export interface SearchQuery {
+  text: string;
+  tags: string[];
+  types: SearchType[];
+  notebooks: string[];
+}
+
+const SEARCH_TYPES: SearchType[] = ["page", "canvas", "capture"];
+
+function readTerms(input: string): string[] {
+  const terms: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (const char of input) {
+    if (char === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && /\s/.test(char)) {
+      if (current) terms.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current) terms.push(current);
+  return terms;
+}
+
+/**
+ * Splits a query into free text and `tag:`, `type:`, and `notebook:` filters.
+ * `#name` is shorthand for `tag:name`, and quoted values keep their spaces:
+ * `tag:"deep work"`.
+ */
+export function parseSearchQuery(input: string): SearchQuery {
+  const text: string[] = [];
+  const tags = new Set<string>();
+  const types = new Set<SearchType>();
+  const notebooks = new Set<string>();
+
+  for (const term of readTerms(input.trim())) {
+    if (term.startsWith("#") && term.length > 1) {
+      tags.add(term.slice(1).toLowerCase());
+      continue;
+    }
+    const separator = term.indexOf(":");
+    if (separator <= 0) {
+      text.push(term);
+      continue;
+    }
+    const operator = term.slice(0, separator).toLowerCase();
+    const value = term.slice(separator + 1).trim();
+    if (!value) {
+      text.push(term);
+      continue;
+    }
+    if (operator === "tag" || operator === "tags") {
+      tags.add(value.toLowerCase());
+      continue;
+    }
+    if (operator === "type") {
+      const type = value.toLowerCase() as SearchType;
+      if (SEARCH_TYPES.includes(type)) types.add(type);
+      continue;
+    }
+    if (operator === "notebook" || operator === "in") {
+      notebooks.add(value.toLowerCase());
+      continue;
+    }
+    text.push(term);
+  }
+
+  return {
+    text: text.join(" ").trim(),
+    tags: [...tags],
+    types: [...types],
+    notebooks: [...notebooks],
+  };
+}
+
+export function hasSearchFilters(query: SearchQuery): boolean {
+  return query.tags.length > 0 || query.types.length > 0 || query.notebooks.length > 0;
+}
+
 export function normalizeText(value: string): string {
   return value
     .toLowerCase()

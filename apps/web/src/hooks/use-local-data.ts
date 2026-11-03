@@ -22,6 +22,7 @@ import type {
   LocalNotebook,
   LocalPage,
   LocalPageDocument,
+  LocalPageTag,
   LocalReviewLog,
   LocalTag,
   LocalTemplate,
@@ -402,23 +403,55 @@ export function useWorkspaceSearchIndex() {
   return (
     useLiveQuery(
       async () => {
-        if (!db || !activeWorkspaceId) return { pages: [], documents: [], canvases: [], captures: [] };
-        const [pages, documents, canvases, captures] = await Promise.all([
+        if (!db || !activeWorkspaceId) {
+          return {
+            pages: [],
+            documents: [],
+            canvases: [],
+            captures: [],
+            tags: [],
+            pageTags: [],
+            notebooks: [],
+          };
+        }
+        const [pages, documents, canvases, captures, tags, pageTags, notebooks] = await Promise.all([
           db.pages.where("workspaceId").equals(activeWorkspaceId).toArray(),
           db.pageDocuments.where("workspaceId").equals(activeWorkspaceId).toArray(),
           db.canvases.where("workspaceId").equals(activeWorkspaceId).toArray(),
           db.captures.where("workspaceId").equals(activeWorkspaceId).toArray(),
+          db.tags.where("workspaceId").equals(activeWorkspaceId).toArray(),
+          db.pageTags.toArray(),
+          db.notebooks.where("workspaceId").equals(activeWorkspaceId).toArray(),
         ]);
         return {
           pages: pages.filter((page) => !page.deletedAt),
           documents,
           canvases: canvases.filter((canvas) => !canvas.deletedAt),
           captures: captures.filter((capture) => !capture.deletedAt),
+          tags: tags.filter((tag) => !tag.deletedAt),
+          pageTags,
+          notebooks: notebooks.filter((notebook) => !notebook.deletedAt),
         };
       },
       [db, activeWorkspaceId],
-      { pages: [], documents: [], canvases: [], captures: [] },
-    ) ?? { pages: [], documents: [], canvases: [], captures: [] }
+      {
+        pages: [] as LocalPage[],
+        documents: [] as LocalPageDocument[],
+        canvases: [] as LocalCanvas[],
+        captures: [] as LocalCapture[],
+        tags: [] as LocalTag[],
+        pageTags: [] as LocalPageTag[],
+        notebooks: [] as LocalNotebook[],
+      },
+    ) ?? {
+      pages: [],
+      documents: [],
+      canvases: [],
+      captures: [],
+      tags: [],
+      pageTags: [],
+      notebooks: [],
+    }
   );
 }
 

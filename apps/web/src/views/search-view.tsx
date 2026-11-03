@@ -1,6 +1,11 @@
 "use client";
 
-import { rankRecords } from "@notes-learning/domain";
+import {
+  hasSearchFilters,
+  parseSearchQuery,
+  rankRecords,
+  type SearchType,
+} from "@notes-learning/domain";
 import { Input } from "@notes-learning/ui/components/input";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { Clock, FileText, Frame, Inbox, Search } from "lucide-react";
@@ -14,50 +19,124 @@ export function SearchView({ initialQuery }: { initialQuery: string }) {
   const router = useRouter();
   const index = useWorkspaceSearchIndex();
   const [query, setQuery] = useState(initialQuery);
-  const [type, setType] = useState<"all" | "page" | "canvas" | "capture">("all");
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
 
-  const results = useMemo(() => {
-    if (!query.trim()) return [];
-    const docByPage = new Map(index.documents.map((document) => [document.pageId, document.plainText]));
-    const records = [
-      ...index.pages.map((page) => ({
-        type: "page" as const,
-        id: page.id,
-        workspaceId: page.workspaceId,
-        title: page.title,
-        body: docByPage.get(page.id) ?? "",
-        icon: page.icon,
-        updatedAt: page.updatedAt,
-      })),
-      ...index.canvases.map((canvas) => ({
-        type: "canvas" as const,
-        id: canvas.id,
-        workspaceId: canvas.workspaceId,
-        title: canvas.title,
-        body: canvas.data.elements
-          .map((element) => ("text" in element ? element.text : element.type === "frame" ? element.title : ""))
-          .join(" "),
-        icon: canvas.icon,
-        updatedAt: canvas.updatedAt,
-      })),
-      ...index.captures.map((capture) => ({
-        type: "capture" as const,
-        id: capture.id,
-        workspaceId: capture.workspaceId,
-        title: capture.title || capture.url || "Capture",
-        body: `${capture.content ?? ""} ${capture.url ?? ""}`,
-        icon: "⌁",
-        updatedAt: capture.updatedAt,
-      })),
+  const parsed = useMemo(() => parseSearchQuery(query), [query]);
+  const hasFilters = hasSearchFilters(parsed);
+
+  const typeToggle = (value: SearchType) => {
+    const next = parsed.types.includes(value)
+      ? parsed.types.filter((entry) => entry !== value)
+      : [...parsed.types, value];
+    const operators = [
+      ...next.map((entry) => `type:${entry}`),
+      ...parsed.tags.map((tag) => `tag:${tag.includes(" ") ? `"${tag}"` : tag}`),
+      ...parsed.notebooks.map(
+        (notebook) => `notebook:${notebook.includes(" ") ? `"${notebook}"` : notebook}`,
+      ),
     ];
-    return rankRecords(records, query, 60).filter(
-      (result) => type === "all" || result.type === type,
+    setQuery([parsed.text, ...operators].filter(Boolean).join(" "));
+  };
+
+  const results = useMemo(() => {
+    if (!parsed.text && !hasFilters) return [];
+
+    const docByPage = new Map(
+      index.documents.map((document) => [document.pageId, document.plainText]),
     );
-  }, [index, query, type]);
+    const tagNameById = new Map(index.tags.map((tag) => [tag.id, tag.name.toLowerCase()]));
+    const tagsByPage = new Map<string, Set<string>>();
+    for (const link of index.pageTags) {
+      const name = tagNameById.get(link.tagId);
+      if (!name) continue;
+      const set = tagsByPage.get(link.pageId) ?? new Set<string>();
+      set.add(name);
+      tagsByPage.set(link.pageId, set);
+    }
+    const notebookName = new Map(
+      index.notebooks.map((notebook) => [notebook.id, notebook.name.toLowerCase()]),
+    );
+
+    const wantsType = (type: SearchType) =>
+      parsed.types.length === 0 || parsed.types.includes(type);
+    const matchesNotebook = (notebookId: string | null) => {
+      if (!parsed.notebooks.length) return true;
+      if (!notebookId) return false;
+      const name = notebookName.get(notebookId) ?? "";
+      return parsed.notebooks.some(
+        (value) => value === notebookId.toLowerCase() || name === value || name.includes(value),
+      );
+    };
+    const matchesTags = (pageId: string) => {
+      if (!parsed.tags.length) return true;
+      const set = tagsByPage.get(pageId);
+      return Boolean(set) && parsed.tags.every((tag) => set?.has(tag));
+    };
+    // Tags only exist on pages, so a tag filter narrows the result kinds.
+    const tagFiltered = parsed.tags.length > 0;
+
+    const records = [
+      ...(wantsType("page")
+        ? index.pages
+            .filter((page) => matchesTags(page.id) && matchesNotebook(page.notebookId))
+            .map((page) => ({
+              type: "page" as const,
+              id: page.id,
+              workspaceId: page.workspaceId,
+              title: page.title,
+              body: docByPage.get(page.id) ?? "",
+              icon: page.icon,
+              updatedAt: page.updatedAt,
+            }))
+        : []),
+      ...(!tagFiltered && wantsType("canvas")
+        ? index.canvases
+            .filter((canvas) => matchesNotebook(canvas.notebookId))
+            .map((canvas) => ({
+              type: "canvas" as const,
+              id: canvas.id,
+              workspaceId: canvas.workspaceId,
+              title: canvas.title,
+              body: canvas.data.elements
+                .map((element) =>
+                  "text" in element
+                    ? element.text
+                    : element.type === "frame"
+                      ? element.title
+                      : "",
+                )
+                .join(" "),
+              icon: canvas.icon,
+              updatedAt: canvas.updatedAt,
+            }))
+        : []),
+      ...(!tagFiltered && wantsType("capture")
+        ? index.captures.map((capture) => ({
+            type: "capture" as const,
+            id: capture.id,
+            workspaceId: capture.workspaceId,
+            title: capture.title || capture.url || "Capture",
+            body: `${capture.content ?? ""} ${capture.url ?? ""}`,
+            icon: "⌁",
+            updatedAt: capture.updatedAt,
+          }))
+        : []),
+    ];
+
+    if (!parsed.text) {
+      return records
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .slice(0, 60)
+        .map((record) => ({
+          ...record,
+          snippet: record.body.replace(/\s+/g, " ").trim().slice(0, 140),
+        }));
+    }
+    return rankRecords(records, parsed.text, 60);
+  }, [index, parsed, hasFilters]);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-8 md:px-8">
@@ -84,26 +163,73 @@ export function SearchView({ initialQuery }: { initialQuery: string }) {
         />
       </div>
 
-      <div className="mt-3 flex items-center gap-1">
-        {(["all", "page", "canvas", "capture"] as const).map((value) => (
+      <div className="mt-3 flex flex-wrap items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setQuery(parsed.text)}
+          className={cn(
+            "rounded-full border px-2.5 py-1 text-[9px] transition-colors",
+            parsed.types.length === 0
+              ? "border-saffron/30 bg-saffron/10 text-foreground"
+              : "border-border text-muted-foreground hover:bg-muted",
+          )}
+        >
+          Everything
+        </button>
+        {(["page", "canvas", "capture"] as const).map((value) => (
           <button
             key={value}
             type="button"
-            onClick={() => setType(value)}
+            onClick={() => typeToggle(value)}
             className={cn(
               "rounded-full border px-2.5 py-1 text-[9px] capitalize transition-colors",
-              type === value
+              parsed.types.includes(value)
                 ? "border-saffron/30 bg-saffron/10 text-foreground"
                 : "border-border text-muted-foreground hover:bg-muted",
             )}
           >
-            {value === "all" ? "Everything" : `${value}s`}
+            {value === "page" ? "Pages" : value === "canvas" ? "Canvases" : "Captures"}
           </button>
         ))}
+        {parsed.tags.map((tag) => (
+          <span
+            key={`tag-${tag}`}
+            className="rounded-full border border-sky/30 bg-sky/10 px-2 py-1 text-[9px] text-foreground"
+          >
+            #{tag}
+          </span>
+        ))}
+        {parsed.notebooks.map((notebook) => (
+          <span
+            key={`notebook-${notebook}`}
+            className="rounded-full border border-moss/30 bg-moss/10 px-2 py-1 text-[9px] text-foreground"
+          >
+            in: {notebook}
+          </span>
+        ))}
+        {hasFilters ? (
+          <button
+            type="button"
+            onClick={() => setQuery(parsed.text)}
+            className="rounded-full px-1.5 py-1 text-[9px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Clear filters
+          </button>
+        ) : null}
         <span className="ml-auto text-[9px] text-muted-foreground">
           {query ? `${results.length} results` : "Type to search"}
         </span>
       </div>
+
+      {!query ? (
+        <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
+          Narrow results with <code className="rounded bg-muted px-1">tag:</code>{" "}
+          <code className="rounded bg-muted px-1">type:</code>{" "}
+          <code className="rounded bg-muted px-1">notebook:</code> — for example{" "}
+          <code className="rounded bg-muted px-1">tag:research type:page</code>. Clicking a tag in the
+          sidebar does the same thing.
+        </p>
+      ) : null}
 
       <div className="mt-5 space-y-1">
         {results.map((result) => (
@@ -152,7 +278,9 @@ export function SearchView({ initialQuery }: { initialQuery: string }) {
             <Search className="mx-auto size-6 text-muted-foreground/40" />
             <p className="mt-3 text-[12px] font-medium">No results for “{query}”</p>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Try fewer words or search in a different content type.
+              {hasFilters
+                ? "Try removing a filter, or widen the content type."
+                : "Try fewer words or search in a different content type."}
             </p>
           </div>
         ) : null}
