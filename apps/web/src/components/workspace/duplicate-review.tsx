@@ -28,6 +28,7 @@ export function DuplicateReviewPanel() {
   const { db, activeWorkspaceId } = useAppData();
   const pages = useWorkspacePages();
   const [clusters, setClusters] = useState<DuplicateCluster[] | null>(null);
+  const [keepById, setKeepById] = useState<Record<string, string>>({});
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -54,9 +55,13 @@ export function DuplicateReviewPanel() {
     void scan();
   }, [scan]);
 
+  /** The page to keep: the reviewer's choice, else the suggested survivor. */
+  const survivorFor = (cluster: DuplicateCluster) => keepById[cluster.id] ?? cluster.survivorId;
+
   const archiveOthers = async (cluster: DuplicateCluster) => {
     if (!db) return;
-    const others = cluster.members.filter((member) => member.id !== cluster.survivorId);
+    const keep = survivorFor(cluster);
+    const others = cluster.members.filter((member) => member.id !== keep);
     setBusy(cluster.id);
     try {
       for (const member of others) {
@@ -129,30 +134,51 @@ export function DuplicateReviewPanel() {
             </div>
 
             <div className="mt-2 space-y-1">
-              {cluster.members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-start gap-2 rounded-lg border border-border/60 px-2.5 py-1.5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => router.push(appRouteObject({ view: "page", id: member.id }))}
-                        className="truncate text-left text-[11px] hover:underline"
-                      >
-                        {member.title || "Untitled"}
-                      </button>
-                      {member.id === cluster.survivorId ? (
-                        <span className="rounded bg-moss/15 px-1 text-[8px] text-moss">keeping</span>
-                      ) : null}
+              {cluster.members.map((member) => {
+                const keeping = member.id === survivorFor(cluster);
+                return (
+                  <div
+                    key={member.id}
+                    className={cn(
+                      "flex items-start gap-2 rounded-lg border px-2.5 py-1.5",
+                      keeping ? "border-moss/40 bg-moss/5" : "border-border/60",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => router.push(appRouteObject({ view: "page", id: member.id }))}
+                          className="truncate text-left text-[11px] hover:underline"
+                        >
+                          {member.title || "Untitled"}
+                        </button>
+                        {member.id === cluster.survivorId && !keepById[cluster.id] ? (
+                          <span className="rounded bg-moss/15 px-1 text-[8px] text-moss">suggested</span>
+                        ) : null}
+                      </div>
+                      <div className="truncate text-[8.5px] text-muted-foreground">
+                        {member.excerpt || "No text"}
+                      </div>
                     </div>
-                    <div className="truncate text-[8.5px] text-muted-foreground">
-                      {member.excerpt || "No text"}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setKeepById((current) => ({ ...current, [cluster.id]: member.id }))
+                      }
+                      disabled={keeping}
+                      className={cn(
+                        "shrink-0 rounded px-1.5 py-0.5 text-[8.5px]",
+                        keeping
+                          ? "text-moss"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {keeping ? "keeping" : "keep this"}
+                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))
