@@ -22,7 +22,9 @@ import {
   GraduationCap,
   Home,
   Inbox,
+  MoreHorizontal,
   Network,
+  Pencil,
   Plus,
   Search,
   Settings,
@@ -37,9 +39,17 @@ import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { LatticeLogo } from "@/components/brand/logo";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { usePageTree, useWorkspaceCanvases, useWorkspaceNotebooks, useWorkspaceTags } from "@/hooks/use-local-data";
-import { createCanvasLocal, createNotebookLocal, createPageLocal } from "@/lib/local/repository";
+import {
+  createCanvasLocal,
+  createNotebookLocal,
+  createPageLocal,
+  deleteCanvasLocal,
+  deleteNotebookLocal,
+  updateNotebookLocal,
+} from "@/lib/local/repository";
 import { appRouteObject, type AppRoute } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
@@ -156,6 +166,14 @@ export function WorkspaceSidebar({
   const [workspaceName, setWorkspaceName] = useState("");
   const [notebookName, setNotebookName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [renamingNotebookId, setRenamingNotebookId] = useState<string | null>(null);
+  const [notebookRenameValue, setNotebookRenameValue] = useState("");
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: "notebook"; id: string; name: string }
+    | { kind: "canvas"; id: string; title: string }
+    | null
+  >(null);
 
   const go = (next: Partial<AppRoute> & { view: AppRoute["view"] }) => {
     router.push(appRouteObject(next));
@@ -197,6 +215,30 @@ export function WorkspaceSidebar({
     setNotebookDialog(false);
     setNotebookName("");
     toast.success("Notebook created");
+  };
+
+  const renameNotebook = async () => {
+    if (!db || !renamingNotebookId) return;
+    const name = notebookRenameValue.trim();
+    if (!name) return;
+    await updateNotebookLocal(db, renamingNotebookId, { name });
+    setRenameOpen(false);
+    setRenamingNotebookId(null);
+    toast.success("Notebook renamed");
+  };
+
+  const confirmDelete = async () => {
+    if (!db || !pendingDelete) return;
+    if (pendingDelete.kind === "notebook") {
+      await deleteNotebookLocal(db, pendingDelete.id);
+      toast.success("Notebook deleted");
+      if (route.notebook === pendingDelete.id) go({ view: "home" });
+    } else {
+      await deleteCanvasLocal(db, pendingDelete.id);
+      toast.success("Canvas deleted");
+      if (route.view === "canvas" && route.id === pendingDelete.id) go({ view: "home" });
+    }
+    setPendingDelete(null);
   };
 
   const createWorkspace = async () => {
@@ -417,6 +459,42 @@ export function WorkspaceSidebar({
                     >
                       {notebook.name}
                     </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <button
+                            type="button"
+                            aria-label={`Options for ${notebook.name}`}
+                            className="grid size-4 place-items-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                          />
+                        }
+                      >
+                        <MoreHorizontal className="size-3" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-44">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setNotebookRenameValue(notebook.name);
+                            setRenamingNotebookId(notebook.id);
+                            setRenameOpen(true);
+                          }}
+                        >
+                          <Pencil className="size-3" /> Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() =>
+                            setPendingDelete({
+                              kind: "notebook",
+                              id: notebook.id,
+                              name: notebook.name,
+                            })
+                          }
+                        >
+                          <Trash2 className="size-3" /> Delete notebook
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <button
                       type="button"
                       onClick={() => void createPage(notebook.id)}
@@ -488,20 +566,47 @@ export function WorkspaceSidebar({
         <div className="space-y-0.5">
           {canvases.length ? (
             canvases.slice(0, 8).map((canvas) => (
-              <button
+              <div
                 key={canvas.id}
-                type="button"
-                onClick={() => go({ view: "canvas", id: canvas.id })}
                 className={cn(
-                  "flex h-7 w-full items-center gap-2 rounded-md px-2 text-[11.5px] transition-colors",
+                  "group flex h-7 items-center rounded-md pr-1 transition-colors",
                   route.view === "canvas" && route.id === canvas.id
                     ? "bg-sidebar-accent text-foreground"
                     : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                 )}
               >
-                <Frame className="size-3.5 shrink-0 text-moss" />
-                <span className="truncate">{canvas.title}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => go({ view: "canvas", id: canvas.id })}
+                  className="flex h-7 min-w-0 flex-1 items-center gap-2 px-2 text-left text-[11.5px]"
+                >
+                  <Frame className="size-3.5 shrink-0 text-moss" />
+                  <span className="truncate">{canvas.title}</span>
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        aria-label={`Options for ${canvas.title}`}
+                        className="grid size-4 place-items-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                      />
+                    }
+                  >
+                    <MoreHorizontal className="size-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-40">
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() =>
+                        setPendingDelete({ kind: "canvas", id: canvas.id, title: canvas.title })
+                      }
+                    >
+                      <Trash2 className="size-3" /> Delete canvas
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ))
           ) : (
             <button
@@ -643,6 +748,67 @@ export function WorkspaceSidebar({
           autoFocus
         />
       </Modal>
+
+      <Modal
+        open={renameOpen}
+        onClose={() => {
+          setRenameOpen(false);
+          setRenamingNotebookId(null);
+        }}
+        title="Rename notebook"
+        description="Pages inside keep their place."
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => {
+                setRenameOpen(false);
+                setRenamingNotebookId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-8"
+              disabled={!notebookRenameValue.trim()}
+              onClick={() => void renameNotebook()}
+            >
+              Save name
+            </Button>
+          </div>
+        }
+      >
+        <Input
+          value={notebookRenameValue}
+          onChange={(event) => setNotebookRenameValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void renameNotebook();
+          }}
+          placeholder="Notebook name"
+          className="h-9 rounded-lg"
+          autoFocus
+        />
+      </Modal>
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={
+          pendingDelete?.kind === "notebook"
+            ? `Delete “${pendingDelete.name}”?`
+            : pendingDelete?.kind === "canvas"
+              ? `Delete “${pendingDelete.title}”?`
+              : "Delete"
+        }
+        description={
+          pendingDelete?.kind === "notebook"
+            ? "Its pages move to Unfiled so nothing is lost."
+            : "The canvas is removed from this workspace."
+        }
+        onClose={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </aside>
   );
 }

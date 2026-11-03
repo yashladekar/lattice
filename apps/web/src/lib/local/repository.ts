@@ -677,16 +677,34 @@ export async function deleteNotebookLocal(
 ): Promise<void> {
   const existing = await db.notebooks.get(notebookId);
   if (!existing) return;
-  const deleted = { ...existing, deletedAt: now(), updatedAt: now() };
-  await db.transaction("rw", [db.notebooks, db.outbox], async () => {
-    await db.notebooks.put(deleted);
+  const timestamp = now();
+  // Deleting a notebook must never strand its pages, so they move to Unfiled.
+  const pages = await db.pages.where("notebookId").equals(notebookId).toArray();
+  const kept = pages.filter((page) => !page.deletedAt);
+  await db.transaction("rw", [db.notebooks, db.pages, db.outbox], async () => {
+    await db.notebooks.put({ ...existing, deletedAt: timestamp, updatedAt: timestamp });
     await enqueueOutbox(db, {
-      workspaceId: deleted.workspaceId,
+      workspaceId: existing.workspaceId,
       entity: "notebook",
-      entityId: deleted.id,
+      entityId: existing.id,
       op: "DELETE",
-      payload: notebookPayload(deleted),
+      payload: notebookPayload({ ...existing, deletedAt: timestamp, updatedAt: timestamp }),
     });
+    for (const page of kept) {
+      const moved: LocalPage = {
+        ...page,
+        notebookId: null,
+        updatedAt: timestamp,
+      };
+      await db.pages.put(moved);
+      await enqueueOutbox(db, {
+        workspaceId: moved.workspaceId,
+        entity: "page",
+        entityId: moved.id,
+        op: "UPSERT",
+        payload: pagePayload(moved),
+      });
+    }
   });
 }
 

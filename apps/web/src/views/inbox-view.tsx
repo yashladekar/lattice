@@ -21,6 +21,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   useCaptures,
   useWorkspaceNotebooks,
@@ -50,6 +51,7 @@ function CaptureCard({
   const { db, user, activeWorkspaceId } = useAppData();
   const notebooks = useWorkspaceNotebooks();
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const tags = suggestTagNames(`${capture.title} ${capture.content ?? ""}`);
   const pageId =
     typeof capture.metadata === "object" && capture.metadata
@@ -164,16 +166,22 @@ function CaptureCard({
           type="button"
           aria-label="Delete capture"
           disabled={!db}
-          onClick={() => {
-            if (!db) return;
-            if (!window.confirm("Delete this capture?")) return;
-            void deleteCaptureLocal(db, capture.id);
-          }}
+          onClick={() => setConfirmOpen(true)}
           className="ml-auto grid size-6 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 className="size-3" />
         </button>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete this capture?"
+        description="It leaves the inbox on every device."
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={async () => {
+          if (db) await deleteCaptureLocal(db, capture.id);
+          setConfirmOpen(false);
+        }}
+      />
     </article>
   );
 }
