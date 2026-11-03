@@ -11,6 +11,7 @@ import {
   Boxes,
   Check,
   Cloud,
+  CopyCheck,
   Database,
   Download,
   FolderUp,
@@ -37,6 +38,7 @@ import { GitSyncDialog } from "@/components/workspace/git-sync-dialog";
 import { VaultImportDialog } from "@/components/workspace/vault-import";
 import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
 import { PluginManager } from "@/components/workspace/plugin-manager";
+import { DuplicateReviewPanel } from "@/components/workspace/duplicate-review";
 import { authClient } from "@/lib/auth-client";
 import { downloadTextFile } from "@/lib/download";
 import {
@@ -48,7 +50,16 @@ import {
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
-type SettingsTab = "general" | "members" | "sync" | "ai" | "devices" | "audit" | "query" | "plugins";
+type SettingsTab =
+  | "general"
+  | "members"
+  | "sync"
+  | "ai"
+  | "devices"
+  | "audit"
+  | "query"
+  | "plugins"
+  | "duplicates";
 
 const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "general", label: "General", icon: HardDrive },
@@ -59,6 +70,7 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "audit", label: "Audit log", icon: Shield },
   { id: "query", label: "Query", icon: Database },
   { id: "plugins", label: "Plugins", icon: Boxes },
+  { id: "duplicates", label: "Duplicates", icon: CopyCheck },
 ];
 
 const ROLES: Role[] = ["OWNER", "ADMIN", "MEMBER", "EDITOR", "VIEWER", "GUEST"];
@@ -643,6 +655,12 @@ export function SettingsView() {
         {tab === "plugins" ? (
           <section className="space-y-4">
             <PluginManager />
+          </section>
+        ) : null}
+
+        {tab === "duplicates" ? (
+          <section className="space-y-4">
+            <DuplicateReviewPanel />
           </section>
         ) : null}
 
