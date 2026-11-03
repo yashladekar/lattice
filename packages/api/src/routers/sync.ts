@@ -36,6 +36,10 @@ export const syncRouter = {
         workspaceId: context.workspaceId,
         userId: context.userId,
         ops: input.ops as SyncOpInput[],
+        isCollaborating: context.collab
+          ? (pageId: string) =>
+              context.collab!.isActive(context.workspaceId, pageId, context.userId)
+          : undefined,
       });
     }),
 

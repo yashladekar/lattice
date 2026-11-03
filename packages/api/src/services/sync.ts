@@ -41,6 +41,8 @@ interface ApplyContext {
   workspaceId: string;
   userId: string;
   role: Role;
+  /** True when this user has the page open in a live collaborative session. */
+  isCollaborating?: (pageId: string) => boolean;
 }
 
 interface ApplyResult {
@@ -446,7 +448,22 @@ async function applyPageDocument(
   const content = recordValue(op.payload.content);
   if (!content) throw new ORPCError("BAD_REQUEST", { message: "Document content is required" });
 
-  if (baseRev !== existing.rev) {
+  const collaborating = ctx.isCollaborating?.(page.id) ?? false;
+
+  // Live peers converge through the CRDT, so their JSON snapshots arrive with
+  // stale revisions by design. Accept them, and skip writes that change nothing.
+  if (JSON.stringify(content) === JSON.stringify(existing.content)) {
+    return {
+      accepted: {
+        entity: "pageDocument",
+        entityId: page.id,
+        rev: existing.rev,
+        updatedAt: existing.updatedAt,
+      },
+    };
+  }
+
+  if (baseRev !== existing.rev && !collaborating) {
     const conflictId = randomUUID();
     const remoteData = toJsonSafe(existing);
     const localData = {
@@ -1561,7 +1578,12 @@ async function nodePageMap(db: Database, workspaceId: string): Promise<Map<strin
 
 export async function pushSync(
   db: Database,
-  input: { workspaceId: string; userId: string; ops: SyncOpInput[] },
+  input: {
+    workspaceId: string;
+    userId: string;
+    ops: SyncOpInput[];
+    isCollaborating?: (pageId: string) => boolean;
+  },
 ): Promise<SyncPushResponse> {
   const membership = await requireMembership(db, input.userId, input.workspaceId, "EDITOR");
   return db.$transaction(
@@ -1584,7 +1606,13 @@ export async function pushSync(
           continue;
         }
         const result = await applyOp(
-          { tx, workspaceId: input.workspaceId, userId: input.userId, role: membership.role },
+          {
+            tx,
+            workspaceId: input.workspaceId,
+            userId: input.userId,
+            role: membership.role,
+            isCollaborating: input.isCollaborating,
+          },
           op,
           changes,
         );
