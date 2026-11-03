@@ -6,6 +6,7 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { Platform } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
+import { appStorage } from "@/lib/storage";
 
 import { ENV } from "../src/env";
 
@@ -24,9 +25,10 @@ export function setWorkspaceHeader(workspaceId: string | null): void {
 }
 
 async function expoFetch(request: Request, init?: RequestInit) {
-  const { fetch } = await import("expo/fetch");
+  const fetchImpl =
+    Platform.OS === "web" ? globalThis.fetch : (await import("expo/fetch")).fetch;
 
-  return fetch(request.url, {
+  return fetchImpl(request.url, {
     body: await request.blob(),
     headers: request.headers,
     method: request.method,
@@ -47,9 +49,8 @@ export const link = new RPCLink({
   async headers() {
     const headers = new Map<string, string>();
     let workspaceId = activeWorkspaceId;
-    if (!workspaceId && Platform.OS !== "web") {
-      const SecureStore = await import("expo-secure-store");
-      workspaceId = await SecureStore.getItemAsync("lattice.activeWorkspace");
+    if (!workspaceId) {
+      workspaceId = await appStorage.getItem("lattice.activeWorkspace");
     }
     if (workspaceId) {
       headers.set("x-workspace-id", workspaceId);

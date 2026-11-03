@@ -1,12 +1,12 @@
 import type { Role } from "@notes-learning/domain";
 import { useQueryClient } from "@tanstack/react-query";
-import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import { ActivityIndicator, Text } from "react-native";
 import { Button } from "heroui-native";
 
 import { authClient } from "@/lib/auth-client";
+import { appStorage } from "@/lib/storage";
 import { client, setWorkspaceHeader } from "@/utils/orpc";
 
 type Membership = Awaited<ReturnType<typeof client.workspace.ensure>>["memberships"][number];
@@ -37,12 +37,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await client.workspace.ensure({});
       setMemberships(result.memberships);
-      const stored = await SecureStore.getItemAsync(ACTIVE_KEY);
+      const stored = await appStorage.getItem(ACTIVE_KEY);
       const valid = result.memberships.some((entry) => entry.workspace.id === stored);
       const next = valid ? stored : result.memberships[0]?.workspace.id ?? null;
       setActiveId(next);
       setWorkspaceHeader(next);
-      if (next) await SecureStore.setItemAsync(ACTIVE_KEY, next);
+      if (next) await appStorage.setItem(ACTIVE_KEY, next);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not reach the Lattice server.");
     } finally {
@@ -60,7 +60,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       try {
         setWorkspaceHeader(workspaceId);
         setActiveId(workspaceId);
-        await SecureStore.setItemAsync(ACTIVE_KEY, workspaceId);
+        await appStorage.setItem(ACTIVE_KEY, workspaceId);
         await queryClient.invalidateQueries();
       } finally {
         setSwitching(false);
@@ -72,7 +72,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     setWorkspaceHeader(null);
     await authClient.signOut();
-    await SecureStore.deleteItemAsync(ACTIVE_KEY);
+    await appStorage.removeItem(ACTIVE_KEY);
     queryClient.clear();
   }, [queryClient]);
 

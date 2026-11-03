@@ -4,21 +4,32 @@ import type { BetterAuthClientPlugin } from "better-auth/client";
 import { createAuthClient } from "better-auth/react";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 import { ENV } from "../src/env";
 
+const scheme = Constants.expoConfig?.scheme as string;
+const isWeb = Platform.OS === "web";
+
 export const authClient = createAuthClient({
   baseURL: ENV.EXPO_PUBLIC_SERVER_URL,
+  fetchOptions: isWeb ? { credentials: "include" } : undefined,
   plugins: [
     // Infer Polar endpoints without importing its browser checkout embed.
     {
       id: "polar-client",
       $InferServerPlugin: {} as ReturnType<typeof polar>,
     } satisfies BetterAuthClientPlugin,
-    expoClient({
-      scheme: Constants.expoConfig?.scheme as string,
-      storagePrefix: Constants.expoConfig?.scheme as string,
-      storage: SecureStore,
-    }),
+    // The Expo plugin forwards cookies manually for native, where there is no cookie
+    // jar. On web it would opt out of credentials, so let the browser handle cookies.
+    ...(isWeb
+      ? []
+      : [
+          expoClient({
+            scheme,
+            storagePrefix: scheme,
+            storage: SecureStore,
+          }),
+        ]),
   ],
 });

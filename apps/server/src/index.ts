@@ -39,7 +39,7 @@ app.use((req, res, next) => {
 
 app.use(
   cors({
-    origin: [ENV.CORS_ORIGIN, ...desktopOrigins, "http://localhost:3001"],
+    origin: [ENV.CORS_ORIGIN, ...desktopOrigins, "http://localhost:3001", "http://localhost:8081"],
     methods: ["GET", "POST", "PUT", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-file-name", "x-workspace-id"],
     exposedHeaders: ["x-file-name"],
