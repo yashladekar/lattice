@@ -11,7 +11,7 @@ description: What this implementation covers and which subsystems are deliberate
 - Infinite whiteboard with shapes, notes, freehand, connectors, linked notes, nested canvases, templates, presentation, and export.
 - Derived knowledge graph with typed edges, filters, orphan detection, manual relations, and AI suggestions.
 - Universal capture inbox, quick capture, URL preview, and capture-to-page.
-- Workspace JSON export/import, per-page Markdown, and one-way GitHub Markdown import.
+- Workspace JSON export/import, per-page Markdown, GitHub Markdown import with two-way Git sync, and Obsidian and Notion vault import.
 - Learning decks, generated and manual cards, SM-2 review, quizzes, mastery, paths, and gaps.
 - Optional AI with citations and local fallback.
 - Dashboard widgets, command palette, tabs, keyboard-first navigation, search, timeline, trash.
@@ -78,4 +78,4 @@ description: What this implementation covers and which subsystems are deliberate
 
 ## Explicit non-goals for this release
 
-This build does not claim production-grade E2E encryption, SSO/SCIM, app-store signing, or a plugin runtime. The data model and service boundaries are designed so these can be added without replacing the knowledge model.
+This build does not claim production-grade E2E encryption, SSO/SCIM, or app-store signing. The data model and service boundaries are designed so these can be added without replacing the knowledge model.
