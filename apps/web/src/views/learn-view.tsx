@@ -22,6 +22,7 @@ import {
   Flame,
   GraduationCap,
   Layers,
+  Pencil,
   Plus,
   RotateCcw,
   Sparkles,
@@ -45,6 +46,7 @@ import {
   ensureDeckLocal,
   generateCardsFromPageLocal,
   reviewFlashcardLocal,
+  updateFlashcardLocal,
 } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
 
@@ -70,6 +72,9 @@ export function LearnView() {
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [deckName, setDeckName] = useState("");
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editFront, setEditFront] = useState("");
+  const [editBack, setEditBack] = useState("");
 
   const current = learning.due[0] ?? null;
   const pageById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [pages]);
@@ -150,6 +155,16 @@ export function LearnView() {
     setBack("");
     setAddingCard(false);
     toast.success("Card added to Daily review");
+  };
+
+  const saveCard = async (cardId: string) => {
+    if (!db || !editFront.trim() || !editBack.trim()) return;
+    await updateFlashcardLocal(db, cardId, {
+      front: editFront.trim(),
+      back: editBack.trim(),
+    });
+    setEditingCardId(null);
+    toast.success("Card updated");
   };
 
   const addDeck = async () => {
@@ -408,21 +423,75 @@ export function LearnView() {
           <div>
             <div className="mb-1 text-[8px] uppercase tracking-[0.14em] text-muted-foreground">All cards</div>
             <div className="max-h-64 space-y-1 overflow-y-auto">
-              {learning.cards.slice(0, 40).map((card) => (
-                <div key={card.id} className="group flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
-                  <span className="text-[9px]">◒</span>
-                  <span className="min-w-0 flex-1 truncate text-[9.5px]">{card.front}</span>
-                  <span className="text-[8px] text-muted-foreground">{cardFreshness(card)}</span>
-                  <button
-                    type="button"
-                    onClick={() => db && void deleteFlashcardLocal(db, card.id)}
-                    className="opacity-0 hover:text-destructive group-hover:opacity-100"
-                    aria-label="Delete card"
-                  >
-                    <X className="size-2.5" />
-                  </button>
-                </div>
-              ))}
+              {learning.cards.slice(0, 40).map((card) =>
+                editingCardId === card.id ? (
+                  <div key={card.id} className="space-y-1 rounded-md border border-primary/30 bg-background p-2">
+                    <Input
+                      value={editFront}
+                      onChange={(event) => setEditFront(event.target.value)}
+                      placeholder="Front"
+                      aria-label="Card front"
+                      className="h-7 rounded-md text-[10px]"
+                      autoFocus
+                    />
+                    <Input
+                      value={editBack}
+                      onChange={(event) => setEditBack(event.target.value)}
+                      placeholder="Back"
+                      aria-label="Card back"
+                      className="h-7 rounded-md text-[10px]"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") void saveCard(card.id);
+                        if (event.key === "Escape") setEditingCardId(null);
+                      }}
+                    />
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 rounded-md text-[8px]"
+                        onClick={() => setEditingCardId(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-6 rounded-md text-[8px]"
+                        disabled={!editFront.trim() || !editBack.trim()}
+                        onClick={() => void saveCard(card.id)}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={card.id} className="group flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
+                    <span className="text-[9px]">◒</span>
+                    <span className="min-w-0 flex-1 truncate text-[9.5px]">{card.front}</span>
+                    <span className="text-[8px] text-muted-foreground">{cardFreshness(card)}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingCardId(card.id);
+                        setEditFront(card.front);
+                        setEditBack(card.back);
+                      }}
+                      className="opacity-0 hover:text-foreground group-hover:opacity-100"
+                      aria-label="Edit card"
+                    >
+                      <Pencil className="size-2.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => db && void deleteFlashcardLocal(db, card.id)}
+                      className="opacity-0 hover:text-destructive group-hover:opacity-100"
+                      aria-label="Delete card"
+                    >
+                      <X className="size-2.5" />
+                    </button>
+                  </div>
+                ),
+              )}
             </div>
           </div>
         </div>

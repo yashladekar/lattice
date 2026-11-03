@@ -18,6 +18,15 @@ Cards record their source page and block id. Generation is idempotent against ex
 
 An AI provider can produce richer cards when configured; generated cards still require an explicit add action.
 
+## Authoring
+
+Cards are not only generated. **Add card** in the learning view writes a manual
+card into the default deck, and every card in the Decks tab can be edited in
+place (front and back) or deleted. Manual cards are marked `MANUAL` as their
+source, so a generated card and a hand-written one stay distinguishable.
+
+Editing a card keeps its schedule; it changes the prompt, not the review history.
+
 ## Scheduling
 
 Lattice uses an SM-2-style scheduler with four ratings:
