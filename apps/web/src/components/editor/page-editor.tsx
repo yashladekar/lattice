@@ -15,6 +15,7 @@ import { Button } from "@notes-learning/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -380,10 +381,15 @@ export function PageEditor({
 
   useEffect(() => {
     if (!editor || !document || loaded.current) return;
-    editor.commands.setContent(document.content, { emitUpdate: false });
-    lastRev.current = document.rev;
     loaded.current = true;
-    setSaveStatus("saved");
+    lastRev.current = document.rev;
+    // TipTap's React node views flush synchronously. Deferring to a microtask
+    // keeps that flush out of React's own commit phase.
+    queueMicrotask(() => {
+      if (editor.isDestroyed) return;
+      editor.commands.setContent(document.content, { emitUpdate: false });
+      setSaveStatus("saved");
+    });
   }, [editor, document]);
 
   useEffect(() => {
@@ -795,19 +801,21 @@ export function PageEditor({
               {page.icon ?? "◇"}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-52">
-              <DropdownMenuLabel>Page icon</DropdownMenuLabel>
-              <div className="grid grid-cols-8 gap-0.5 p-1">
-                {PAGE_ICONS.map((icon) => (
-                  <button
-                    key={icon}
-                    type="button"
-                    onClick={() => void chooseIcon(icon)}
-                    className="grid size-6 place-items-center rounded hover:bg-muted"
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Page icon</DropdownMenuLabel>
+                <div className="grid grid-cols-8 gap-0.5 p-1">
+                  {PAGE_ICONS.map((icon) => (
+                    <button
+                      key={icon}
+                      type="button"
+                      onClick={() => void chooseIcon(icon)}
+                      className="grid size-6 place-items-center rounded hover:bg-muted"
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button

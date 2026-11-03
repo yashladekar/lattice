@@ -5,6 +5,7 @@ import { Button } from "@notes-learning/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -284,21 +285,23 @@ export function WorkspaceSidebar({
             <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-[244px]">
-            <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-            {workspaces.map((workspace) => (
-              <DropdownMenuItem
-                key={workspace.id}
-                onClick={() => {
-                  setActiveWorkspace(workspace.id);
-                  go({ view: "home" });
-                }}
-                className="gap-2"
-              >
-                <span className="text-[11px]">{workspace.icon ?? "◇"}</span>
-                <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
-                {workspace.id === activeWorkspaceId ? <Check className="size-3 text-moss" /> : null}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+              {workspaces.map((workspace) => (
+                <DropdownMenuItem
+                  key={workspace.id}
+                  onClick={() => {
+                    setActiveWorkspace(workspace.id);
+                    go({ view: "home" });
+                  }}
+                  className="gap-2"
+                >
+                  <span className="text-[11px]">{workspace.icon ?? "◇"}</span>
+                  <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+                  {workspace.id === activeWorkspaceId ? <Check className="size-3 text-moss" /> : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setWorkspaceDialog(true)} className="gap-2">
               <Plus className="size-3.5" /> New organization

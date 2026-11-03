@@ -5,6 +5,7 @@ import { Button } from "@notes-learning/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -195,41 +196,43 @@ export function WorkspaceTopbar({
             ) : null}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {notifications.data?.length ? (
-              notifications.data.slice(0, 6).map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  onClick={() => void openNotification(notification)}
-                  className="items-start gap-2 py-2"
-                >
-                  <span
-                    className={cn(
-                      "mt-1 size-1.5 shrink-0 rounded-full",
-                      notification.readAt ? "bg-border" : "bg-saffron",
-                    )}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[10px] font-medium leading-snug">
-                      {notification.title}
-                    </span>
-                    {notification.body ? (
-                      <span className="mt-0.5 line-clamp-2 block text-[8.5px] leading-snug text-muted-foreground">
-                        {notification.body}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {notifications.data?.length ? (
+                notifications.data.slice(0, 6).map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    onClick={() => void openNotification(notification)}
+                    className="items-start gap-2 py-2"
+                  >
+                    <span
+                      className={cn(
+                        "mt-1 size-1.5 shrink-0 rounded-full",
+                        notification.readAt ? "bg-border" : "bg-saffron",
+                      )}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[10px] font-medium leading-snug">
+                        {notification.title}
                       </span>
-                    ) : null}
-                    <span className="mt-0.5 block text-[7.5px] text-muted-foreground/60">
-                      {new Date(notification.createdAt).toLocaleString()}
+                      {notification.body ? (
+                        <span className="mt-0.5 line-clamp-2 block text-[8.5px] leading-snug text-muted-foreground">
+                          {notification.body}
+                        </span>
+                      ) : null}
+                      <span className="mt-0.5 block text-[7.5px] text-muted-foreground/60">
+                        {new Date(notification.createdAt).toLocaleString()}
+                      </span>
                     </span>
-                  </span>
-                </DropdownMenuItem>
-              ))
-            ) : (
-              <div className="px-3 py-6 text-center text-[9px] text-muted-foreground">
-                No notifications yet.
-              </div>
-            )}
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <div className="px-3 py-6 text-center text-[9px] text-muted-foreground">
+                  No notifications yet.
+                </div>
+              )}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
         {route.view === "page" || route.view === "canvas" ? (
@@ -289,17 +292,19 @@ export function WorkspaceTopbar({
             {user?.name?.slice(0, 2).toUpperCase() ?? <User className="size-3" />}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="px-2 py-1.5">
-              <div className="truncate text-[11px] font-medium text-foreground">{user?.name}</div>
-              <div className="truncate text-[9px] font-normal text-muted-foreground">{user?.email}</div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push(appRouteObject({ view: "settings" }))}>
-              <User className="size-3.5" /> Account & workspace
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onOpenAsk}>
-              <MessageSquare className="size-3.5" /> Ask Lattice
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2 py-1.5">
+                <div className="truncate text-[11px] font-medium text-foreground">{user?.name}</div>
+                <div className="truncate text-[9px] font-normal text-muted-foreground">{user?.email}</div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push(appRouteObject({ view: "settings" }))}>
+                <User className="size-3.5" /> Account & workspace
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenAsk}>
+                <MessageSquare className="size-3.5" /> Ask Lattice
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={() => void signOut()}>
               <LogOut className="size-3.5" /> Sign out

@@ -6,7 +6,16 @@ export default function PwaRegistration() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production") {
-      // Dev keeps HMR fresh; a cache-first worker would fight the dev server.
+      // A worker left over from a production build would keep serving the
+      // cached shell and fetching /app.html, which dev never serves. Retire it.
+      void navigator.serviceWorker.getRegistrations().then((registrations) =>
+        Promise.all(registrations.map((registration) => registration.unregister())),
+      );
+      void caches
+        .keys()
+        .then((keys) =>
+          Promise.all(keys.filter((key) => key.startsWith("lattice-")).map((key) => caches.delete(key))),
+        );
       return;
     }
     let refreshing = false;
