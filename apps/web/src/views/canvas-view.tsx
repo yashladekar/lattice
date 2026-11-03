@@ -1355,6 +1355,46 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             {saveStatus === "saving" ? "Saving locally…" : saveStatus === "error" ? "Save failed" : "Saved locally"}
             <span className="opacity-40">·</span>
             <span>{document.elements.length} elements</span>
+            {collab.status !== "disconnected" || collab.peers.length ? (
+              <>
+                <span className="opacity-40">·</span>
+                <span className="inline-flex items-center gap-1">
+                  {collab.peers.length ? (
+                    <span className="flex -space-x-1">
+                      {collab.peers.slice(0, 4).map((peer) => (
+                        <span
+                          key={peer.clientId}
+                          title={peer.name}
+                          className="grid size-4 place-items-center rounded-full border border-background text-[7px] font-semibold text-background"
+                          style={{ backgroundColor: peer.color }}
+                        >
+                          {peer.name.slice(0, 1).toUpperCase()}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      collab.status === "connected"
+                        ? "bg-moss"
+                        : collab.status === "connecting"
+                          ? "bg-saffron"
+                          : "bg-border",
+                    )}
+                  />
+                  <span>
+                    {collab.status === "connected"
+                      ? collab.peers.length
+                        ? `${collab.peers.length} editing`
+                        : "Live"
+                      : collab.status === "connecting"
+                        ? "Connecting"
+                        : "Solo"}
+                  </span>
+                </span>
+              </>
+            ) : null}
           </div>
         </div>
       ) : null}
