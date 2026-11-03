@@ -63,9 +63,15 @@ description: What this implementation covers and which subsystems are deliberate
 - PDF text extraction and attachment OCR.
 - Unattended Git sync: the two-way sync runs today, but driven by a person with a token, not on a schedule.
 
+## Shipped: plugin runtime
+
+- Capability-checked worker isolation, with per-capability consent and revocation.
+- Ambient network and database access removed before plugin code loads.
+
 ## Next: platform ecosystem
 
-- Public plugin API, permissioned sandbox, custom blocks, custom canvas tools.
+- A plugin directory and remote install; installing is local-only today.
+- Custom blocks and custom canvas tools from plugins.
 - Custom object types and property schemas.
 - Automation triggers and webhooks.
 - Import/export round-trip for Notion, Obsidian, and Markdown vaults.

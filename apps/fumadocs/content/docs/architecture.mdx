@@ -71,6 +71,7 @@ Both the API and clients share this package, so a relation type or card schedule
 | AI | Server-configured provider only; no arbitrary base URLs from users. |
 | Public share | Hashed tokens, read-only payloads, outbound page links stripped. |
 | Query console | Read-only transaction, workspace-bound views, no access to the base tables. |
+| Plugins | Worker with no network or database access; every call checked against granted capabilities. |
 
 ## Query console
 
@@ -85,6 +86,46 @@ single `SELECT` or `WITH`, blocks other schemas and system catalogs, and refuses
 names that are not console views — after blanking comments and string bodies so
 neither can hide a keyword. Results are capped at 500 rows and long cells are
 truncated.
+
+## Plugins
+
+Settings → **Plugins** installs a manifest plus a source body that defines
+`async function run(ctx)`. The plugin runs in a worker, and every API call it
+makes is answered by the host, which checks the method against the capabilities
+you granted. Enforcement is on the trusted side, so a plugin never decides what
+it may do. A run is terminated after five seconds.
+
+| Capability | What it allows |
+| --- | --- |
+| `page:read` | Read the open page's text and Markdown. |
+| `page:write` | Replace the open page's body. Every write becomes a revision. |
+| `page:create` | Create pages in the workspace. |
+| `graph:read` | Read node and edge titles and relations. |
+| `search:read` | Run workspace searches. |
+| `ai:use` | Send prompts through the workspace AI configuration. |
+| `storage` | Keep a small key/value store of its own. |
+
+Capabilities are checked against what you granted, not what the manifest asked
+for, so revoking one takes effect on the next run. A manifest that requests a
+capability this host does not have is refused outright rather than quietly
+trimmed — a plugin written for a more powerful host should not look installable.
+
+### What the sandbox is, and is not
+
+Before plugin code loads, the worker has its ambient powers removed: the network,
+IndexedDB, caches, other workers, and dynamic script loading are all taken away.
+Those globals are read-only accessors on the worker prototype, so they are
+redefined rather than assigned — a plain assignment is silently ignored, which
+would leave a plugin able to open the workspace database directly and go around
+every capability check.
+
+This is a containment boundary for a cooperative ecosystem, not a defence against
+hostile code. Only install plugins you trust, which is why there is no plugin
+directory and no remote install in this release.
+
+Plugins are stored on the device, not synced, and there is no network capability
+to request: a plugin cannot reach the internet because the capability does not
+exist.
 
 ## Storage split
 
