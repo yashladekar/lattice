@@ -1,6 +1,6 @@
 "use client";
 
-import { createId, type Role } from "@notes-learning/domain";
+import { auditExportFilename, auditLogToCsv, createId, type Role } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Input } from "@notes-learning/ui/components/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -617,7 +617,38 @@ export function SettingsView() {
               ) : audit.isLoading ? (
                 <LoadingRow />
               ) : audit.data?.length ? (
-                <div className="max-h-[55vh] space-y-1 overflow-y-auto">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[8.5px] text-muted-foreground">
+                      {audit.data.length} {audit.data.length === 1 ? "entry" : "entries"}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px]"
+                      onClick={() => {
+                        const rows = audit.data ?? [];
+                        downloadTextFile(
+                          auditExportFilename(activeWorkspace.name),
+                          auditLogToCsv(
+                            rows.map((entry) => ({
+                              createdAt: entry.createdAt,
+                              action: entry.action,
+                              resourceType: entry.resourceType,
+                              resourceId: entry.resourceId,
+                              actorId: entry.actorId,
+                              metadata: entry.metadata as Record<string, unknown> | null,
+                            })),
+                          ),
+                          "text/csv;charset=utf-8",
+                        );
+                        toast.success(`Exported ${rows.length} entries.`);
+                      }}
+                    >
+                      <Download className="size-3" /> Export CSV
+                    </Button>
+                  </div>
+                  <div className="max-h-[55vh] space-y-1 overflow-y-auto">
                   {audit.data.map((entry) => (
                     <div key={entry.id} className="flex items-start gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
                       <span className="mt-1 size-1.5 rounded-full bg-saffron" />
@@ -630,6 +661,7 @@ export function SettingsView() {
                       <ArrowUpRight className="size-2.5 text-muted-foreground/40" />
                     </div>
                   ))}
+                  </div>
                 </div>
               ) : (
                 <p className="py-4 text-center text-[9px] text-muted-foreground">No audit entries yet.</p>
