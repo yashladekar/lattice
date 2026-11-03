@@ -11,6 +11,7 @@ import {
   Check,
   Cloud,
   Download,
+  GitBranch,
   HardDrive,
   Loader2,
   LogOut,
@@ -28,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { GithubImportDialog } from "@/components/workspace/github-import";
 import { authClient } from "@/lib/auth-client";
 import { downloadTextFile } from "@/lib/download";
 import {
@@ -79,6 +81,7 @@ export function SettingsView() {
   const [deviceName, setDeviceName] = useState("");
   const [busy, setBusy] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+  const [githubOpen, setGithubOpen] = useState(false);
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -470,6 +473,14 @@ export function SettingsView() {
                     }
                   }}
                 />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-md text-[9px]"
+                  onClick={() => setGithubOpen(true)}
+                >
+                  <GitBranch className="size-3" /> Import from GitHub
+                </Button>
               </div>
               <p className="mt-2 text-[8px] text-muted-foreground">
                 Last sync {syncState.lastSyncedAt ? new Date(syncState.lastSyncedAt).toLocaleString() : "not yet"}.
@@ -595,6 +606,8 @@ export function SettingsView() {
           </button>
         </div>
       </div>
+
+      <GithubImportDialog open={githubOpen} onClose={() => setGithubOpen(false)} />
     </div>
   );
 }

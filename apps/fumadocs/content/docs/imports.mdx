@@ -1,0 +1,41 @@
+---
+title: Import & export
+description: Move a workspace in and out of Lattice, and pull Markdown from GitHub.
+---
+
+## Workspace JSON
+
+**Settings → Sync & backup → Export JSON** writes the whole workspace: pages,
+documents, canvases, graph nodes and edges, tags, captures, templates, decks,
+cards, comments, and attachments.
+
+**Import JSON** reads a file produced by that export. It only accepts a file
+from the same workspace, merges the records into the local database, and queues
+them for sync, so an import reconciles rather than replaces.
+
+## GitHub
+
+**Settings → Sync & backup → Import from GitHub** pulls a repository's Markdown
+into a new notebook.
+
+1. Enter `owner/repository` (a full GitHub URL also works).
+2. Optionally restrict to a folder, and add a token for private repositories or
+   a higher rate limit. The token is used for that request only and never
+   stored.
+3. Lattice reads the default branch, fetches up to 40 Markdown files, converts
+   them to blocks, and creates one page per file.
+
+Imported pages record `source: github`, the repository, and the original path as
+properties, so you can trace a page back to its file. Titles come from the file
+name (`code-of-conduct.md` becomes “code of conduct”, `media/readme.md` becomes
+“media README”). Images stay linked by their original URL.
+
+This is a one-way import. Two-way Git sync, including pushing edits back to a
+repository, is on the roadmap.
+
+## Markdown
+
+Individual pages export as Markdown from the page actions menu, and Markdown
+mode round-trips a page through the Markdown serializer. Tables, callouts,
+diagrams, and API request blocks export as fenced blocks or quoted summaries
+rather than being dropped.

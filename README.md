@@ -16,7 +16,8 @@ The repository/package names remain `notes-learning` from the original scaffold;
 - **Capture inbox** — quick capture, links, uploads, URL preview, capture-to-page, tag/related-note suggestions. Includes a PWA share target and an MV3 browser extension in `extensions/lattice-clip`.
 - **Learning** — generated/manual flashcards, SM-2 review, quizzes, mastery, learning paths, knowledge gaps, daily due queue.
 - **Optional AI** — OpenAI-compatible provider when configured; retrieval + citations + local fallback otherwise. Never writes without an apply action.
-- **Navigation** — dashboard with configurable widgets, command palette (`⌘/Ctrl+K`), search, tabs, keyboard shortcuts, timeline, trash.
+- **Navigation** — dashboard with configurable widgets, command palette (`⌘/Ctrl+K`), search with tag/type/notebook filters, tabs, keyboard shortcuts, timeline, trash.
+- **Import & export** — full workspace JSON export/import, per-page Markdown, and one-way GitHub Markdown import into a notebook.
 - **Collaboration** — comments with block anchors and mentions, notifications, presence heartbeat, async multi-device sync, public read-only sharing.
 - **Platforms** — web/PWA, Tauri desktop config, Expo companion for capture/browse/search/review.
 - **Self-hosting** — Docker Compose, runtime web config, hashed share/invite tokens, rate limiting, authenticated uploads.
@@ -196,7 +197,7 @@ This pass is a complete core vertical, not every enterprise subsystem in the ori
 - End-to-end encryption, SSO/SCIM, legal hold.
 - App-store signing and native full editor/whiteboard parity.
 - Plugin sandbox/runtime, custom object-type editor, automation builder.
-- Email ingestion, speech-to-text, Git/GitHub sync, executable SQL/API playgrounds.
+- Email ingestion, speech-to-text, two-way Git sync (one-way GitHub Markdown import is implemented), and an executable SQL console.
 
 Those interfaces are modeled/documented in the [roadmap](./apps/fumadocs/content/docs/roadmap.mdx) rather than pretended as complete.
 
