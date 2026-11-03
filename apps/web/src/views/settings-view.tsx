@@ -8,6 +8,7 @@ import { cn } from "@notes-learning/ui/lib/utils";
 import {
   ArrowUpRight,
   Brain,
+  Boxes,
   Check,
   Cloud,
   Database,
@@ -35,6 +36,7 @@ import { GithubImportDialog } from "@/components/workspace/github-import";
 import { GitSyncDialog } from "@/components/workspace/git-sync-dialog";
 import { VaultImportDialog } from "@/components/workspace/vault-import";
 import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
+import { PluginManager } from "@/components/workspace/plugin-manager";
 import { authClient } from "@/lib/auth-client";
 import { downloadTextFile } from "@/lib/download";
 import {
@@ -46,7 +48,7 @@ import {
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
-type SettingsTab = "general" | "members" | "sync" | "ai" | "devices" | "audit" | "query";
+type SettingsTab = "general" | "members" | "sync" | "ai" | "devices" | "audit" | "query" | "plugins";
 
 const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "general", label: "General", icon: HardDrive },
@@ -56,6 +58,7 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "devices", label: "Devices", icon: Monitor },
   { id: "audit", label: "Audit log", icon: Shield },
   { id: "query", label: "Query", icon: Database },
+  { id: "plugins", label: "Plugins", icon: Boxes },
 ];
 
 const ROLES: Role[] = ["OWNER", "ADMIN", "MEMBER", "EDITOR", "VIEWER", "GUEST"];
@@ -635,6 +638,12 @@ export function SettingsView() {
               <SqlConsolePanel />
             </section>
           )
+        ) : null}
+
+        {tab === "plugins" ? (
+          <section className="space-y-4">
+            <PluginManager />
+          </section>
         ) : null}
 
         <div className="mt-6 flex items-center justify-between border-t border-border/60 pt-3 text-[8px] text-muted-foreground">
