@@ -36,6 +36,23 @@ A `pageLink` node stores the target page id and display title. On save Lattice d
 
 Removing a link soft-deletes its derived edge. Manual typed relations are separate and never removed by link cleanup.
 
+## API requests
+
+The `request` block documents an endpoint and can call it from the page.
+
+- Pick a method, enter a URL, and optionally add headers as `Key: value` lines
+  and a body (sent for everything except `GET` and `HEAD`).
+- **Send** shows status, duration, size, response headers, and the body, with
+  JSON pretty-printed.
+- Requests run in your browser, so the target must allow cross-origin requests.
+  A blocked request reports the browser's CORS error instead of pretending to
+  succeed.
+- Responses are transient: they are never saved into the note. Only the request
+  definition is stored and synced.
+
+Read-only surfaces, including public shares, show the request definition with a
+note that it runs in the workspace. Markdown export writes an `http` fence.
+
 ## Templates
 
 **Page actions → Save as template** copies a page's body and properties into a

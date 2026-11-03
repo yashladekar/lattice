@@ -4,6 +4,7 @@ import { ReactNodeViewRenderer } from "@tiptap/react";
 import { DEFAULT_DIAGRAM_SOURCE, normalizeDiagramSource } from "@notes-learning/domain";
 
 import { DiagramNodeView } from "../diagram/diagram-node-view";
+import { RequestNodeView } from "../playground/request-node-view";
 
 import {
   BookmarkView,
@@ -365,6 +366,58 @@ export const Diagram = Node.create({
   },
 });
 
+export const Request = Node.create({
+  name: "request",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      method: { default: "GET" },
+      url: { default: "" },
+      headers: { default: "" },
+      body: { default: "" },
+      label: { default: "" },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        tag: 'div[data-type="request"]',
+        getAttrs: (element) =>
+          element instanceof HTMLElement
+            ? {
+                method: element.getAttribute("data-method") ?? "GET",
+                url: element.getAttribute("data-url") ?? "",
+                headers: element.getAttribute("data-headers") ?? "",
+                body: element.getAttribute("data-body") ?? "",
+                label: element.getAttribute("data-label") ?? "",
+              }
+            : false,
+      },
+    ];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "request",
+        "data-method": node.attrs.method,
+        "data-url": node.attrs.url,
+        "data-headers": node.attrs.headers,
+        "data-body": node.attrs.body,
+        "data-label": node.attrs.label,
+        class: "request-block",
+      }),
+      node.attrs.label || node.attrs.url || "API request",
+    ];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(RequestNodeView);
+  },
+});
+
 export const customEditorNodes = [
   PageLink,
   Callout,
@@ -373,4 +426,5 @@ export const customEditorNodes = [
   Bookmark,
   Database,
   Diagram,
+  Request,
 ];

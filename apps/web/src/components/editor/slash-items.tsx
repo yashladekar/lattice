@@ -20,6 +20,7 @@ import {
   Sigma,
   Sparkles,
   Table2,
+  Terminal,
   Type,
   Video,
 } from "lucide-react";
@@ -178,6 +179,21 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
           .insertContent({
             type: "diagram",
             attrs: { source: DEFAULT_DIAGRAM_SOURCE, caption: "" },
+          })
+          .run(),
+    },
+    {
+      id: "request",
+      label: "API request",
+      description: "Document an endpoint and run it live",
+      group: "Rich blocks",
+      keywords: "api http rest endpoint request playground curl",
+      icon: <Terminal className="size-3.5" />,
+      select: (editor, range) =>
+        chain(editor, range)
+          .insertContent({
+            type: "request",
+            attrs: { method: "GET", url: "", headers: "", body: "", label: "" },
           })
           .run(),
     },

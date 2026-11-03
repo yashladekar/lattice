@@ -82,6 +82,7 @@ export function createEditorExtensions({
         "database",
         "bookmark",
         "diagram",
+        "request",
         "details",
         "table",
       ],

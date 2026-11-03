@@ -115,6 +115,25 @@ function NodeView({ node, index }: { node: TipTapNode; index: number }) {
       const caption = typeof node.attrs?.caption === "string" ? node.attrs.caption : "";
       return <DiagramFallback key={index} source={source} caption={caption} />;
     }
+    case "request": {
+      const method = typeof node.attrs?.method === "string" ? node.attrs.method : "GET";
+      const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
+      const label = typeof node.attrs?.label === "string" ? node.attrs.label : "";
+      return (
+        <View key={index} className="rounded-xl border border-border bg-surface-secondary p-3">
+          <View className="flex-row items-center gap-2">
+            <Text className="rounded border border-border px-1.5 py-0.5 font-mono text-[9px] text-foreground">
+              {method}
+            </Text>
+            <Text numberOfLines={1} className="min-w-0 flex-1 font-mono text-[10px] text-foreground/80">
+              {url || "No URL"}
+            </Text>
+          </View>
+          {label ? <Text className="mt-1.5 text-[10px] text-muted">{label}</Text> : null}
+          <Text className="mt-1.5 text-[9px] text-muted">Open in Lattice to run this request.</Text>
+        </View>
+      );
+    }
     case "horizontalRule":
       return <View key={index} className="my-2 h-px bg-border" />;
     case "image": {

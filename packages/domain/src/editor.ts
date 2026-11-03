@@ -20,6 +20,7 @@ const BLOCK_TYPES = new Set([
   "mathBlock",
   "youtube",
   "diagram",
+  "request",
 ]);
 
 export function emptyDoc(): TipTapDoc {
@@ -90,6 +91,12 @@ export function nodePlainText(node: TipTapNode | undefined): string {
   if (node.type === "diagram") {
     const caption = node.attrs?.caption;
     return typeof caption === "string" && caption.trim() ? caption.trim() : "Diagram";
+  }
+  if (node.type === "request") {
+    const method = typeof node.attrs?.method === "string" ? node.attrs.method : "GET";
+    const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
+    const label = typeof node.attrs?.label === "string" ? node.attrs.label : "";
+    return [method, url || label].filter(Boolean).join(" ");
   }
   const children = node.content ?? [];
   const text = children.map((child) => nodePlainText(child)).join("");
@@ -373,6 +380,16 @@ function blockMarkdown(node: TipTapNode, depth = 0): string {
       const caption = typeof node.attrs?.caption === "string" ? node.attrs.caption : "";
       const fence = `\`\`\`mermaid\n${source.trim()}\n\`\`\``;
       return `${caption ? `${fence}\n\n*${caption}*\n\n` : `${fence}\n\n`}`;
+    }
+    case "request": {
+      const method = typeof node.attrs?.method === "string" ? node.attrs.method : "GET";
+      const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
+      const headers = typeof node.attrs?.headers === "string" ? node.attrs.headers.trim() : "";
+      const body = typeof node.attrs?.body === "string" ? node.attrs.body.trim() : "";
+      const lines = [`${method} ${url}`.trim()];
+      if (headers) lines.push("", headers);
+      if (body) lines.push("", body);
+      return `\`\`\`http\n${lines.join("\n")}\n\`\`\`\n\n`;
     }
     case "bookmark": {
       const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
