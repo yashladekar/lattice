@@ -19,9 +19,10 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     ai: aiConfig,
     headers,
     collab: {
-      isActive: isCollaborating,
-      invalidate: (workspaceId: string, pageId: string) => {
-        void invalidateCollabState(workspaceId, pageId);
+      isActive: (_workspaceId: string, pageId: string, userId: string) =>
+        isCollaborating(pageId, userId),
+      invalidate: (_workspaceId: string, pageId: string) => {
+        void invalidateCollabState(pageId);
       },
     },
   };

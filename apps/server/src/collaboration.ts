@@ -17,6 +17,9 @@ const MESSAGE_SEED_REQUEST = 2;
 const ROOM_IDLE_MS = 30_000;
 const PERSIST_DEBOUNCE_MS = 2_000;
 
+/** Resources that support a live session. */
+export type CollabResource = "page" | "canvas";
+
 interface Connection {
   socket: WebSocket;
   userId: string;
@@ -25,8 +28,9 @@ interface Connection {
 
 interface Room {
   key: string;
+  resourceType: CollabResource;
+  resourceId: string;
   workspaceId: string;
-  pageId: string;
   doc: Y.Doc;
   awareness: awarenessProtocol.Awareness;
   connections: Set<Connection>;
@@ -40,17 +44,13 @@ const rooms = new Map<string, Room>();
 const pendingRooms = new Map<string, Promise<Room>>();
 const wss = new WebSocketServer({ noServer: true });
 
-function roomKey(workspaceId: string, pageId: string): string {
-  return `${workspaceId}:${pageId}`;
+function roomKey(resourceType: CollabResource, resourceId: string): string {
+  return `${resourceType}:${resourceId}`;
 }
 
 /** Whether this user currently has the page open in a live session. */
-export function isCollaborating(
-  workspaceId: string,
-  pageId: string,
-  userId: string,
-): boolean {
-  const room = rooms.get(roomKey(workspaceId, pageId));
+export function isCollaborating(pageId: string, userId: string): boolean {
+  const room = rooms.get(roomKey("page", pageId));
   if (!room) return false;
   for (const connection of room.connections) {
     if (connection.userId === userId) return true;
@@ -71,12 +71,17 @@ function syncMessage(write: (encoder: encoding.Encoder) => void): Uint8Array {
   return encoding.toUint8Array(encoder);
 }
 
-function createRoom(workspaceId: string, pageId: string): Room {
+function createRoom(
+  resourceType: CollabResource,
+  resourceId: string,
+  workspaceId: string,
+): Room {
   const doc = new Y.Doc();
   const room: Room = {
-    key: roomKey(workspaceId, pageId),
+    key: roomKey(resourceType, resourceId),
+    resourceType,
+    resourceId,
     workspaceId,
-    pageId,
     doc,
     awareness: new awarenessProtocol.Awareness(doc),
     connections: new Set(),
@@ -158,9 +163,15 @@ async function flushPersist(room: Room): Promise<void> {
   if (!state.length) return;
   try {
     await db.collabDocument.upsert({
-      where: { pageId: room.pageId },
+      where: {
+        resourceType_resourceId: {
+          resourceType: room.resourceType,
+          resourceId: room.resourceId,
+        },
+      },
       create: {
-        pageId: room.pageId,
+        resourceType: room.resourceType,
+        resourceId: room.resourceId,
         workspaceId: room.workspaceId,
         state,
         size: state.length,
@@ -178,22 +189,28 @@ async function flushPersist(room: Room): Promise<void> {
  * Markdown-mode save, an import — makes the stored CRDT stale, so it is
  * dropped and the next session seeds from that document instead.
  */
-export async function invalidateCollabState(workspaceId: string, pageId: string): Promise<void> {
-  if (rooms.has(roomKey(workspaceId, pageId))) return;
+export async function invalidateCollabState(pageId: string): Promise<void> {
+  if (rooms.has(roomKey("page", pageId))) return;
   try {
-    await db.collabDocument.delete({ where: { pageId } });
+    await db.collabDocument.delete({
+      where: { resourceType_resourceId: { resourceType: "page", resourceId: pageId } },
+    });
   } catch {
     // Nothing stored, nothing to drop.
   }
 }
 
 /**
- * Loads any stored document before the first peer attaches, so joining a page
- * resumes the conversation instead of re-seeding it. Room creation is guarded
- * so two peers arriving together share one load.
+ * Loads any stored document before the first peer attaches, so joining a
+ * resource resumes the session instead of re-seeding it. Room creation is
+ * guarded so two peers arriving together share one load.
  */
-async function getOrCreateRoom(workspaceId: string, pageId: string): Promise<Room> {
-  const key = roomKey(workspaceId, pageId);
+async function getOrCreateRoom(
+  resourceType: CollabResource,
+  resourceId: string,
+  workspaceId: string,
+): Promise<Room> {
+  const key = roomKey(resourceType, resourceId);
   const existing = rooms.get(key);
   if (existing) return existing;
 
@@ -201,9 +218,11 @@ async function getOrCreateRoom(workspaceId: string, pageId: string): Promise<Roo
   if (pending) return pending;
 
   const created = (async () => {
-    const room = createRoom(workspaceId, pageId);
+    const room = createRoom(resourceType, resourceId, workspaceId);
     try {
-      const stored = await db.collabDocument.findUnique({ where: { pageId } });
+      const stored = await db.collabDocument.findUnique({
+        where: { resourceType_resourceId: { resourceType, resourceId } },
+      });
       if (stored?.state?.length) {
         Y.applyUpdate(room.doc, new Uint8Array(stored.state), "persisted");
         room.needsSeed = false;
@@ -315,15 +334,19 @@ function handleConnection(room: Room, socket: WebSocket, userId: string): void {
 }
 
 async function authenticate(request: IncomingMessage): Promise<{
+  resourceType: CollabResource;
+  resourceId: string;
   workspaceId: string;
-  pageId: string;
   userId: string;
 } | null> {
   const url = new URL(request.url ?? "/", "http://localhost");
   if (url.pathname !== "/collab") return null;
   const workspaceId = url.searchParams.get("workspaceId");
-  const pageId = url.searchParams.get("pageId");
-  if (!workspaceId || !pageId) return null;
+  const resourceId = url.searchParams.get("id") ?? url.searchParams.get("pageId");
+  const type = url.searchParams.get("type") ?? "page";
+  if (!workspaceId || !resourceId) return null;
+  if (type !== "page" && type !== "canvas") return null;
+  const resourceType: CollabResource = type;
 
   const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
   if (!session?.user) return null;
@@ -334,13 +357,19 @@ async function authenticate(request: IncomingMessage): Promise<{
   });
   if (!membership) return null;
 
-  const page = await db.page.findFirst({
-    where: { id: pageId, workspaceId, deletedAt: null },
-    select: { id: true },
-  });
-  if (!page) return null;
+  const exists =
+    resourceType === "page"
+      ? await db.page.findFirst({
+          where: { id: resourceId, workspaceId, deletedAt: null },
+          select: { id: true },
+        })
+      : await db.canvas.findFirst({
+          where: { id: resourceId, workspaceId, deletedAt: null },
+          select: { id: true },
+        });
+  if (!exists) return null;
 
-  return { workspaceId, pageId, userId: session.user.id };
+  return { resourceType, resourceId, workspaceId, userId: session.user.id };
 }
 
 export function attachCollaboration(server: Server): void {
@@ -356,7 +385,11 @@ export function attachCollaboration(server: Server): void {
           return;
         }
         wss.handleUpgrade(request, socket, head, (ws) => {
-          void getOrCreateRoom(identity.workspaceId, identity.pageId).then((room) => {
+          void getOrCreateRoom(
+            identity.resourceType,
+            identity.resourceId,
+            identity.workspaceId,
+          ).then((room) => {
             handleConnection(room, ws, identity.userId);
           });
         });
