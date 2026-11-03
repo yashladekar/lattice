@@ -186,31 +186,43 @@ export async function recomputePageLinkEdges(
     : [];
 
   const validTargets = new Set(targets.map((target) => target.id));
+  // Soft-deleted edges keep holding their id and their (source, target, relation,
+  // origin) tuple, so they have to be revived instead of created again.
   const existingEdges = await tx.knowledgeEdge.findMany({
     where: {
       workspaceId: page.workspaceId,
       sourceNodeId: page.id,
       origin: "PAGE_LINK",
-      deletedAt: null,
     },
   });
-  const existingByTarget = new Map(existingEdges.map((edge) => [edge.targetNodeId, edge]));
+  const existingByTarget = new Map<string, (typeof existingEdges)[number]>();
+  for (const edge of existingEdges) {
+    const current = existingByTarget.get(edge.targetNodeId);
+    if (!current || (current.deletedAt && !edge.deletedAt)) {
+      existingByTarget.set(edge.targetNodeId, edge);
+    }
+  }
 
   for (const target of targets) {
     const targetNodeId = await ensurePageNode(tx, target, changes);
     const existing = existingByTarget.get(targetNodeId);
-    if (existing) continue;
-    const edge = await tx.knowledgeEdge.create({
-      data: {
-        id: `link:${page.id}:${target.id}`,
-        workspaceId: page.workspaceId,
-        sourceNodeId: page.id,
-        targetNodeId,
-        relationType: "REFERENCES",
-        origin: "PAGE_LINK",
-        createdById: actorId,
-      },
-    });
+    if (existing && !existing.deletedAt) continue;
+    const edge = existing
+      ? await tx.knowledgeEdge.update({
+          where: { id: existing.id },
+          data: { deletedAt: null },
+        })
+      : await tx.knowledgeEdge.create({
+          data: {
+            id: `link:${page.id}:${target.id}`,
+            workspaceId: page.workspaceId,
+            sourceNodeId: page.id,
+            targetNodeId,
+            relationType: "REFERENCES",
+            origin: "PAGE_LINK",
+            createdById: actorId,
+          },
+        });
     changes.push({
       entity: "edge",
       entityId: edge.id,
@@ -220,7 +232,7 @@ export async function recomputePageLinkEdges(
   }
 
   for (const edge of existingEdges) {
-    if (validTargets.has(edge.targetNodeId)) continue;
+    if (edge.deletedAt || validTargets.has(edge.targetNodeId)) continue;
     const deleted = await tx.knowledgeEdge.update({
       where: { id: edge.id },
       data: { deletedAt: new Date() },

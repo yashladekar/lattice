@@ -887,6 +887,7 @@ async function applyEdge(
           weight: numberValue(payload.weight) ?? existing.weight,
           origin,
           aiGenerated: booleanValue(payload.aiGenerated) ?? existing.aiGenerated,
+          deletedAt: null,
         },
       })
     : await tx.knowledgeEdge.create({
