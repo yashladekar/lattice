@@ -10,8 +10,8 @@ export type AuthConfig = {
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
   CORS_ORIGIN: string;
-  POLAR_ACCESS_TOKEN: string;
-  POLAR_SUCCESS_URL: string;
+  POLAR_ACCESS_TOKEN?: string;
+  POLAR_SUCCESS_URL?: string;
 };
 
 export function createAuth(
@@ -19,6 +19,28 @@ export function createAuth(
   database: Database,
   desktopOrigins: readonly string[] = [],
 ) {
+  const polarToken = env.POLAR_ACCESS_TOKEN;
+  const polarEnabled = process.env.POLAR_ENABLED === "true" && Boolean(polarToken);
+  const plugins = [
+    ...(polarEnabled && polarToken
+      ? [
+          polar({
+            client: createPolarClient({ POLAR_ACCESS_TOKEN: polarToken }),
+            createCustomerOnSignUp: true,
+            use: [
+              checkout({
+                products: [{ productId: "your-product-id", slug: "pro" }],
+                successUrl: env.POLAR_SUCCESS_URL ?? env.BETTER_AUTH_URL,
+                authenticatedUsersOnly: true,
+              }),
+              portal(),
+            ],
+          }),
+        ]
+      : []),
+    expo(),
+  ];
+
   return betterAuth({
     database: prismaAdapter(database, {
       provider: "postgresql",
@@ -29,6 +51,7 @@ export function createAuth(
       "notes-learning://",
       "exp://",
       "http://localhost:8081",
+      "http://localhost:3101",
     ],
     emailAndPassword: { enabled: true },
     secret: env.BETTER_AUTH_SECRET,
@@ -40,21 +63,7 @@ export function createAuth(
         httpOnly: true,
       },
     },
-    plugins: [
-      polar({
-        client: createPolarClient(env),
-        createCustomerOnSignUp: true,
-        use: [
-          checkout({
-            products: [{ productId: "your-product-id", slug: "pro" }],
-            successUrl: env.POLAR_SUCCESS_URL,
-            authenticatedUsersOnly: true,
-          }),
-          portal(),
-        ],
-      }),
-      expo(),
-    ],
+    plugins,
   });
 }
 

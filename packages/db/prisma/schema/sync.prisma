@@ -1,0 +1,74 @@
+model AiThread {
+  id          String   @id
+  workspaceId String
+  userId      String
+  title       String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  messages AiMessage[]
+
+  @@index([workspaceId, userId, updatedAt])
+  @@map("ai_thread")
+}
+
+model AiMessage {
+  id        String   @id
+  threadId  String
+  role      String
+  content   String   @db.Text
+  citations Json     @default("[]")
+  provider  String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("ai_message")
+}
+
+model SyncChange {
+  id          String   @id
+  workspaceId String
+  version     Int
+  entity      String
+  entityId    String
+  op          String
+  data        Json
+  actorId     String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([workspaceId, version, id])
+  @@index([workspaceId, createdAt])
+  @@map("sync_change")
+}
+
+model SyncOp {
+  id          String   @id
+  workspaceId String
+  userId      String
+  result      Json     @default("{}")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([workspaceId, createdAt])
+  @@map("sync_op")
+}
+
+model SyncConflict {
+  id           String    @id
+  workspaceId  String
+  entity       String
+  entityId     String
+  userId       String
+  baseRev      Int
+  remoteRev    Int
+  localData    Json
+  remoteData   Json
+  resolution   String?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  resolvedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId, resolvedAt, createdAt])
+  @@map("sync_conflict")
+}

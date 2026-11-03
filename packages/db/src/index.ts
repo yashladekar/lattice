@@ -1,6 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 
-import { PrismaClient } from "../prisma/generated/client";
+import { Prisma, PrismaClient } from "../prisma/generated/client";
 import type { DatabaseConfig } from "./config";
 
 export function createPrismaClient(env: DatabaseConfig) {
@@ -10,4 +10,7 @@ export function createPrismaClient(env: DatabaseConfig) {
   return new PrismaClient({ adapter });
 }
 
+export { Prisma };
 export type Database = ReturnType<typeof createPrismaClient>;
+export type TransactionClient = Prisma.TransactionClient;
+

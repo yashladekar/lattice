@@ -1,0 +1,81 @@
+model KnowledgeNode {
+  id          String   @id
+  workspaceId String
+  kind        String   @default("TOPIC")
+  title       String
+  description String?
+  pageId      String?  @unique
+  canvasId    String?  @unique
+  color       String?
+  x           Float?
+  y           Float?
+  aiGenerated Boolean  @default(false)
+  metadata    Json     @default("{}")
+  createdById String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  outgoing KnowledgeEdge[] @relation("EdgeSource")
+  incoming KnowledgeEdge[] @relation("EdgeTarget")
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, kind])
+  @@map("knowledge_node")
+}
+
+model KnowledgeEdge {
+  id            String   @id
+  workspaceId   String
+  sourceNodeId  String
+  targetNodeId  String
+  relationType  String   @default("RELATED_TO")
+  label         String?
+  weight        Float    @default(1)
+  origin        String   @default("MANUAL")
+  aiGenerated   Boolean  @default(false)
+  createdById   String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime? @db.Timestamptz(3)
+
+  source KnowledgeNode @relation("EdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  target KnowledgeNode @relation("EdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceNodeId, targetNodeId, relationType, origin])
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, sourceNodeId])
+  @@index([workspaceId, targetNodeId])
+  @@map("knowledge_edge")
+}
+
+model Tag {
+  id          String   @id
+  workspaceId String
+  name        String
+  color       String   @default("#8b8b7a")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  pageTags PageTag[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("tag")
+}
+
+model PageTag {
+  id        String   @id
+  pageId    String
+  tagId     String
+  source    String   @default("USER")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, tagId])
+  @@index([tagId])
+  @@map("page_tag")
+}

@@ -1,0 +1,63 @@
+model Deck {
+  id          String   @id
+  workspaceId String
+  notebookId  String?
+  name        String
+  description String?
+  color       String   @default("#2f6b4f")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  cards Flashcard[]
+
+  @@index([workspaceId, updatedAt])
+  @@map("deck")
+}
+
+model Flashcard {
+  id             String   @id
+  workspaceId    String
+  deckId         String
+  pageId         String?
+  blockId        String?
+  front          String   @db.Text
+  back           String   @db.Text
+  hint           String?
+  source         String   @default("MANUAL")
+  dueAt          DateTime @default(now()) @db.Timestamptz(3)
+  interval       Float    @default(0)
+  ease           Float    @default(2.5)
+  reps           Int      @default(0)
+  lapses         Int      @default(0)
+  lastReviewedAt DateTime? @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+
+  deck  Deck        @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  logs  ReviewLog[]
+
+  @@index([workspaceId, dueAt])
+  @@index([workspaceId, pageId])
+  @@index([deckId])
+  @@map("flashcard")
+}
+
+model ReviewLog {
+  id            String   @id
+  workspaceId   String
+  flashcardId   String
+  userId        String
+  rating        Int
+  reviewedAt    DateTime @default(now()) @db.Timestamptz(3)
+  previousDueAt DateTime @db.Timestamptz(3)
+  nextDueAt     DateTime @db.Timestamptz(3)
+  interval      Float
+
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, reviewedAt])
+  @@index([userId])
+  @@map("review_log")
+}

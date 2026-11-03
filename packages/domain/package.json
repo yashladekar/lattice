@@ -1,0 +1,23 @@
+{
+  "name": "@notes-learning/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@notes-learning/config": "workspace:*",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

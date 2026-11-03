@@ -1,0 +1,95 @@
+model Comment {
+  id          String   @id
+  workspaceId String
+  pageId      String
+  blockId     String?
+  parentId    String?
+  authorId    String
+  body        String   @db.Text
+  resolvedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  page     Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentThread")
+
+  @@index([pageId, createdAt])
+  @@index([workspaceId, updatedAt])
+  @@map("comment")
+}
+
+model ShareLink {
+  id           String    @id
+  workspaceId  String
+  resourceType String
+  resourceId   String
+  tokenHash    String    @unique
+  permission   String    @default("VIEW")
+  expiresAt    DateTime? @db.Timestamptz(3)
+  revokedAt    DateTime? @db.Timestamptz(3)
+  createdById  String
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([workspaceId, resourceType, resourceId])
+  @@map("share_link")
+}
+
+model ResourcePermission {
+  id           String   @id
+  workspaceId  String
+  resourceType String
+  resourceId   String
+  userId       String
+  role         String   @default("VIEWER")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([resourceType, resourceId, userId])
+  @@index([workspaceId, userId])
+  @@map("resource_permission")
+}
+
+model AuditLog {
+  id           String   @id
+  workspaceId  String
+  actorId      String?
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([workspaceId, createdAt])
+  @@index([actorId])
+  @@map("audit_log")
+}
+
+model Notification {
+  id          String   @id
+  userId      String
+  workspaceId String?
+  type        String
+  title       String
+  body        String?
+  href        String?
+  readAt      DateTime? @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notification")
+}
+
+model Device {
+  id         String   @id
+  userId     String
+  name       String
+  platform   String
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([userId, id])
+  @@index([userId])
+  @@map("device")
+}

@@ -1,0 +1,265 @@
+model Workspace {
+  id          String   @id
+  name        String
+  slug        String   @unique
+  type        String   @default("PERSONAL")
+  description String?
+  icon        String?
+  accent      String?
+  ownerId     String
+  syncVersion Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([ownerId])
+  @@index([updatedAt])
+  @@map("workspace")
+}
+
+model WorkspaceMember {
+  id          String   @id
+  workspaceId String
+  userId      String
+  role        String   @default("MEMBER")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@index([workspaceId, updatedAt])
+  @@map("workspace_member")
+}
+
+model WorkspaceInvite {
+  id          String   @id
+  workspaceId String
+  email       String
+  role        String   @default("EDITOR")
+  tokenHash   String   @unique
+  invitedById String
+  expiresAt   DateTime @db.Timestamptz(3)
+  acceptedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([email])
+  @@map("workspace_invite")
+}
+
+model Team {
+  id          String   @id
+  workspaceId String
+  name        String
+  description String?
+  color       String   @default("#2f6b4f")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@map("team")
+}
+
+model TeamMember {
+  id        String   @id
+  teamId    String
+  userId    String
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@map("team_member")
+}
+
+model Notebook {
+  id          String   @id
+  workspaceId String
+  parentId    String?
+  kind        String   @default("NOTEBOOK")
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  visibility  String   @default("WORKSPACE")
+  sortOrder   Int      @default(0)
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  parent   Notebook?  @relation("NotebookTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Notebook[] @relation("NotebookTree")
+  pages    Page[]
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, parentId])
+  @@map("notebook")
+}
+
+model Page {
+  id          String   @id
+  workspaceId String
+  notebookId  String?
+  parentId    String?
+  type        String   @default("DOCUMENT")
+  title       String   @default("Untitled")
+  icon        String?
+  coverUrl    String?
+  properties  Json     @default("{}")
+  visibility  String   @default("WORKSPACE")
+  sortOrder   Int      @default(0)
+  createdById String
+  updatedById String?
+  publishedAt DateTime? @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  notebook Notebook?     @relation(fields: [notebookId], references: [id], onDelete: SetNull)
+  parent   Page?         @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Page[]        @relation("PageTree")
+  document PageDocument?
+  versions PageVersion[]
+  comments Comment[]
+  pageTags PageTag[]
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, notebookId])
+  @@index([workspaceId, parentId])
+  @@index([createdById])
+  @@map("page")
+}
+
+model PageDocument {
+  pageId        String   @id
+  workspaceId   String
+  content       Json     @default("{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"}]}")
+  plainText     String   @default("") @db.Text
+  schemaVersion Int      @default(1)
+  rev           Int      @default(0)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("page_document")
+}
+
+model PageVersion {
+  id          String   @id
+  pageId      String
+  workspaceId String
+  version     Int
+  title       String
+  content     Json
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, version])
+  @@index([workspaceId, createdAt])
+  @@map("page_version")
+}
+
+model Canvas {
+  id            String   @id
+  workspaceId   String
+  notebookId    String?
+  title         String   @default("Untitled canvas")
+  icon          String?
+  data          Json     @default("{\"version\":1,\"elements\":[]}")
+  schemaVersion Int      @default(1)
+  rev           Int      @default(0)
+  thumbnail     String?
+  createdById   String
+  updatedById   String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime? @db.Timestamptz(3)
+
+  versions CanvasVersion[]
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, notebookId])
+  @@map("canvas")
+}
+
+model CanvasVersion {
+  id          String   @id
+  canvasId    String
+  workspaceId String
+  version     Int
+  title       String
+  data        Json
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  canvas Canvas @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+
+  @@unique([canvasId, version])
+  @@index([workspaceId, createdAt])
+  @@map("canvas_version")
+}
+
+model Template {
+  id          String   @id
+  workspaceId String
+  name        String
+  description String?
+  icon        String?
+  category    String   @default("Writing")
+  content     Json
+  properties  Json     @default("{}")
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId, updatedAt])
+  @@map("template")
+}
+
+model Capture {
+  id          String   @id
+  workspaceId String
+  type        String   @default("NOTE")
+  title       String   @default("")
+  content     String?  @db.Text
+  url         String?
+  source      String?
+  status      String   @default("INBOX")
+  metadata    Json     @default("{}")
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId, status, updatedAt])
+  @@index([workspaceId, createdAt])
+  @@map("capture")
+}
+
+model Attachment {
+  id          String   @id
+  workspaceId String
+  pageId      String?
+  uploaderId  String
+  name        String
+  mime        String
+  size        Int
+  url         String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId, pageId])
+  @@map("attachment")
+}

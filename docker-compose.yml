@@ -10,7 +10,7 @@ services:
         - server_env
     init: true
     ports:
-      - "3000:3000"
+      - "3100:3000"
     env_file:
       - path: apps/server/.env
         required: false
@@ -41,7 +41,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - notes-learning_postgres_data:/var/lib/postgresql
     healthcheck:

@@ -56,3 +56,9 @@ coverage
 .cache
 tmp
 temp
+
+# Runtime uploads
+apps/server/storage
+
+# Local tooling state
+.commandcode
