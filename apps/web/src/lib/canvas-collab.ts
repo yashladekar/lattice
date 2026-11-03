@@ -27,6 +27,8 @@ export interface CanvasCollaboration {
   peers: CollabPeer[];
   /** Called with the local document whenever it settles after an edit. */
   publish: (document: CanvasDocument) => void;
+  /** Publishes the local pointer in canvas space, throttled. */
+  setCursor: (cursor: { x: number; y: number } | null) => void;
 }
 
 function toYElement(element: CanvasElement): Y.Map<unknown> {
@@ -76,6 +78,7 @@ export function useCanvasCollaboration(options: {
   });
   const knownIdsRef = useRef<string[]>([]);
   const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cursorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDocument = useRef<CanvasDocument | null>(null);
 
   useEffect(() => {
@@ -174,5 +177,11 @@ export function useCanvasCollaboration(options: {
     }, PUBLISH_DEBOUNCE_MS);
   };
 
-  return { status, peers, publish };
+  const setCursor = (cursor: { x: number; y: number } | null) => {
+    if (!provider) return;
+    if (cursorTimer.current) clearTimeout(cursorTimer.current);
+    cursorTimer.current = setTimeout(() => provider.setCursor(cursor), 60);
+  };
+
+  return { status, peers, publish, setCursor };
 }

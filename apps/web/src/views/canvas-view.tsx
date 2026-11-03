@@ -470,6 +470,15 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     collab.publish(document);
   }, [collab, document]);
 
+  const publishCursor = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    collab.setCursor({
+      x: (event.clientX - rect.left - viewport.x) / viewport.zoom,
+      y: (event.clientY - rect.top - viewport.y) / viewport.zoom,
+    });
+  };
+
   const mutate = useCallback(
     (updater: (current: CanvasDocument) => CanvasDocument, record = true) => {
       setDocument((current) => {
@@ -1414,7 +1423,10 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
           backgroundColor: presentation ? "oklch(0.14 0.01 75)" : undefined,
         }}
         onPointerDown={onContainerPointerDown}
-        onPointerMove={onPointerMove}
+        onPointerMove={(event) => {
+          onPointerMove(event);
+          publishCursor(event);
+        }}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onWheel={onWheel}
@@ -1425,6 +1437,27 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
           }}
         >
+          {collab.peers
+            .filter((peer) => peer.cursor)
+            .map((peer) => (
+              <div
+                key={peer.clientId}
+                data-peer-cursor
+                className="pointer-events-none absolute z-50 flex items-center gap-1"
+                style={{ left: peer.cursor!.x, top: peer.cursor!.y }}
+              >
+                <span
+                  className="size-2 shrink-0 rounded-full ring-2 ring-background"
+                  style={{ backgroundColor: peer.color }}
+                />
+                <span
+                  className="whitespace-nowrap rounded px-1 text-[9px] text-background"
+                  style={{ backgroundColor: peer.color }}
+                >
+                  {peer.name}
+                </span>
+              </div>
+            ))}
           <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1">
             <defs>
               <marker id="canvas-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">

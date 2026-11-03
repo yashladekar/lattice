@@ -15,6 +15,8 @@ export interface CollabPeer {
   clientId: number;
   name: string;
   color: string;
+  /** Canvas-space pointer position, only published on a whiteboard. */
+  cursor: { x: number; y: number } | null;
 }
 
 export function collaborationUrl(
@@ -162,15 +164,27 @@ export class CollabProvider {
     const peers: CollabPeer[] = [];
     for (const [clientId, state] of this.awareness.getStates()) {
       if (clientId === localId) continue;
-      const user = (state as { user?: { name?: string; color?: string } } | undefined)?.user;
-      if (!user?.name) continue;
+      const peer = state as
+        | { user?: { name?: string; color?: string }; cursor?: { x?: number; y?: number } }
+        | undefined;
+      if (!peer?.user?.name) continue;
+      const cursor =
+        typeof peer.cursor?.x === "number" && typeof peer.cursor?.y === "number"
+          ? { x: peer.cursor.x, y: peer.cursor.y }
+          : null;
       peers.push({
         clientId,
-        name: user.name,
-        color: user.color ?? "#e8892f",
+        name: peer.user.name,
+        color: peer.user.color ?? "#e8892f",
+        cursor,
       });
     }
     this.onPeers(peers);
+  }
+
+  /** Publishes the local pointer in canvas space for the other peers. */
+  setCursor(cursor: { x: number; y: number } | null) {
+    this.awareness.setLocalStateField("cursor", cursor);
   }
 
   private setStatus(status: CollabStatus) {
