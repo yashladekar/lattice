@@ -33,6 +33,24 @@ name (`code-of-conduct.md` becomes “code of conduct”, `media/readme.md` beco
 This is a one-way import. Two-way Git sync, including pushing edits back to a
 repository, is on the roadmap.
 
+## Obsidian and Notion vaults
+
+Settings → Sync & backup → **Import a vault** reads a folder of Markdown notes.
+Every folder becomes a notebook under a root notebook named after the vault, so a
+nested vault keeps its shape.
+
+The importer reads the conventions those tools write:
+
+- Frontmatter `title` wins over the file name, and `aliases` become extra link targets.
+- `tags` in frontmatter and `#inline` tags in the body become workspace tags.
+- Notion's 32-character hash suffix and Obsidian's `01 ` ordering prefixes are stripped from names.
+- `[[wiki links]]` are matched by full path, then file name, then alias, and rewritten into real page links so the graph draws edges between the notes.
+- `![[embeds]]` are treated as transclusions and left alone, as are links inside fenced code blocks.
+
+A link that resolves to nothing keeps its literal `[[text]]`, and a name shared by
+two notes is never guessed at — both are reported instead of silently linking the
+wrong page.
+
 ## Markdown
 
 Individual pages export as Markdown from the page actions menu, and Markdown
