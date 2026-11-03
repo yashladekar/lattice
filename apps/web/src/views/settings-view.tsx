@@ -32,6 +32,7 @@ import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { GithubImportDialog } from "@/components/workspace/github-import";
+import { GitSyncDialog } from "@/components/workspace/git-sync-dialog";
 import { VaultImportDialog } from "@/components/workspace/vault-import";
 import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
 import { authClient } from "@/lib/auth-client";
@@ -88,6 +89,7 @@ export function SettingsView() {
   const importRef = useRef<HTMLInputElement>(null);
   const [githubOpen, setGithubOpen] = useState(false);
   const [vaultOpen, setVaultOpen] = useState(false);
+  const [gitOpen, setGitOpen] = useState(false);
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -495,6 +497,14 @@ export function SettingsView() {
                 >
                   <FolderUp className="size-3" /> Import a vault
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-md text-[9px]"
+                  onClick={() => setGitOpen(true)}
+                >
+                  <RefreshCw className="size-3" /> Sync with Git
+                </Button>
               </div>
               <p className="mt-2 text-[8px] text-muted-foreground">
                 Last sync {syncState.lastSyncedAt ? new Date(syncState.lastSyncedAt).toLocaleString() : "not yet"}.
@@ -637,6 +647,7 @@ export function SettingsView() {
 
       <GithubImportDialog open={githubOpen} onClose={() => setGithubOpen(false)} />
       <VaultImportDialog open={vaultOpen} onClose={() => setVaultOpen(false)} />
+      <GitSyncDialog open={gitOpen} onClose={() => setGitOpen(false)} />
     </div>
   );
 }

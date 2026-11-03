@@ -35,6 +35,9 @@ export interface GithubMarkdownFile {
   path: string;
   title: string;
   markdown: string;
+  /** Blob SHA, which two-way sync later uses to detect remote edits. */
+  sha: string;
+  branch: string;
 }
 
 export interface GithubImportProgress {
@@ -47,6 +50,7 @@ export interface GithubImportProgress {
 interface TreeEntry {
   path?: string;
   type?: string;
+  sha?: string;
 }
 
 function headers(token?: string): HeadersInit {
@@ -108,8 +112,11 @@ export async function fetchGithubMarkdown(
   const tree = (await treeResponse.json()) as { tree?: TreeEntry[] };
 
   const prefix = input.pathPrefix?.trim().replace(/^\/+/, "").replace(/\/+$/, "") ?? "";
-  const paths = (tree.tree ?? [])
-    .filter((entry) => entry.type === "blob" && typeof entry.path === "string")
+  const blobs = (tree.tree ?? []).filter(
+    (entry) => entry.type === "blob" && typeof entry.path === "string",
+  );
+  const shaByPath = new Map(blobs.map((entry) => [entry.path as string, entry.sha ?? ""]));
+  const paths = blobs
     .map((entry) => entry.path as string)
     .filter((path) => /\.mdx?$/i.test(path))
     .filter((path) => (prefix ? path.startsWith(prefix) : true))
@@ -137,7 +144,13 @@ export async function fetchGithubMarkdown(
     const text = await response.text();
     if (text.length > MAX_FILE_BYTES) continue;
     if (!text.trim()) continue;
-    files.push({ path, title: titleFromPath(path), markdown: text });
+    files.push({
+      path,
+      title: titleFromPath(path),
+      markdown: text,
+      sha: shaByPath.get(path) ?? "",
+      branch,
+    });
   }
 
   if (!files.length) throw new Error("Every Markdown file was empty or too large.");

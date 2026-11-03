@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@notes-learning/ui/components/button";
+import { docToMarkdown, hashContent } from "@notes-learning/domain";
 import { GitBranch, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -76,17 +77,24 @@ export function GithubImportDialog({
           total: files.length,
           label: file.path,
         });
+        const doc = markdownToDoc(file.markdown);
         const created = await createPageLocal(db, {
           workspaceId: activeWorkspaceId,
           userId: user.id,
           notebookId: notebook.id,
           title: file.title,
           icon: "⌘",
-          content: markdownToDoc(file.markdown),
+          content: doc,
           properties: {
             source: "github",
             repo: `${parsed.owner}/${parsed.repo}`,
+            branch: file.branch,
             path: file.path,
+            remoteSha: file.sha,
+            // Hashing the round-tripped body, not the source file: sync will
+            // compare against the same serialisation, so an untouched page
+            // reads as unchanged instead of as a pending edit.
+            localHash: hashContent(docToMarkdown(doc)),
           },
         });
         firstPageId ??= created.page.id;
