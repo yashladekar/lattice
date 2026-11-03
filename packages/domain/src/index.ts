@@ -17,3 +17,4 @@ export * from "./console";
 export * from "./git-sync";
 export * from "./plugins";
 export * from "./canvas-sync";
+export * from "./duplicates";
