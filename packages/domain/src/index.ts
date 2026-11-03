@@ -12,3 +12,4 @@ export * from "./search";
 export * from "./canvas";
 export * from "./diagrams";
 export * from "./templates";
+export * from "./vault";
