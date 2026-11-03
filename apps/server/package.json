@@ -21,7 +21,11 @@
     "better-auth": "catalog:",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "lib0": "^0.2.119",
     "varlock": "catalog:",
+    "ws": "^8.22.1",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -29,6 +33,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
+    "@types/ws": "^8.18.2",
     "tsdown": "^0.23.0",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3"

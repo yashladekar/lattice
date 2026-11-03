@@ -13,6 +13,7 @@ import cors from "cors";
 import express from "express";
 
 import { createContext } from "./context";
+import { attachCollaboration } from "./collaboration";
 import { desktopOrigins, ENV, uploadDirectory } from "./env.server";
 import { auth } from "./services";
 
@@ -191,6 +192,8 @@ app.use(
   },
 );
 
-app.listen(Number(process.env.PORT ?? 3100), () => {
+const server = app.listen(Number(process.env.PORT ?? 3100), () => {
   console.log(`Server is running on http://localhost:${process.env.PORT ?? 3100}`);
 });
+
+attachCollaboration(server);

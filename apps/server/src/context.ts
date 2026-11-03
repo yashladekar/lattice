@@ -3,6 +3,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import type { Request } from "express";
 
 import { auth, db } from "./services";
+import { isCollaborating } from "./collaboration";
 import { aiConfig } from "./env.server";
 
 interface CreateContextOptions {
@@ -17,6 +18,7 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     session,
     ai: aiConfig,
     headers,
+    collab: { isActive: isCollaborating },
   };
 }
 
