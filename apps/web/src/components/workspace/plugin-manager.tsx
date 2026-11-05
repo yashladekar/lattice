@@ -13,7 +13,7 @@ import {
 } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
-import { Boxes, Loader2, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { Boxes, Download, Loader2, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -96,6 +96,13 @@ export function PluginManager() {
   const [manifestText, setManifestText] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [pendingRemote, setPendingRemote] = useState<{
+    manifest: PluginManifest;
+    source: string;
+    url: string;
+  } | null>(null);
   const [pageId, setPageId] = useState("");
   const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<{ pluginId: string; run: PluginRunResult } | null>(null);
@@ -144,6 +151,78 @@ export function PluginManager() {
     setManifestText("");
     setSourceText("");
     toast.success(`${manifest.name} installed with ${manifest.permissions.length} permissions.`);
+  };
+
+  const fetchRemotePlugin = async () => {
+    setError(null);
+    setPendingRemote(null);
+    let url: URL;
+    try {
+      url = new URL(remoteUrl.trim());
+    } catch {
+      setError("Enter a full URL.");
+      return;
+    }
+    if (url.protocol !== "https:") {
+      setError("Plugins can only be installed over HTTPS.");
+      return;
+    }
+    setRemoteBusy(true);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      let text: string;
+      try {
+        const response = await fetch(url, {
+          signal: controller.signal,
+          credentials: "omit",
+          redirect: "error",
+        });
+        if (!response.ok) throw new Error(`The server returned ${response.status}.`);
+        text = await response.text();
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (text.length > 256 * 1024) throw new Error("The plugin bundle is larger than 256 KB.");
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error("The bundle is not valid JSON.");
+      }
+      const record = parsed as { manifest?: unknown; source?: unknown };
+      const validation = validateManifest(record.manifest);
+      if (!validation.ok || !validation.manifest) throw new Error(validation.errors.join(" "));
+      if (typeof record.source !== "string" || !record.source.trim()) {
+        throw new Error("The bundle has no plugin source.");
+      }
+      setPendingRemote({
+        manifest: validation.manifest,
+        source: record.source,
+        url: url.toString(),
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not fetch the plugin.");
+    } finally {
+      setRemoteBusy(false);
+    }
+  };
+
+  const installPendingRemote = () => {
+    if (!pendingRemote) return;
+    const { manifest, source, url } = pendingRemote;
+    const next = plugins.filter((plugin) => plugin.manifest.id !== manifest.id);
+    next.push({
+      manifest,
+      granted: initialGrant(manifest),
+      enabled: true,
+      source,
+      installedAt: new Date().toISOString(),
+    });
+    update(next);
+    setPendingRemote(null);
+    setRemoteUrl("");
+    toast.success(`${manifest.name} installed from ${new URL(url).host}.`);
   };
 
   const makeHandlers = useCallback(
@@ -404,6 +483,78 @@ export function PluginManager() {
           Only install code you trust. The sandbox withholds the network and the local database, but it
           is a containment boundary, not a defence against hostile code.
         </p>
+
+        <div className="mt-3 rounded-lg border border-border/60 bg-background/40 p-2.5">
+          <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+            Install from URL
+          </div>
+          <div className="mt-1.5 flex gap-1.5">
+            <input
+              value={remoteUrl}
+              onChange={(event) => setRemoteUrl(event.target.value)}
+              placeholder="https://example.com/lattice-plugin.json"
+              spellCheck={false}
+              aria-label="Plugin bundle URL"
+              className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 font-mono text-[10px] outline-none focus:border-primary/40"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-md text-[9px]"
+              disabled={remoteBusy || !remoteUrl.trim()}
+              onClick={() => void fetchRemotePlugin()}
+            >
+              {remoteBusy ? <Loader2 className="size-3 animate-spin" /> : <Download className="size-3" />}{" "}
+              Fetch
+            </Button>
+          </div>
+          <p className="mt-1 text-[8px] leading-relaxed text-muted-foreground">
+            Expects JSON: <span className="font-mono">{'{ "manifest": …, "source": … }'}</span>. HTTPS
+            only, 256 KB maximum. Nothing installs until you review the requested permissions.
+          </p>
+          {pendingRemote ? (
+            <div className="mt-2 rounded-md border border-saffron/40 bg-saffron/[0.06] p-2">
+              <div className="text-[10px] font-medium">
+                {pendingRemote.manifest.name}{" "}
+                <span className="font-mono text-[8px] text-muted-foreground">
+                  v{pendingRemote.manifest.version}
+                </span>
+              </div>
+              <p className="mt-0.5 text-[9px] text-muted-foreground">
+                {pendingRemote.manifest.description}
+              </p>
+              <div className="mt-1.5 space-y-1">
+                {pendingRemote.manifest.permissions.length ? (
+                  pendingRemote.manifest.permissions.map((capability) => (
+                    <div key={capability} className="flex items-start gap-1.5 text-[8.5px]">
+                      <ShieldAlert className="mt-0.5 size-2.5 shrink-0 text-saffron" />
+                      <span>
+                        <span className="font-medium">{CAPABILITY_INFO[capability].label}</span> —{" "}
+                        {CAPABILITY_INFO[capability].description}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[8.5px] text-muted-foreground">
+                    Needs no access to your notes.
+                  </p>
+                )}
+              </div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <Button size="sm" className="h-7 rounded-md text-[9px]" onClick={installPendingRemote}>
+                  Install with these permissions
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setPendingRemote(null)}
+                  className="text-[8px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         <label className="mt-2 block">
           <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">

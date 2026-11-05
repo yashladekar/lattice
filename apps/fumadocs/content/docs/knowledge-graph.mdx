@@ -48,6 +48,16 @@ node panel and the floating card. Accepting one writes a `RELATED_TO` edge with
 `origin: "AI"` and `aiGenerated: true`, so the suggestions you took remain
 distinguishable from hand-made relations.
 
+## Playback
+
+**Playback** in the graph toolbar reconstructs the graph at a chosen date from
+node `createdAt` / `deletedAt` timestamps: nodes that did not exist yet are
+hidden, and nodes deleted by that date disappear. The slider moves in one-day
+steps; **Live** returns to the current graph.
+
+Link topology reflects the current graph between the nodes that existed at that
+time — inside-note edits are not replayed, so use versions for that.
+
 ## Learning path
 
 Dependency-shaped graphs feed the learning view. `PREREQUISITE_OF` and `DEPENDS_ON` edges order concepts; card mastery adds a per-node score. Nodes with inbound dependencies and low mastery are surfaced as knowledge gaps.

@@ -9,6 +9,7 @@ import {
   formatRelative,
   outlineToMermaid,
   safeDoc,
+  type CanvasDocument,
   type OutlineItem,
   type TipTapDoc,
 } from "@notes-learning/domain";
@@ -102,6 +103,7 @@ import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
 import { EditorMenu } from "./editor-menu";
+import { CanvasPlanPreview } from "./canvas-plan-preview";
 import { createEditorExtensions } from "./extensions";
 import type { EditorMenuItem, EditorMenuKind, EditorMenuState } from "./menu-types";
 import { PagePickerDialog } from "./page-picker";
@@ -120,6 +122,7 @@ interface AiResult {
   provider?: string;
   cards?: Array<{ front: string; back: string; blockId?: string }>;
   outline?: OutlineItem[];
+  canvas?: CanvasDocument;
   suggestions?: Array<{ pageId: string; title: string; score: number; reason: string }>;
   citations?: Array<{ pageId: string; title: string; excerpt?: string }>;
   pages?: Array<{ id: string; title: string; updatedAt: string; reason: string }>;
@@ -642,6 +645,27 @@ export function PageEditor({
     };
   }, [persist]);
 
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const onScrollToBlock = (event: Event) => {
+      const blockId = (event as CustomEvent<{ blockId?: string }>).detail?.blockId;
+      if (!blockId) return;
+      let target: number | null = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (target !== null) return false;
+        if (node.attrs?.blockId === blockId) {
+          target = pos;
+          return false;
+        }
+        return true;
+      });
+      if (target === null) return;
+      editor.chain().focus().setTextSelection(target + 1).scrollIntoView().run();
+    };
+    window.addEventListener("lattice:scroll-to-block", onScrollToBlock);
+    return () => window.removeEventListener("lattice:scroll-to-block", onScrollToBlock);
+  }, [editor]);
+
   const chooseIcon = async (icon: string) => {
     if (!db) return;
     await updatePageLocal(db, { pageId, icon });
@@ -941,9 +965,11 @@ export function PageEditor({
           provider: "local",
         });
       } else if (action === "mindmap" && "outline" in result) {
+        const outline = result.outline as OutlineItem[];
         setAiResult({
           title: "Mind map outline",
-          outline: result.outline as OutlineItem[],
+          outline,
+          canvas: buildMindMap(title, outline),
           provider: "local",
         });
       } else if (action === "connections" && "suggestions" in result) {
@@ -1010,13 +1036,13 @@ export function PageEditor({
   };
 
   const addAiMindMap = async () => {
-    if (!aiResult?.outline || !db || !user || !activeWorkspaceId) return;
+    if (!aiResult?.canvas || !db || !user || !activeWorkspaceId) return;
     const canvas = await createCanvasLocal(db, {
       workspaceId: activeWorkspaceId,
       userId: user.id,
       title: `${title} — mind map`,
       notebookId: page?.notebookId ?? null,
-      data: buildMindMap(title, aiResult.outline),
+      data: aiResult.canvas,
       icon: "◈",
     });
     setAiResult(null);
@@ -1426,7 +1452,7 @@ export function PageEditor({
           <span className={`status-dot ${saveStatus === "error" ? "bg-destructive" : "bg-moss"}`} />
           Local-first · IndexedDB
           <span className="opacity-40">·</span>
-          {editor ? `${editor.storage.characterCount?.characters?.() ?? 0} characters` : "—"}
+          {editor ? <EditorCharacterCount editor={editor} /> : "—"}
         </span>
         <span>Every block has an id for comments and transclusion.</span>
       </div>
@@ -1592,6 +1618,14 @@ function currentBlockId(editor: Editor): string | null {
     if (typeof id === "string" && id) return id;
   }
   return null;
+}
+
+function EditorCharacterCount({ editor }: { editor: Editor }) {
+  const count = useEditorState({
+    editor,
+    selector: ({ editor: current }) => current.storage.characterCount?.characters?.() ?? 0,
+  });
+  return <>{count} characters</>;
 }
 
 function EditorBubbleToolbar({
@@ -1897,6 +1931,7 @@ function AiResultDialog({
           ) : null}
           {result.outline ? (
             <div className="space-y-1">
+              {result.canvas ? <CanvasPlanPreview document={result.canvas} /> : null}
               {result.outline.map((item) => (
                 <div key={item.id} className="text-[10px] text-muted-foreground" style={{ paddingLeft: (item.level - 1) * 10 }}>
                   {item.text}

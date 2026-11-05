@@ -399,13 +399,22 @@ export function PageContextPanel({
               <div className="mt-2 space-y-0.5">
                 {outline.length ? (
                   outline.map((item) => (
-                    <div
+                    <button
                       key={item.id}
-                      className="truncate rounded px-1 py-0.5 text-[10px] text-muted-foreground"
+                      type="button"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("lattice:scroll-to-block", {
+                            detail: { blockId: item.id },
+                          }),
+                        )
+                      }
+                      className="block w-full truncate rounded px-1 py-0.5 text-left text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
                       style={{ paddingLeft: `${(item.level - 1) * 8 + 4}px` }}
+                      title="Jump to heading"
                     >
                       {item.text || "Untitled heading"}
-                    </div>
+                    </button>
                   ))
                 ) : (
                   <p className="text-[9px] text-muted-foreground">Add headings to build an outline.</p>
@@ -617,6 +626,21 @@ export function PageContextPanel({
                     </span>
                   </div>
                   <p className="mt-1.5 whitespace-pre-wrap text-[10px] leading-relaxed">{thread.body}</p>
+                  {thread.blockId ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("lattice:scroll-to-block", {
+                            detail: { blockId: thread.blockId },
+                          }),
+                        )
+                      }
+                      className="mt-1 inline-flex items-center gap-1 rounded-full border border-saffron/30 px-1.5 py-0.5 text-[7px] text-saffron hover:bg-saffron/10"
+                    >
+                      <CircleDot className="size-2" /> Jump to block
+                    </button>
+                  ) : null}
                   <div className="mt-1.5 flex items-center gap-2 text-[8px] text-muted-foreground">
                     <button
                       type="button"

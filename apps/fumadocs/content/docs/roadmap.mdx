@@ -9,7 +9,7 @@ description: What this implementation covers and which subsystems are deliberate
 - Local-first IndexedDB repository, outbox, snapshot, cursor pulls, conflict preservation.
 - Block editor with slash menu, mentions, page links, embeds, synced blocks, database block, Mermaid diagrams, page properties, block actions (duplicate, turn into, delete, copy block link), favorites, comments, versions, Markdown mode, and focus mode.
 - Infinite whiteboard with shapes, notes, freehand, interactive connectors, linked notes, nested canvases, layers, group resize, node-to-page conversion, outline generators (mind map, flowchart, concept map), snapshots, templates, presentation, and export.
-- Derived knowledge graph with typed edges, canvas-link edges, filters including recency and cluster coloring, local neighborhood view, a minimap, orphan detection, manual relations, natural-language graph questions answered locally, and dashed AI suggestions recorded with AI provenance on accept.
+- Derived knowledge graph with typed edges, canvas-link edges, filters including recency and cluster coloring, local neighborhood view, a minimap, temporal playback, orphan detection, manual relations, natural-language graph questions answered locally, and dashed AI suggestions recorded with AI provenance on accept.
 - Universal capture inbox, quick capture, URL preview, tag and related-note suggestions with explicit approval, and capture-to-page.
 - Workspace JSON export/import, per-page Markdown, GitHub Markdown import with two-way Git sync (including an optional schedule), an Obsidian-style Markdown vault export for round-trips, and Obsidian and Notion vault import.
 - Learning decks, generated and manual cards, SM-2 review, quizzes, mastery, paths, gaps, and opt-in due-card reminders while the app is open.
@@ -60,8 +60,6 @@ description: What this implementation covers and which subsystems are deliberate
 ## Next: knowledge intelligence
 
 - Embedding-based semantic search with a vector index.
-- Temporal graph playback across note versions.
-- AI-generated diagrams previewed on the canvas before applying.
 
 ## Next: capture and ingestion
 
@@ -74,10 +72,11 @@ description: What this implementation covers and which subsystems are deliberate
 
 - Capability-checked worker isolation, with per-capability consent and revocation.
 - Ambient network and database access removed before plugin code loads.
+- Install from an HTTPS URL: the bundle is fetched, its manifest validated, and its requested capabilities shown for approval before anything installs.
 
 ## Next: platform ecosystem
 
-- A plugin directory and remote install; installing is local-only today.
+- A curated plugin directory; remote install from a URL ships today.
 - Custom blocks and custom canvas tools from plugins.
 - Custom object types and property schemas.
 - Automation triggers and webhooks.

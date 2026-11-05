@@ -231,6 +231,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
   const [relationFilter, setRelationFilter] = useState<RelationType | "all">("all");
   const [orphansOnly, setOrphansOnly] = useState(false);
   const [recency, setRecency] = useState<Recency>("all");
+  const [playbackAt, setPlaybackAt] = useState<number | null>(null);
   const [clusterColors, setClusterColors] = useState(false);
   const [focusDepth, setFocusDepth] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -283,6 +284,20 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
     return map;
   }, [components]);
 
+  const timeline = useMemo(() => {
+    const stamps: number[] = [];
+    for (const node of graph.nodes) {
+      const created = new Date(node.createdAt).getTime();
+      if (Number.isFinite(created)) stamps.push(created);
+      if (node.deletedAt) {
+        const deleted = new Date(node.deletedAt).getTime();
+        if (Number.isFinite(deleted)) stamps.push(deleted);
+      }
+    }
+    if (!stamps.length) return null;
+    return { min: Math.min(...stamps), max: Math.max(Date.now(), ...stamps) };
+  }, [graph.nodes]);
+
   useEffect(() => {
     if (!selectedId) setFocusDepth(0);
   }, [selectedId]);
@@ -318,6 +333,14 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
           if (orphansOnly && !orphans.has(node.id)) return false;
           if (focusSet && !focusSet.has(node.id)) return false;
           if (cutoff && new Date(node.updatedAt).getTime() < cutoff) return false;
+          if (playbackAt !== null) {
+            const created = new Date(node.createdAt).getTime();
+            if (!Number.isFinite(created) || created > playbackAt) return false;
+            if (node.deletedAt) {
+              const deleted = new Date(node.deletedAt).getTime();
+              if (Number.isFinite(deleted) && deleted <= playbackAt) return false;
+            }
+          }
           if (notebookFilter !== "all") {
             const notebookId = node.pageId
               ? pageById.get(node.pageId)?.notebookId
@@ -359,6 +382,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
     query,
     orphansOnly,
     recency,
+    playbackAt,
     focusDepth,
     selectedId,
     orphans,
@@ -767,6 +791,22 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
           >
             <Palette className="size-3" /> Clusters
           </button>
+          <button
+            type="button"
+            onClick={() =>
+              setPlaybackAt((current) => (current === null ? (timeline?.max ?? null) : null))
+            }
+            disabled={!timeline}
+            title="Play the graph back through time"
+            className={cn(
+              "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] backdrop-blur disabled:opacity-40",
+              playbackAt !== null
+                ? "border-border bg-card text-foreground"
+                : "border-border bg-popover/90 text-muted-foreground",
+            )}
+          >
+            <Clock className="size-3" /> Playback
+          </button>
           {focusDepth > 0 && selectedNode ? (
             <span className="inline-flex h-7 items-center gap-1 rounded-md border border-saffron/40 bg-saffron/[0.08] px-2 text-[9px] backdrop-blur">
               <Focus className="size-3 text-saffron" />
@@ -841,6 +881,39 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 />
               ) : null}
             </svg>
+          </div>
+        ) : null}
+
+        {playbackAt !== null && timeline ? (
+          <div
+            data-graph-ui
+            className="absolute bottom-14 left-1/2 z-20 flex w-[min(520px,90%)] -translate-x-1/2 items-center gap-2 rounded-xl border border-border/70 bg-popover/95 px-3 py-2 shadow-xl backdrop-blur"
+          >
+            <span className="shrink-0 text-[9px] text-muted-foreground">Graph at</span>
+            <input
+              type="range"
+              min={timeline.min}
+              max={timeline.max}
+              step={24 * 60 * 60 * 1000}
+              value={playbackAt}
+              onChange={(event) => setPlaybackAt(Number(event.target.value))}
+              className="min-w-0 flex-1 accent-[var(--saffron)]"
+              aria-label="Graph playback date"
+            />
+            <span className="w-20 shrink-0 text-right text-[9px] text-muted-foreground">
+              {new Date(playbackAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPlaybackAt(null)}
+              className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[8px] hover:bg-muted"
+            >
+              Live
+            </button>
           </div>
         ) : null}
 
