@@ -1,6 +1,6 @@
 "use client";
 
-import { formatRelative } from "@notes-learning/domain";
+import { formatRelative, isPurgeable } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,8 +13,11 @@ import { appRouteObject } from "@/lib/navigation";
 
 export function TrashView() {
   const router = useRouter();
-  const { db } = useAppData();
+  const { db, activeWorkspace } = useAppData();
   const pages = useTrashPages();
+  const retentionDays = activeWorkspace?.trashRetentionDays ?? 0;
+  const visiblePages =
+    retentionDays > 0 ? pages.filter((page) => !isPurgeable(page.deletedAt, retentionDays)) : pages;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-8 md:px-8">
@@ -30,9 +33,17 @@ export function TrashView() {
         </div>
       </div>
 
+      {retentionDays > 0 ? (
+        <p className="mt-4 rounded-lg border border-saffron/25 bg-saffron/[0.05] px-3 py-2 text-[9px] leading-relaxed text-muted-foreground">
+          This workspace keeps trash for {retentionDays} days. Older items have been permanently
+          removed by the server and no longer appear here. Change the window in Settings →
+          General.
+        </p>
+      ) : null}
+
       <div className="mt-7 space-y-1">
-        {pages.length ? (
-          pages.map((page) => (
+        {visiblePages.length ? (
+          visiblePages.map((page) => (
             <div
               key={page.id}
               className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/35 px-3 py-2.5"

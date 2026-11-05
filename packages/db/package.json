@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "@notes-learning/config": "workspace:*",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "varlock": "catalog:"
   }

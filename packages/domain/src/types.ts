@@ -93,6 +93,7 @@ export interface Workspace extends BaseEntity {
   accent: string | null;
   ownerId: string;
   syncVersion: number;
+  trashRetentionDays: number;
 }
 
 export interface WorkspaceMember extends BaseEntity {

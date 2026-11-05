@@ -14,7 +14,9 @@ import {
   BookOpen,
   Brain,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Circle,
   Clock,
   Frame,
@@ -28,8 +30,9 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
@@ -75,15 +78,29 @@ const WIDGETS: Array<{ id: WidgetId; label: string }> = [
 
 const STORAGE_KEY = "lattice.home.widgets";
 
-function loadHidden(): WidgetId[] {
-  if (typeof window === "undefined") return [];
+interface HomePrefs {
+  hidden: WidgetId[];
+  order: WidgetId[];
+}
+
+function loadPrefs(): HomePrefs {
+  if (typeof window === "undefined") return { hidden: [], order: [] };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as WidgetId[]) : [];
+    if (!raw) return { hidden: [], order: [] };
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) return { hidden: parsed as WidgetId[], order: [] };
+    const record = parsed as Partial<HomePrefs>;
+    return {
+      hidden: Array.isArray(record.hidden) ? record.hidden : [],
+      order: Array.isArray(record.order) ? record.order : [],
+    };
   } catch {
-    return [];
+    return { hidden: [], order: [] };
   }
 }
+
+const DEFAULT_ORDER: WidgetId[] = WIDGETS.map((widget) => widget.id);
 
 function MiniGraph({
   nodes,
@@ -201,7 +218,37 @@ export function HomeView({
   const [captureText, setCaptureText] = useState("");
   const [savingCapture, setSavingCapture] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [hidden, setHidden] = useState<WidgetId[]>(loadHidden);
+  const [prefs, setPrefs] = useState<HomePrefs>(loadPrefs);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const reviewLogCount =
+    useLiveQuery(async () => (db ? db.reviewLogs.count() : 0), [db], 0) ?? 0;
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setOnboardingDismissed(
+      window.localStorage.getItem(`lattice.onboarding.v1:${user.id}`) === "1",
+    );
+  }, [user?.id]);
+
+  const dismissOnboarding = () => {
+    if (user?.id) window.localStorage.setItem(`lattice.onboarding.v1:${user.id}`, "1");
+    setOnboardingDismissed(true);
+  };
+  const hidden = prefs.hidden;
+  const effectiveOrder = useMemo(
+    () =>
+      prefs.order.length === WIDGETS.length
+        ? prefs.order
+        : [
+            ...prefs.order,
+            ...DEFAULT_ORDER.filter((id) => !prefs.order.includes(id)),
+          ],
+    [prefs.order],
+  );
+  const orderOf = (id: WidgetId) => {
+    const index = effectiveOrder.indexOf(id);
+    return index === -1 ? WIDGETS.findIndex((widget) => widget.id === id) : index;
+  };
 
   const visible = (id: WidgetId) => !hidden.includes(id);
   const documentByPage = useMemo(
@@ -229,13 +276,30 @@ export function HomeView({
       .slice(0, 7);
   }, [pages, canvases]);
 
+  const persistPrefs = (next: HomePrefs) => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    return next;
+  };
+
   const toggleWidget = (id: WidgetId) => {
-    setHidden((current) => {
-      const next = current.includes(id)
-        ? current.filter((entry) => entry !== id)
-        : [...current, id];
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
+    setPrefs((current) =>
+      persistPrefs({
+        ...current,
+        hidden: current.hidden.includes(id)
+          ? current.hidden.filter((entry) => entry !== id)
+          : [...current.hidden, id],
+      }),
+    );
+  };
+
+  const moveWidget = (id: WidgetId, direction: -1 | 1) => {
+    setPrefs((current) => {
+      const base = current.order.length === WIDGETS.length ? [...current.order] : [...effectiveOrder];
+      const index = base.indexOf(id);
+      const target = index + direction;
+      if (index === -1 || target < 0 || target >= base.length) return current;
+      [base[index], base[target]] = [base[target]!, base[index]!];
+      return persistPrefs({ ...current, order: base });
     });
   };
 
@@ -279,6 +343,41 @@ export function HomeView({
     });
     router.push(appRouteObject({ view: "canvas", id: canvas.id }));
   };
+
+  const onboardingSteps = useMemo(
+    () => [
+      {
+        id: "note",
+        label: "Write your first note",
+        done: pages.length > 0,
+        action: () => void newPage(),
+      },
+      {
+        id: "link",
+        label: "Link two pages with [[",
+        done: graph.edges.some((edge) => edge.relationType === "REFERENCES"),
+        action: () => {
+          const target = pages[0];
+          if (target) router.push(appRouteObject({ view: "page", id: target.id }));
+          else void newPage();
+        },
+      },
+      {
+        id: "canvas",
+        label: "Sketch a whiteboard",
+        done: canvases.length > 0,
+        action: () => void newCanvas(),
+      },
+      {
+        id: "review",
+        label: "Review one card",
+        done: reviewLogCount > 0,
+        action: () => router.push(appRouteObject({ view: "learn" })),
+      },
+    ],
+    [pages, canvases, graph.edges, reviewLogCount],
+  );
+  const onboardingComplete = onboardingSteps.every((step) => step.done);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-7 md:px-8 md:py-10">
@@ -326,6 +425,53 @@ export function HomeView({
         </div>
       </div>
 
+      {!onboardingDismissed && !onboardingComplete ? (
+        <section className="mt-6 rounded-xl border border-saffron/25 bg-saffron/[0.05] p-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-saffron">
+              <Sparkles className="size-3" /> Get started
+            </div>
+            <button
+              type="button"
+              onClick={dismissOnboarding}
+              aria-label="Dismiss getting started"
+              className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
+            {onboardingSteps.map((step) => (
+              <button
+                key={step.id}
+                type="button"
+                disabled={step.done}
+                onClick={step.action}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-[10.5px] transition-colors",
+                  step.done
+                    ? "border-transparent text-muted-foreground"
+                    : "border-border/60 bg-background/40 hover:bg-muted/50",
+                )}
+              >
+                <span
+                  className={cn(
+                    "grid size-4 shrink-0 place-items-center rounded-full border",
+                    step.done ? "border-moss bg-moss text-background" : "border-border",
+                  )}
+                >
+                  {step.done ? <Check className="size-2.5" /> : null}
+                </span>
+                <span className={cn("min-w-0 flex-1 truncate", step.done && "line-through")}>
+                  {step.label}
+                </span>
+                {step.done ? null : <ArrowRight className="size-3 shrink-0 text-muted-foreground/60" />}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <button
         type="button"
         onClick={onOpenPalette}
@@ -341,7 +487,10 @@ export function HomeView({
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {visible("capture") ? (
-          <section className="rounded-2xl border border-saffron/25 bg-saffron/[0.05] p-4 md:col-span-2 xl:col-span-1">
+          <section
+            style={{ order: orderOf("capture") }}
+            className="rounded-2xl border border-saffron/25 bg-saffron/[0.05] p-4 md:col-span-2 xl:col-span-1"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-saffron">
                 <span className="size-1.5 rounded-full bg-saffron" /> Quick capture
@@ -392,7 +541,10 @@ export function HomeView({
         ) : null}
 
         {visible("continue") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4">
+          <section
+            style={{ order: orderOf("continue") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Clock className="size-3" /> Continue working
@@ -435,7 +587,10 @@ export function HomeView({
         ) : null}
 
         {visible("review") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4">
+          <section
+            style={{ order: orderOf("review") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <GraduationCap className="size-3" /> Due reviews
@@ -475,7 +630,10 @@ export function HomeView({
         ) : null}
 
         {visible("inbox") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4">
+          <section
+            style={{ order: orderOf("inbox") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Inbox className="size-3" /> Knowledge inbox
@@ -524,7 +682,10 @@ export function HomeView({
         ) : null}
 
         {visible("graph") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4 md:col-span-2 xl:col-span-1">
+          <section
+            style={{ order: orderOf("graph") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4 md:col-span-2 xl:col-span-1"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Network className="size-3" /> Graph preview
@@ -553,7 +714,10 @@ export function HomeView({
         ) : null}
 
         {visible("learning") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4">
+          <section
+            style={{ order: orderOf("learning") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Brain className="size-3" /> Learning progress
@@ -598,7 +762,10 @@ export function HomeView({
         ) : null}
 
         {visible("canvas") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4">
+          <section
+            style={{ order: orderOf("canvas") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Frame className="size-3" /> Recent whiteboards
@@ -643,7 +810,10 @@ export function HomeView({
         ) : null}
 
         {visible("activity") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4">
+          <section
+            style={{ order: orderOf("activity") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Circle className="size-3" /> Recent activity
@@ -682,7 +852,10 @@ export function HomeView({
         ) : null}
 
         {visible("notebooks") ? (
-          <section className="rounded-2xl border border-border/70 bg-card/50 p-4">
+          <section
+            style={{ order: orderOf("notebooks") }}
+            className="rounded-2xl border border-border/70 bg-card/50 p-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <BookOpen className="size-3" /> Notebooks
@@ -733,26 +906,52 @@ export function HomeView({
         description="Choose which widgets appear on your dashboard. The layout is stored on this device."
       >
         <div className="grid gap-1">
-          {WIDGETS.map((widget) => {
+          {effectiveOrder.map((id) => {
+            const widget = WIDGETS.find((entry) => entry.id === id);
+            if (!widget) return null;
             const visibleWidget = !hidden.includes(widget.id);
             return (
-              <button
+              <div
                 key={widget.id}
-                type="button"
-                onClick={() => toggleWidget(widget.id)}
-                className="flex items-center gap-2.5 rounded-lg border border-border/60 px-3 py-2.5 text-left hover:bg-muted/40"
+                className="flex items-center gap-2.5 rounded-lg border border-border/60 px-3 py-2.5"
               >
-                <span
-                  className={cn(
-                    "grid size-4 place-items-center rounded border",
-                    visibleWidget ? "border-moss bg-moss text-background" : "border-border",
-                  )}
+                <button
+                  type="button"
+                  onClick={() => toggleWidget(widget.id)}
+                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                 >
-                  {visibleWidget ? <Check className="size-2.5" /> : null}
-                </span>
-                <span className="flex-1 text-[11px]">{widget.label}</span>
-                <span className="text-[9px] text-muted-foreground">{visibleWidget ? "Visible" : "Hidden"}</span>
-              </button>
+                  <span
+                    className={cn(
+                      "grid size-4 place-items-center rounded border",
+                      visibleWidget ? "border-moss bg-moss text-background" : "border-border",
+                    )}
+                  >
+                    {visibleWidget ? <Check className="size-2.5" /> : null}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[11px]">{widget.label}</span>
+                  <span className="text-[9px] text-muted-foreground">
+                    {visibleWidget ? "Visible" : "Hidden"}
+                  </span>
+                </button>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    aria-label={`Move ${widget.label} up`}
+                    onClick={() => moveWidget(widget.id, -1)}
+                    className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <ChevronUp className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move ${widget.label} down`}
+                    onClick={() => moveWidget(widget.id, 1)}
+                    className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <ChevronDown className="size-3" />
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>

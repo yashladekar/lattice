@@ -1,17 +1,25 @@
 "use client";
 
-import type { OutlineItem } from "@notes-learning/domain";
+import type { OutlineItem, Visibility } from "@notes-learning/domain";
 import { formatRelative } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@notes-learning/ui/components/dropdown-menu";
 import { Input } from "@notes-learning/ui/components/input";
 import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AtSign,
   RotateCcw,
   ArrowUpRight,
   Brain,
   Check,
+  ChevronDown,
   CircleDot,
   Clock,
   FileText,
@@ -44,6 +52,7 @@ import {
   generateCardsFromPageLocal,
   resolveCommentLocal,
   setPageTagsLocal,
+  updatePageLocal,
   updatePagePropertiesLocal,
 } from "@/lib/local/repository";
 import type { LocalPage } from "@/lib/local/types";
@@ -51,6 +60,13 @@ import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
 type Tab = "info" | "backlinks" | "comments";
+
+const VISIBILITY_OPTIONS: Array<{ value: Visibility; label: string; hint: string }> = [
+  { value: "WORKSPACE", label: "Workspace", hint: "Everyone in this workspace can read it" },
+  { value: "PRIVATE", label: "Private", hint: "Only you and workspace admins" },
+  { value: "SHARED", label: "Shared", hint: "Only people you share it with" },
+  { value: "PUBLIC", label: "Public link", hint: "Anyone with an active share link" },
+];
 
 function propertyText(value: unknown): string {
   if (typeof value === "string") return value;
@@ -181,6 +197,19 @@ export function PageContextPanel({
     toast.success("Comment added");
   };
 
+  const insertMention = (name: string) => {
+    setCommentText((current) => {
+      const separator = current && !current.endsWith(" ") ? " " : "";
+      return `${current}${separator}@${name} `;
+    });
+  };
+
+  const setVisibility = async (visibility: Visibility) => {
+    if (!db) return;
+    await updatePageLocal(db, { pageId: page.id, visibility });
+    toast.success(`Visibility set to ${visibility.toLowerCase()}`);
+  };
+
   const addTag = async (tagId: string) => {
     if (!db) return;
     await setPageTagsLocal(db, page.id, [...tags.map((tag) => tag.id), tagId]);
@@ -277,7 +306,33 @@ export function PageContextPanel({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Visibility</span>
-                  <span className="capitalize">{page.visibility.toLowerCase()}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-[9px] capitalize hover:bg-muted"
+                        />
+                      }
+                    >
+                      {page.visibility.toLowerCase()}
+                      <ChevronDown className="size-2.5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {VISIBILITY_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          disabled={!db || page.visibility === option.value}
+                          onClick={() => void setVisibility(option.value)}
+                        >
+                          <span className="flex flex-col">
+                            <span className="text-[10px]">{option.label}</span>
+                            <span className="text-[8px] text-muted-foreground">{option.hint}</span>
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Type</span>
@@ -685,8 +740,39 @@ export function PageContextPanel({
                 className="min-h-16 rounded-lg text-[11px]"
               />
               <div className="mt-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1 text-[8px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-[8px] text-muted-foreground">
                   <Clock className="size-2.5" /> ⌘↵ to send
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 rounded-md px-1.5 text-[8px] text-muted-foreground"
+                        />
+                      }
+                    >
+                      <AtSign className="size-3" /> Mention
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="max-h-64 w-52">
+                      {(membersQuery.data ?? []).map((member) => (
+                        <DropdownMenuItem
+                          key={member.userId}
+                          onClick={() => insertMention(member.user.name)}
+                        >
+                          <span className="grid size-4 shrink-0 place-items-center rounded-full bg-moss/20 text-[7px] font-semibold text-moss">
+                            {member.user.name.slice(0, 1)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{member.user.name}</span>
+                        </DropdownMenuItem>
+                      ))}
+                      {!membersQuery.data?.length ? (
+                        <p className="px-2 py-3 text-center text-[9px] text-muted-foreground">
+                          No teammates to mention yet.
+                        </p>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </span>
                 <Button
                   size="sm"

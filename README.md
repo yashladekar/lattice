@@ -9,18 +9,18 @@ The repository/package names remain `notes-learning` from the original scaffold;
 ## What is implemented
 
 - **Multi-tenant workspaces** — personal workspaces, organizations, invites, nested notebooks/pages, roles, visibility, resource permissions, audit log.
-- **Block editor** — TipTap 3 with slash menu, `@` mentions, `[[` page links, drag handle, bubble formatting, callouts, tasks, tables, code, math, Mermaid diagrams, media embeds, page embeds, synced blocks, database block, comments, versions, templates, Markdown mode, focus mode.
-- **Infinite whiteboard** — pan/zoom, sticky notes, shapes, text, pen, connectors, frames, images, linked live note cards, nested canvases, grouping/alignment/layers, undo/redo, templates, presentation, SVG/PNG/PDF export.
-- **Knowledge graph** — automatic page-link edges, typed manual relations, custom topics, force layout, filters by notebook/tag/kind/relation, orphan detection, node side panel, AI suggestions, shareable public graph.
+- **Block editor** — TipTap 3 with slash menu, `@` mentions, `[[` page links, drag handle with block actions (duplicate, turn into, delete, copy block link), bubble formatting, callouts, tasks, tables, code, math, Mermaid diagrams, media embeds, page embeds, synced blocks, database block, comments, versions, favorites, templates, Markdown mode, focus mode.
+- **Infinite whiteboard** — pan/zoom, sticky notes, shapes, text, pen, interactive connectors (labels, styles, arrows), frames that move their contents, image upload/drag-drop, linked live note cards, nested canvases, grouping/alignment/layers, undo/redo, templates, outline generators (mind map, flowchart, concept map), server-backed snapshots, presentation, SVG/PNG/PDF export.
+- **Knowledge graph** — automatic page-link and canvas-link edges, typed manual relations, custom topics, force layout, filters by notebook/tag/kind/relation/recency, cluster coloring, local neighborhood view, orphan detection, node side panel, dashed AI suggestions with AI provenance on accept, shareable public graph.
 - **Local-first storage & sync** — per-user IndexedDB, outbox, versioned server change log, tombstones, idempotent pushes, revision-aware document conflicts, snapshot repair, sync status, full JSON export/import.
-- **Capture inbox** — quick capture, links, uploads, URL preview, capture-to-page, tag/related-note suggestions. Includes a PWA share target and an MV3 browser extension in `extensions/lattice-clip`.
-- **Learning** — generated/manual flashcards, SM-2 review, quizzes, mastery, learning paths, knowledge gaps, daily due queue.
-- **Optional AI** — OpenAI-compatible provider when configured; retrieval + citations + local fallback otherwise. Never writes without an apply action.
-- **Navigation** — dashboard with configurable widgets, command palette (`⌘/Ctrl+K`), search with tag/type/notebook filters, tabs, keyboard shortcuts, timeline, trash.
+- **Capture inbox** — quick capture, links, uploads, URL preview, capture-to-page, and tag/related-note suggestions you approve before they apply. Includes a PWA share target and an MV3 browser extension in `extensions/lattice-clip`.
+- **Learning** — generated/manual flashcards, SM-2 review, quizzes, mastery, learning paths, knowledge gaps, daily due queue, opt-in due-card reminders.
+- **Optional AI** — OpenAI-compatible provider when configured; retrieval + citations + local fallback otherwise. Summarize, explain, compare, examples, connections, cards, mind map, and outdated-page review, all previewed before apply.
+- **Navigation** — dashboard with configurable widgets, command palette (`⌘/Ctrl+K`), search with tag/type/notebook filters, tabs with a split pane, keyboard shortcuts, timeline, trash, first-run checklist.
 - **Import & export** — full workspace JSON export/import, per-page Markdown, and one-way GitHub Markdown import into a notebook.
-- **Collaboration** — comments with block anchors and mentions, notifications, presence heartbeat, async multi-device sync, public read-only sharing.
-- **Platforms** — web/PWA, Tauri desktop config, Expo companion for capture/browse/search/review.
-- **Self-hosting** — Docker Compose, runtime web config, hashed share/invite tokens, rate limiting, authenticated uploads.
+- **Collaboration** — comments with a mention picker, notifications, presence heartbeat, async multi-device sync, public read-only sharing, page/notebook visibility controls, device list with revocation.
+- **Platforms** — web/PWA (with an update prompt), Tauri desktop config that opens external links in the OS browser, Expo companion for capture/browse/search/review with an offline query cache.
+- **Self-hosting** — Docker Compose, runtime web config, hashed share/invite tokens, rate limiting, authenticated uploads, workspace-chosen trash retention with a scheduled server purge.
 
 ## Stack
 
@@ -170,6 +170,7 @@ pnpm check-types         # TypeScript across packages
 pnpm test                # domain unit tests
 pnpm db:start|stop|down  # Postgres lifecycle
 pnpm db:push|generate|migrate|studio
+pnpm db:seed             # demo workspace for local dev (--reset to rebuild)
 pnpm docker:build|up|down|logs
 ```
 
@@ -179,6 +180,7 @@ pnpm docker:build|up|down|logs
 pnpm db:start
 pnpm db:generate
 pnpm db:push
+pnpm db:seed            # optional demo workspace
 pnpm --filter @notes-learning/domain test
 pnpm check-types
 pnpm --filter web build

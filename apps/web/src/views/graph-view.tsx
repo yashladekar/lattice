@@ -25,13 +25,16 @@ import {
   ArrowUpRight,
   BookOpen,
   CircleDot,
+  Clock,
   Filter,
+  Focus,
   Frame,
   Layers,
   Lightbulb,
   Link2,
   Maximize2,
   Network,
+  Palette,
   Plus,
   Search,
   Sparkles,
@@ -87,6 +90,26 @@ const RELATIONS: RelationType[] = [
   "CREATED_FROM",
   "CONNECTED_THROUGH",
 ];
+
+const CLUSTER_COLORS = [
+  "#e07a2e",
+  "#2f6b4f",
+  "#3b82f6",
+  "#8b5cf6",
+  "#dc2626",
+  "#0891b2",
+  "#db2777",
+  "#a16207",
+];
+
+const RECENCY_OPTIONS = [
+  { value: "all", label: "Any time", days: 0 },
+  { value: "7", label: "Past 7 days", days: 7 },
+  { value: "30", label: "Past 30 days", days: 30 },
+  { value: "90", label: "Past 90 days", days: 90 },
+] as const;
+
+type Recency = (typeof RECENCY_OPTIONS)[number]["value"];
 
 function hashString(value: string): number {
   let hash = 2166136261;
@@ -207,6 +230,9 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
   const [tagFilter, setTagFilter] = useState("all");
   const [relationFilter, setRelationFilter] = useState<RelationType | "all">("all");
   const [orphansOnly, setOrphansOnly] = useState(false);
+  const [recency, setRecency] = useState<Recency>("all");
+  const [clusterColors, setClusterColors] = useState(false);
+  const [focusDepth, setFocusDepth] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [positions, setPositions] = useState<Map<string, GraphPosition>>(new Map());
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
@@ -248,15 +274,49 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
   const degree = useMemo(() => degreeMap(graph.edges), [graph.edges]);
   const orphans = useMemo(() => new Set(orphanNodes(graph.nodes, graph.edges).map((node) => node.id)), [graph.nodes, graph.edges]);
   const components = useMemo(() => connectedComponents(graph.nodes, graph.edges), [graph.nodes, graph.edges]);
+  const componentIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    components.forEach((component, index) => {
+      for (const id of component) map.set(id, index);
+    });
+    return map;
+  }, [components]);
+
+  useEffect(() => {
+    if (!selectedId) setFocusDepth(0);
+  }, [selectedId]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
+    const days = RECENCY_OPTIONS.find((option) => option.value === recency)?.days ?? 0;
+    const cutoff = days ? Date.now() - days * 24 * 60 * 60 * 1000 : 0;
+    let focusSet: Set<string> | null = null;
+    if (focusDepth > 0 && selectedId) {
+      focusSet = new Set([selectedId]);
+      let frontier = [selectedId];
+      for (let depth = 0; depth < focusDepth && frontier.length; depth += 1) {
+        const next: string[] = [];
+        for (const edge of graph.edges) {
+          if (frontier.includes(edge.sourceNodeId) && !focusSet.has(edge.targetNodeId)) {
+            focusSet.add(edge.targetNodeId);
+            next.push(edge.targetNodeId);
+          }
+          if (frontier.includes(edge.targetNodeId) && !focusSet.has(edge.sourceNodeId)) {
+            focusSet.add(edge.sourceNodeId);
+            next.push(edge.sourceNodeId);
+          }
+        }
+        frontier = next;
+      }
+    }
     let nodeSet = new Set<string>(
       graph.nodes
         .filter((node) => {
           if (!kindFilter.has(node.kind)) return false;
           if (normalized && !node.title.toLowerCase().includes(normalized)) return false;
           if (orphansOnly && !orphans.has(node.id)) return false;
+          if (focusSet && !focusSet.has(node.id)) return false;
+          if (cutoff && new Date(node.updatedAt).getTime() < cutoff) return false;
           if (notebookFilter !== "all") {
             const notebookId = node.pageId
               ? pageById.get(node.pageId)?.notebookId
@@ -297,6 +357,9 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
     kindFilter,
     query,
     orphansOnly,
+    recency,
+    focusDepth,
+    selectedId,
     orphans,
     notebookFilter,
     tagFilter,
@@ -448,6 +511,8 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
       sourceNodeId,
       targetNodeId,
       relationType: "RELATED_TO",
+      origin: "AI",
+      aiGenerated: true,
     });
     setSuggestions((current) =>
       current.filter(
@@ -617,6 +682,27 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-md bg-popover/90 px-2 text-[9px] backdrop-blur"
+                />
+              }
+            >
+              <Clock className="size-3" /> {RECENCY_OPTIONS.find((option) => option.value === recency)?.label ?? "Any time"}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {RECENCY_OPTIONS.map((option) => (
+                <DropdownMenuItem key={option.value} onClick={() => setRecency(option.value)}>
+                  {option.value === recency ? "• " : ""}
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <label className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-popover/90 px-2 text-[9px] text-muted-foreground backdrop-blur">
             <input
               type="checkbox"
@@ -626,6 +712,28 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             />
             Orphans only
           </label>
+          <button
+            type="button"
+            onClick={() => setClusterColors((current) => !current)}
+            className={cn(
+              "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] backdrop-blur",
+              clusterColors
+                ? "border-border bg-card text-foreground"
+                : "border-border bg-popover/90 text-muted-foreground",
+            )}
+            title="Color nodes by connected cluster"
+          >
+            <Palette className="size-3" /> Clusters
+          </button>
+          {focusDepth > 0 && selectedNode ? (
+            <span className="inline-flex h-7 items-center gap-1 rounded-md border border-saffron/40 bg-saffron/[0.08] px-2 text-[9px] backdrop-blur">
+              <Focus className="size-3 text-saffron" />
+              Local · depth {focusDepth} · {selectedNode.title}
+              <button type="button" onClick={() => setFocusDepth(0)} aria-label="Exit local view">
+                <X className="size-3 text-muted-foreground" />
+              </button>
+            </span>
+          ) : null}
           <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-popover/90 p-0.5 backdrop-blur">
             <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.2) }))} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted">
               <ZoomOut className="size-3" />
@@ -738,6 +846,25 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 </g>
               );
             })}
+            {suggestions.map((entry) => {
+              const source = positions.get(entry.sourceNodeId);
+              const target = positions.get(entry.targetNodeId);
+              if (!source || !target) return null;
+              return (
+                <line
+                  key={`suggestion:${entry.sourceNodeId}:${entry.targetNodeId}`}
+                  x1={source.x}
+                  y1={source.y}
+                  x2={target.x}
+                  y2={target.y}
+                  stroke="#e07a2e"
+                  strokeWidth={1.5}
+                  strokeOpacity={0.55}
+                  strokeDasharray="6 5"
+                  vectorEffect="non-scaling-stroke"
+                />
+              );
+            })}
           </svg>
 
           {filtered.nodes.map((node) => {
@@ -745,7 +872,10 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             if (!position) return null;
             const selected = selectedId === node.id;
             const size = 16 + Math.min(14, degreeCount(node.id) * 2);
-            const color = NODE_META[node.kind].color;
+            const color =
+              clusterColors && components.length > 1
+                ? CLUSTER_COLORS[(componentIndex.get(node.id) ?? 0) % CLUSTER_COLORS.length]!
+                : NODE_META[node.kind].color;
             const page = node.pageId ? pageById.get(node.pageId) : null;
             const canvas = node.canvasId ? canvasById.get(node.canvasId) : null;
             const sourceTags = page ? tagsByPage.get(page.id) ?? [] : [];
@@ -853,6 +983,25 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                   <Trash2 className="size-3" /> Delete topic
                 </Button>
               ) : null}
+              <Button
+                variant={focusDepth > 0 ? "default" : "outline"}
+                size="sm"
+                className="h-7 rounded-md text-[9px]"
+                onClick={() => setFocusDepth((current) => (current > 0 ? 0 : 2))}
+              >
+                <Focus className="size-3" /> {focusDepth > 0 ? "Exit local view" : "Focus neighborhood"}
+              </Button>
+              {focusDepth > 0 ? (
+                <select
+                  value={focusDepth}
+                  onChange={(event) => setFocusDepth(Number(event.target.value))}
+                  className="h-7 rounded-md border border-border bg-background px-1.5 text-[9px]"
+                >
+                  <option value={1}>1 hop</option>
+                  <option value={2}>2 hops</option>
+                  <option value={3}>3 hops</option>
+                </select>
+              ) : null}
             </div>
 
             <div className="mt-4 text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
@@ -871,6 +1020,9 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                       {outgoing ? " → " : " "}
                       <span className="text-muted-foreground">{other?.title ?? "Unknown"}</span>
                     </button>
+                    {edge.aiGenerated ? (
+                      <Sparkles className="size-2.5 shrink-0 text-saffron/70" aria-label="AI suggested" />
+                    ) : null}
                     <button
                       type="button"
                       aria-label="Remove relation"

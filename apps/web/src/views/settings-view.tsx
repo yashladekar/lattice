@@ -1,6 +1,6 @@
 "use client";
 
-import { auditExportFilename, auditLogToCsv, createId, type Role } from "@notes-learning/domain";
+import { auditExportFilename, auditLogToCsv, createId, RETENTION_OPTIONS, type Role } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Input } from "@notes-learning/ui/components/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import {
   Loader2,
   LogOut,
   Monitor,
+  Palette,
   Plus,
   RefreshCw,
   Shield,
@@ -29,6 +30,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -52,6 +54,7 @@ import { client } from "@/utils/orpc";
 
 type SettingsTab =
   | "general"
+  | "appearance"
   | "members"
   | "sync"
   | "ai"
@@ -63,6 +66,7 @@ type SettingsTab =
 
 const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "general", label: "General", icon: HardDrive },
+  { id: "appearance", label: "Appearance", icon: Palette },
   { id: "members", label: "Members", icon: Users },
   { id: "sync", label: "Sync & backup", icon: Cloud },
   { id: "ai", label: "Intelligence", icon: Brain },
@@ -92,6 +96,7 @@ export function SettingsView() {
     retrySync,
   } = useAppData();
   const [tab, setTab] = useState<SettingsTab>("general");
+  const { theme, setTheme } = useTheme();
   const [name, setName] = useState(activeWorkspace?.name ?? "");
   const [description, setDescription] = useState(activeWorkspace?.description ?? "");
   const [icon, setIcon] = useState(activeWorkspace?.icon ?? "✦");
@@ -152,6 +157,28 @@ export function SettingsView() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const setAccent = async (accent: string) => {
+    if (!db || !activeWorkspaceId) return;
+    await updateWorkspaceLocal(db, activeWorkspaceId, { accent });
+    toast.success("Workspace accent updated");
+  };
+
+  const setRetention = async (days: number) => {
+    if (!db || !activeWorkspaceId) return;
+    if (
+      days !== 0 &&
+      !window.confirm(
+        `Permanently remove trash older than ${days} days? Deleted notes, canvases, decks, and captures past that age cannot be recovered.`,
+      )
+    ) {
+      return;
+    }
+    await updateWorkspaceLocal(db, activeWorkspaceId, { trashRetentionDays: days });
+    toast.success(
+      days === 0 ? "Trash is kept forever" : `Trash older than ${days} days will be purged`,
+    );
   };
 
   const invite = async () => {
@@ -225,6 +252,16 @@ export function SettingsView() {
       toast.success("Device registered");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not register device");
+    }
+  };
+
+  const removeDevice = async (deviceId: string) => {
+    try {
+      await client.device.remove({ deviceId });
+      await devices.refetch();
+      toast.success("Device removed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not remove the device");
     }
   };
 
@@ -306,6 +343,32 @@ export function SettingsView() {
               </div>
             </SettingsCard>
 
+            <SettingsCard
+              title="Trash retention"
+              description="How long soft-deleted notes, canvases, decks, and captures stay recoverable."
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {RETENTION_OPTIONS.map((days) => (
+                  <Button
+                    key={days}
+                    variant={(activeWorkspace?.trashRetentionDays ?? 0) === days ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 rounded-lg text-[10px]"
+                    disabled={!["OWNER", "ADMIN"].includes(role ?? "")}
+                    onClick={() => void setRetention(days)}
+                  >
+                    {days === 0 ? "Keep forever" : `${days} days`}
+                  </Button>
+                ))}
+              </div>
+              <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
+                The server purges trash past the window on a schedule and records tombstones so every
+                device reflects it. There is deliberately no manual purge button: a client that
+                dropped rows locally would disagree with the server and resurrect content on the
+                next pull.
+              </p>
+            </SettingsCard>
+
             <SettingsCard title="Workspaces" description="Switch or create another context.">
               <div className="space-y-1">
                 {workspaces.map((workspace) => (
@@ -342,6 +405,51 @@ export function SettingsView() {
                   <LogOut className="size-3" /> Sign out
                 </Button>
               </div>
+            </SettingsCard>
+          </section>
+        ) : null}
+
+        {tab === "appearance" ? (
+          <section className="space-y-4">
+            <SettingsCard title="Theme" description="Applies to this device immediately.">
+              <div className="flex gap-1.5">
+                {(["light", "dark", "system"] as const).map((value) => (
+                  <Button
+                    key={value}
+                    variant={theme === value ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 rounded-lg text-[10px] capitalize"
+                    onClick={() => setTheme(value)}
+                  >
+                    {value}
+                  </Button>
+                ))}
+              </div>
+            </SettingsCard>
+            <SettingsCard
+              title="Workspace accent"
+              description="Used for the workspace badge and identity accents."
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {["#e07a2e", "#2f6b4f", "#3b82f6", "#8b5cf6", "#dc2626", "#0891b2", "#db2777"].map(
+                  (color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Set accent ${color}`}
+                      onClick={() => void setAccent(color)}
+                      className={cn(
+                        "size-7 rounded-full border-2 transition-transform hover:scale-105",
+                        activeWorkspace?.accent === color ? "border-foreground" : "border-transparent",
+                      )}
+                      style={{ background: color }}
+                    />
+                  ),
+                )}
+              </div>
+              <p className="mt-2 text-[9px] text-muted-foreground">
+                Current: {activeWorkspace?.accent ?? "default"}
+              </p>
             </SettingsCard>
           </section>
         ) : null}
@@ -586,6 +694,15 @@ export function SettingsView() {
                     <span className="text-[8px] text-muted-foreground">
                       {new Date(device.lastSeenAt).toLocaleDateString()}
                     </span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${device.name}`}
+                      title="Remove device"
+                      onClick={() => void removeDevice(device.id)}
+                      className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
                   </div>
                 ))}
                 {!devices.data?.length ? (

@@ -5,11 +5,20 @@ import {
   type TipTapNode,
 } from "@notes-learning/domain";
 import { cn } from "@notes-learning/ui/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@notes-learning/ui/components/dropdown-menu";
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import {
   ArrowUpRight,
   Bookmark,
   CalendarDays,
+  ChevronDown,
   ChevronRight,
   ExternalLink,
   GalleryHorizontal,
@@ -17,10 +26,12 @@ import {
   Plus,
   Table2,
   Trash2,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { Modal } from "@/components/ui/modal";
 import { usePage, usePageDocument } from "@/hooks/use-local-data";
 import { appRouteObject } from "@/lib/navigation";
 
@@ -238,6 +249,10 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
       : "table",
   );
   const title = typeof node.attrs.title === "string" ? node.attrs.title : "Database";
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [fieldDraft, setFieldDraft] = useState("");
+  const [optionsFieldId, setOptionsFieldId] = useState<string | null>(null);
+  const [optionDraft, setOptionDraft] = useState("");
 
   const commit = (nextFields: DatabaseField[], nextRows: DatabaseRow[], nextView = view) => {
     updateAttributes({ fields: nextFields, rows: nextRows, view: nextView, title });
@@ -265,13 +280,78 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
     commit(fields, rows.filter((row) => row.id !== rowId));
   };
 
-  const addField = () => {
+  const addField = (type: DatabaseField["type"]) => {
+    const label =
+      type === "text"
+        ? "Text"
+        : type === "number"
+          ? "Number"
+          : type === "date"
+            ? "Date"
+            : type === "select"
+              ? "Select"
+              : "Checkbox";
     const field: DatabaseField = {
       id: `field_${Date.now().toString(36)}`,
-      name: `Field ${fields.length + 1}`,
-      type: "text",
+      name: `${label} ${fields.length + 1}`,
+      type,
+      ...(type === "select" ? { options: ["Option 1", "Option 2"] } : {}),
     };
     commit([...fields, field], rows);
+  };
+
+  const renameField = (field: DatabaseField, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === field.name) return;
+    commit(
+      fields.map((entry) => (entry.id === field.id ? { ...entry, name: trimmed } : entry)),
+      rows,
+    );
+  };
+
+  const setFieldType = (field: DatabaseField, type: DatabaseField["type"]) => {
+    commit(
+      fields.map((entry) =>
+        entry.id === field.id
+          ? {
+              ...entry,
+              type,
+              ...(type === "select" && !entry.options?.length
+                ? { options: ["Option 1", "Option 2"] }
+                : {}),
+            }
+          : entry,
+      ),
+      rows,
+    );
+  };
+
+  const removeField = (fieldId: string) => {
+    commit(
+      fields.filter((entry) => entry.id !== fieldId),
+      rows.map((row) => {
+        const values = { ...row.values };
+        delete values[fieldId];
+        return { ...row, values };
+      }),
+    );
+  };
+
+  const setFieldOptions = (fieldId: string, options: string[]) => {
+    commit(
+      fields.map((entry) => (entry.id === fieldId ? { ...entry, options } : entry)),
+      rows,
+    );
+  };
+
+  const optionsField = fields.find((field) => field.id === optionsFieldId) ?? null;
+
+  const addOption = () => {
+    if (!optionsField) return;
+    const value = optionDraft.trim();
+    if (!value || (optionsField.options ?? []).includes(value)) return;
+    setFieldOptions(optionsField.id, [...(optionsField.options ?? []), value]);
+    setOptionDraft("");
   };
 
   const switchView = (next: DatabaseView) => {
@@ -363,14 +443,27 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
         </div>
         <div className="flex items-center gap-1">
           <span className="mr-1 text-[9px] text-muted-foreground">{rows.length} rows</span>
-          <button
-            type="button"
-            onClick={addField}
-            className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Add field"
-          >
-            <Plus className="size-3" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title="Add field"
+                />
+              }
+            >
+              <Plus className="size-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuLabel>Add a field</DropdownMenuLabel>
+              {(["text", "number", "date", "select", "checkbox"] as const).map((type) => (
+                <DropdownMenuItem key={type} onClick={() => addField(type)}>
+                  <span className="capitalize">{type}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             type="button"
             onClick={() => addRow()}
@@ -388,7 +481,83 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
               <tr className="border-b border-border/60 bg-muted/25">
                 {fields.map((field) => (
                   <th key={field.id} className="px-2 py-1.5 text-[9px] font-medium text-muted-foreground">
-                    {field.name}
+                    {editingFieldId === field.id ? (
+                      <input
+                        autoFocus
+                        value={fieldDraft}
+                        onChange={(event) => setFieldDraft(event.target.value)}
+                        onBlur={() => {
+                          renameField(field, fieldDraft);
+                          setEditingFieldId(null);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            renameField(field, fieldDraft);
+                            setEditingFieldId(null);
+                          }
+                          if (event.key === "Escape") setEditingFieldId(null);
+                        }}
+                        className="h-5 w-24 rounded border border-border bg-background px-1 text-[9px] outline-none focus:border-ring"
+                      />
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Rename field"
+                          onClick={() => {
+                            setFieldDraft(field.name);
+                            setEditingFieldId(field.id);
+                          }}
+                          className="hover:text-foreground"
+                        >
+                          {field.name}
+                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <button
+                                type="button"
+                                aria-label={`Options for ${field.name}`}
+                                className="grid size-3.5 place-items-center rounded hover:bg-muted hover:text-foreground"
+                              />
+                            }
+                          >
+                            <ChevronDown className="size-2.5" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-40">
+                            <DropdownMenuLabel>Type</DropdownMenuLabel>
+                            {(["text", "number", "date", "select", "checkbox"] as const).map(
+                              (type) => (
+                                <DropdownMenuItem key={type} onClick={() => setFieldType(field, type)}>
+                                  <span className="w-3 shrink-0 text-[9px]">
+                                    {field.type === type ? "✓" : ""}
+                                  </span>
+                                  <span className="capitalize">{type}</span>
+                                </DropdownMenuItem>
+                              ),
+                            )}
+                            {field.type === "select" ? (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setOptionsFieldId(field.id);
+                                    setOptionDraft("");
+                                  }}
+                                >
+                                  Edit options…
+                                </DropdownMenuItem>
+                              </>
+                            ) : null}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onClick={() => removeField(field.id)}>
+                              <Trash2 className="size-3" /> Delete field
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </span>
+                    )}
                   </th>
                 ))}
                 <th className="w-8" />
@@ -508,6 +677,65 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
           Add a select or date field to use this view.
         </div>
       )}
+
+      <Modal
+        open={Boolean(optionsField)}
+        onClose={() => setOptionsFieldId(null)}
+        title="Select options"
+        description="Options power the select cell, board columns, and calendar grouping."
+      >
+        {optionsField ? (
+          <div className="space-y-2">
+            <div className="space-y-1">
+              {(optionsField.options ?? []).map((option) => (
+                <div
+                  key={option}
+                  className="flex items-center gap-2 rounded-md border border-border/60 bg-background/50 px-2 py-1.5 text-[10px]"
+                >
+                  <span className="min-w-0 flex-1 truncate">{option}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${option}`}
+                    onClick={() =>
+                      setFieldOptions(
+                        optionsField.id,
+                        (optionsField.options ?? []).filter((entry) => entry !== option),
+                      )
+                    }
+                    className="text-muted-foreground/50 hover:text-destructive"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+              {!optionsField.options?.length ? (
+                <p className="text-[9px] text-muted-foreground">No options yet.</p>
+              ) : null}
+            </div>
+            <div className="flex gap-1">
+              <input
+                value={optionDraft}
+                onChange={(event) => setOptionDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  addOption();
+                }}
+                placeholder="Add an option"
+                className="h-8 flex-1 rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-ring"
+              />
+              <button
+                type="button"
+                disabled={!optionDraft.trim()}
+                onClick={addOption}
+                className="h-8 rounded-md bg-foreground px-3 text-[9px] text-background hover:opacity-85 disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </NodeViewWrapper>
   );
 }

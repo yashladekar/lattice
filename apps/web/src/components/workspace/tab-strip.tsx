@@ -1,22 +1,26 @@
 "use client";
 
 import { cn } from "@notes-learning/ui/lib/utils";
-import { Plus, X } from "lucide-react";
+import { Columns2, Plus, X } from "lucide-react";
 
 import type { OpenTab } from "@/hooks/use-tabs";
 
 export function TabStrip({
   tabs,
   activeKey,
+  paneKey,
   onSelect,
   onClose,
   onNew,
+  onTogglePane,
 }: {
   tabs: OpenTab[];
   activeKey: string;
+  paneKey: string | null;
   onSelect: (tab: OpenTab) => void;
   onClose: (key: string) => void;
   onNew: () => void;
+  onTogglePane: (tab: OpenTab) => void;
 }) {
   return (
     <div className="flex h-8 items-center gap-0.5 overflow-x-auto border-b border-border/60 bg-background/55 px-2 no-scrollbar">
@@ -33,6 +37,23 @@ export function TabStrip({
           <button type="button" onClick={() => onSelect(tab)} className="flex items-center gap-1.5">
             <span className="text-[10px]">{tab.icon}</span>
             <span className="max-w-40 truncate">{tab.title || "Untitled"}</span>
+          </button>
+          <button
+            type="button"
+            aria-label={paneKey === tab.key ? "Close split view" : "Open in split view"}
+            title={paneKey === tab.key ? "Close split view" : "Open in split view"}
+            onClick={(event) => {
+              event.stopPropagation();
+              onTogglePane(tab);
+            }}
+            className={cn(
+              "grid size-3.5 place-items-center rounded hover:bg-muted hover:text-foreground",
+              paneKey === tab.key
+                ? "text-primary opacity-100"
+                : "text-muted-foreground/50 opacity-0 group-hover:opacity-100",
+            )}
+          >
+            <Columns2 className="size-2.5" />
           </button>
           {tab.key !== "home" ? (
             <button

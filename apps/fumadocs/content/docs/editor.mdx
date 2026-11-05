@@ -17,13 +17,37 @@ A page has two records: metadata (`Page`) and the document (`PageDocument`). The
 | `[[` | Link another page |
 | `@` | Mention a page, teammate, or date |
 | Selection | Bubble toolbar for formatting and block actions |
-| Block hover | Drag handle for reordering |
+| Block hover | Drag handle for reordering, plus an actions menu |
+
+### Block actions
+
+Hovering a block reveals the drag handle and a small actions menu:
+
+- **Duplicate block** and **Delete block** operate on the hovered block.
+- **Turn into** converts it between paragraph, headings, lists, quote, and code.
+- **Copy block link** copies a URL that carries the block id, so a reference can
+  be pasted anywhere.
+
+Block ids come from the UniqueID extension, the same ids that anchor comments
+and transclusions.
 
 ## Blocks
 
 Paragraphs, H1–H4, bulleted / numbered / task lists, toggles, quotes, callouts, dividers, code with syntax highlighting, tables, images, bookmarks, YouTube embeds, equations, page links, page embeds, synced blocks, and a structured database block.
 
 The database block supports table, list, board, gallery, and calendar views over the same field/row JSON. It is intentionally lightweight: a structured block inside a page, not a separate product surface.
+
+### Fields
+
+Fields are authored directly on the block:
+
+- **Add a field** from the header and pick a type: text, number, date, select,
+  or checkbox.
+- Click a field name to **rename** it inline.
+- Each field's menu changes its **type** or **deletes** it (values for that
+  field are removed with it).
+- Select fields have an **Edit options** dialog; options drive the select cell,
+  board columns, and calendar grouping.
 
 ## Page links and backlinks
 
@@ -117,6 +141,12 @@ sync and appear in the JSON export.
 
 Creating a page from a template copies the template's properties as well as its
 body.
+
+### Favorites
+
+The star in the page header stores `favorite: true` in the page's properties.
+Favorited pages appear in a **Favorites** section at the top of the sidebar,
+and the list is derived from the same property, so it syncs with the page.
 
 ## Modes
 

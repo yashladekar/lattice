@@ -9,6 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@notes-learning/ui/components/dropdown-menu";
 import { Input } from "@notes-learning/ui/components/input";
@@ -18,8 +21,10 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Eye,
   Frame,
   GraduationCap,
+  History,
   Home,
   Inbox,
   MoreHorizontal,
@@ -30,6 +35,7 @@ import {
   Settings,
   Share2,
   Sparkles,
+  Star,
   Tag,
   Trash2,
   X,
@@ -196,6 +202,20 @@ export function WorkspaceSidebar({
 
   const activePageId = route.view === "page" ? route.id : null;
 
+  const favoritePages = useMemo(() => {
+    const flat: Array<{ id: string; title: string; icon: string | null }> = [];
+    const walk = (nodes: PageTreeNodeType[]) => {
+      for (const node of nodes) {
+        if (node.page.properties?.favorite) {
+          flat.push({ id: node.page.id, title: node.page.title, icon: node.page.icon });
+        }
+        if (node.children?.length) walk(node.children);
+      }
+    };
+    walk(pageTree);
+    return flat.slice(0, 6);
+  }, [pageTree]);
+
   const createPage = async (notebookId: string | null) => {
     if (!db || !user || !activeWorkspaceId) return;
     const created = await createPageLocal(db, {
@@ -280,6 +300,7 @@ export function WorkspaceSidebar({
 
   const navItems = [
     { view: "home" as const, label: "Home", icon: Home },
+    { view: "timeline" as const, label: "Timeline", icon: History },
     { view: "graph" as const, label: "Knowledge graph", icon: Network },
     { view: "inbox" as const, label: "Inbox", icon: Inbox },
     { view: "learn" as const, label: "Learning", icon: GraduationCap },
@@ -396,6 +417,32 @@ export function WorkspaceSidebar({
         ))}
       </nav>
 
+      {favoritePages.length ? (
+        <div className="mt-2 px-2">
+          <div className="flex items-center gap-1.5 px-1.5 pb-1 text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+            <Star className="size-2.5" /> Favorites
+          </div>
+          <div className="space-y-0.5">
+            {favoritePages.map((favorite) => (
+              <button
+                key={favorite.id}
+                type="button"
+                onClick={() => go({ view: "page", id: favorite.id })}
+                className={cn(
+                  "flex h-7 w-full items-center gap-2 rounded-md px-1.5 text-[11.5px] transition-colors",
+                  activePageId === favorite.id
+                    ? "bg-sidebar-accent text-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
+                )}
+              >
+                <span className="w-4 text-center text-[11px]">{favorite.icon ?? "◇"}</span>
+                <span className="min-w-0 flex-1 truncate text-left">{favorite.title || "Untitled"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-2 my-2 border-t border-sidebar-border" />
 
       <div className="flex-1 overflow-y-auto px-2 pb-3">
@@ -489,6 +536,33 @@ export function WorkspaceSidebar({
                         >
                           <Share2 className="size-3" /> Share notebook
                         </DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <Eye className="size-3" /> Visibility
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-44">
+                            {(
+                              [
+                                ["WORKSPACE", "Workspace"],
+                                ["PRIVATE", "Private"],
+                                ["SHARED", "Shared"],
+                                ["PUBLIC", "Public link"],
+                              ] as const
+                            ).map(([value, label]) => (
+                              <DropdownMenuItem
+                                key={value}
+                                disabled={notebook.visibility === value}
+                                onClick={async () => {
+                                  if (!db) return;
+                                  await updateNotebookLocal(db, notebook.id, { visibility: value });
+                                  toast.success(`${notebook.name} is now ${label.toLowerCase()}`);
+                                }}
+                              >
+                                {label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
                         <DropdownMenuItem
                           variant="destructive"
                           onClick={() =>

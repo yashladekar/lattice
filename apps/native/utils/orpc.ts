@@ -11,6 +11,13 @@ import { appStorage } from "@/lib/storage";
 import { ENV } from "../src/env";
 
 export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Keep queries in cache long enough to survive a persistence restore, so
+      // recent pages, notebooks, and decks render offline.
+      gcTime: 7 * 24 * 60 * 60 * 1000,
+    },
+  },
   queryCache: new QueryCache({
     onError: (error) => {
       console.log(error);

@@ -17,6 +17,7 @@ export function PageView({
   onToggleRightPanel,
   onShare,
   onToggleFocus,
+  compact = false,
 }: {
   pageId: string | null;
   rightPanelOpen: boolean;
@@ -24,6 +25,7 @@ export function PageView({
   onToggleRightPanel: () => void;
   onShare: () => void;
   onToggleFocus: () => void;
+  compact?: boolean;
 }) {
   const page = usePage(pageId);
   const document = usePageDocument(pageId);
@@ -95,7 +97,7 @@ export function PageView({
           focusBlockId={focusBlockId}
           onClearBlock={() => setFocusBlockId(null)}
         />
-      ) : (
+      ) : compact ? null : (
         <button
           type="button"
           onClick={onToggleRightPanel}

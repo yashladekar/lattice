@@ -16,6 +16,7 @@
     "@notes-learning/api": "workspace:*",
     "@notes-learning/domain": "workspace:*",
     "@notes-learning/ui": "workspace:*",
+    "@tauri-apps/plugin-opener": "^2.5.2",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/tanstack-query": "catalog:",

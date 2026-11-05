@@ -6,10 +6,17 @@
   "permissions": ["activeTab", "contextMenus", "storage"],
   "action": {
     "default_title": "Clip to Lattice",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "96": "icons/icon-96.png",
+      "192": "icons/icon-192.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
   },
-  "icons": {}
+  "icons": {
+    "96": "icons/icon-96.png",
+    "192": "icons/icon-192.png"
+  }
 }

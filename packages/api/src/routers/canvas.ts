@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { Prisma } from "@notes-learning/db";
 import {
   CANVAS_TEMPLATES,
   canvasDocument,
@@ -12,6 +13,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
+import { appendChanges, toJsonSafe, type PendingChange } from "../services/changes";
 import { pushSync } from "../services/sync";
 import { getAccessiblePageIds } from "../services/sync";
 
@@ -248,6 +250,84 @@ export const canvasRouter = {
         orderBy: { version: "desc" },
         take: 50,
       });
+    }),
+
+  saveVersion: workspaceProcedure("EDITOR")
+    .input(z.object({ canvasId: z.string().min(1), note: z.string().max(300).optional() }))
+    .handler(async ({ context, input }) => {
+      const canvas = await context.db.canvas.findFirst({
+        where: { id: input.canvasId, workspaceId: context.workspaceId, deletedAt: null },
+      });
+      if (!canvas) throw new ORPCError("NOT_FOUND");
+      const aggregate = await context.db.canvasVersion.aggregate({
+        where: { canvasId: canvas.id },
+        _max: { version: true },
+      });
+      return context.db.canvasVersion.create({
+        data: {
+          id: createId(),
+          canvasId: canvas.id,
+          workspaceId: context.workspaceId,
+          version: (aggregate._max.version ?? 0) + 1,
+          title: canvas.title,
+          data: canvas.data as Prisma.InputJsonValue,
+          note: input.note ?? null,
+          createdById: context.userId,
+        },
+      });
+    }),
+
+  restoreVersion: workspaceProcedure("EDITOR")
+    .input(z.object({ canvasId: z.string().min(1), versionId: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      const version = await context.db.canvasVersion.findFirst({
+        where: {
+          id: input.versionId,
+          canvasId: input.canvasId,
+          workspaceId: context.workspaceId,
+        },
+      });
+      if (!version) throw new ORPCError("NOT_FOUND");
+      const canvas = await context.db.canvas.findFirst({
+        where: { id: input.canvasId, workspaceId: context.workspaceId, deletedAt: null },
+      });
+      if (!canvas) throw new ORPCError("NOT_FOUND");
+      const changes: PendingChange[] = [];
+      const updated = await context.db.$transaction(async (tx) => {
+        const aggregate = await tx.canvasVersion.aggregate({
+          where: { canvasId: canvas.id },
+          _max: { version: true },
+        });
+        await tx.canvasVersion.create({
+          data: {
+            id: createId(),
+            canvasId: canvas.id,
+            workspaceId: context.workspaceId,
+            version: (aggregate._max.version ?? 0) + 1,
+            title: canvas.title,
+            data: canvas.data as Prisma.InputJsonValue,
+            note: "Snapshot before restoring an earlier version",
+            createdById: context.userId,
+          },
+        });
+        const result = await tx.canvas.update({
+          where: { id: canvas.id },
+          data: {
+            data: version.data as Prisma.InputJsonValue,
+            rev: canvas.rev + 1,
+            updatedById: context.userId,
+          },
+        });
+        changes.push({
+          entity: "canvas",
+          entityId: canvas.id,
+          op: "UPSERT",
+          data: toJsonSafe(result),
+        });
+        await appendChanges(tx, context.workspaceId, context.userId, changes);
+        return result;
+      });
+      return { canvas: updated };
     }),
 
   templates: workspaceProcedure("VIEWER").handler(() => {

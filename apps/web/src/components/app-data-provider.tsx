@@ -144,6 +144,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setDb(getLocalDb(effectiveUser.id));
+    if (typeof navigator !== "undefined" && navigator.storage?.persist) {
+      void navigator.storage.persist().catch(() => undefined);
+    }
   }, [effectiveUser?.id]);
 
   const workspaces = useLiveQuery(

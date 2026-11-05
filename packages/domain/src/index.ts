@@ -19,3 +19,4 @@ export * from "./plugins";
 export * from "./canvas-sync";
 export * from "./duplicates";
 export * from "./audit-export";
+export * from "./retention";

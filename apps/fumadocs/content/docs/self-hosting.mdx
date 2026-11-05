@@ -24,7 +24,7 @@ pnpm docker:logs
 pnpm docker:down
 ```
 
-Postgres data uses the `notes-learning_postgres_data` volume. API uploads use the server storage directory; mount it persistently in production.
+Postgres data uses the `notes-learning_postgres_data` volume. API uploads are mounted at `/app/apps/server/storage` through the `notes-learning_uploads` volume, so attachments survive container replacement. Point `UPLOAD_DIR` elsewhere if you mount a different path.
 
 ## Web runtime configuration
 

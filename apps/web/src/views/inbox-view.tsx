@@ -1,9 +1,10 @@
 "use client";
 
-import { formatRelative, suggestTagNames } from "@notes-learning/domain";
+import { formatRelative, relatedDocuments, safeDoc, suggestTagNames } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   Archive,
   ArrowUpRight,
@@ -17,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -25,11 +26,16 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   useCaptures,
   useWorkspaceNotebooks,
+  useWorkspacePages,
+  useWorkspaceTags,
 } from "@/hooks/use-local-data";
 import {
   createCaptureLocal,
+  createTagLocal,
   deleteCaptureLocal,
   organizeCaptureLocal,
+  savePageContentLocal,
+  setPageTagsLocal,
   updateCaptureLocal,
 } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
@@ -50,13 +56,96 @@ function CaptureCard({
 }) {
   const { db, user, activeWorkspaceId } = useAppData();
   const notebooks = useWorkspaceNotebooks();
+  const workspaceTags = useWorkspaceTags();
+  const pages = useWorkspacePages();
+  const documents =
+    useLiveQuery(async () => (db ? db.pageDocuments.toArray() : []), [db], []) ?? [];
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const tags = suggestTagNames(`${capture.title} ${capture.content ?? ""}`);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedLinks, setSelectedLinks] = useState<string[]>([]);
+  const tags = suggestTagNames(
+    `${capture.title} ${capture.content ?? ""}`,
+    workspaceTags.map((tag) => tag.name),
+  );
+  const related = useMemo(() => {
+    const byPage = new Map(documents.map((document) => [document.pageId, document]));
+    const candidates = pages
+      .filter((page) => !page.deletedAt)
+      .map((page) => ({
+        id: page.id,
+        title: page.title,
+        body: byPage.get(page.id)?.plainText ?? "",
+      }));
+    return relatedDocuments(
+      { id: capture.id, title: capture.title, body: capture.content ?? "" },
+      candidates,
+      3,
+    ).filter((entry) => entry.score > 0.08);
+  }, [documents, pages, capture.id, capture.title, capture.content]);
   const pageId =
     typeof capture.metadata === "object" && capture.metadata
       ? (capture.metadata as Record<string, unknown>).pageId
       : null;
+
+  const toggleValue = (list: string[], value: string): string[] =>
+    list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
+
+  const makePage = async () => {
+    if (!db || !user || !activeWorkspaceId) return;
+    setBusy(true);
+    try {
+      const page = await organizeCaptureLocal(db, {
+        captureId: capture.id,
+        notebookId: notebooks[0]?.id ?? null,
+        userId: user.id,
+      });
+      if (!page) return;
+      if (selectedTags.length) {
+        const tagIds: string[] = [];
+        for (const name of selectedTags) {
+          const tag = await createTagLocal(db, activeWorkspaceId, name);
+          tagIds.push(tag.id);
+        }
+        await setPageTagsLocal(db, page.id, tagIds);
+      }
+      if (selectedLinks.length) {
+        const document = await db.pageDocuments.get(page.id);
+        const content = safeDoc(document?.content);
+        const items = selectedLinks.map((id) => {
+          const target = pages.find((entry) => entry.id === id);
+          return {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "pageLink",
+                    attrs: {
+                      pageId: id,
+                      title: target?.title ?? "Untitled",
+                      icon: target?.icon ?? "◇",
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+        });
+        content.content = [
+          ...(content.content ?? []),
+          { type: "paragraph", content: [{ type: "text", text: "Related notes" }] },
+          { type: "bulletList", content: items },
+        ] as NonNullable<typeof content.content>;
+        await savePageContentLocal(db, { pageId: page.id, content, userId: user.id });
+      }
+      toast.success("Capture turned into a page");
+      onOrganized(page.id);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <article className="rounded-xl border border-border/60 bg-card/40 p-3 transition-colors hover:border-border">
@@ -89,15 +178,64 @@ function CaptureCard({
               <ArrowUpRight className="size-2.5" />
             </a>
           ) : null}
-          {capture.status === "INBOX" && tags.length ? (
-            <div className="mt-2 flex flex-wrap items-center gap-1">
-              <Sparkles className="size-2.5 text-saffron" />
-              {tags.slice(0, 4).map((tag) => (
-                <span key={tag} className="rounded-full border border-border px-1.5 py-0.5 text-[7px] text-muted-foreground">
-                  {tag}
-                </span>
-              ))}
-              <span className="text-[7px] text-muted-foreground/60">suggested</span>
+          {capture.status === "INBOX" && (tags.length || related.length) ? (
+            <div className="mt-2 space-y-1.5">
+              {tags.length ? (
+                <div className="flex flex-wrap items-center gap-1">
+                  <Sparkles className="size-2.5 text-saffron" />
+                  {tags.slice(0, 5).map((tag) => {
+                    const active = selectedTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setSelectedTags((current) => toggleValue(current, tag))}
+                        className={cn(
+                          "rounded-full border px-1.5 py-0.5 text-[7px] transition-colors",
+                          active
+                            ? "border-moss/60 bg-moss/10 text-foreground"
+                            : "border-border text-muted-foreground hover:border-moss/40",
+                        )}
+                        title={active ? "Approved — click to remove" : "Approve this tag"}
+                      >
+                        {active ? "✓ " : "+ "}
+                        {tag}
+                      </button>
+                    );
+                  })}
+                  <span className="text-[7px] text-muted-foreground/60">tags</span>
+                </div>
+              ) : null}
+              {related.length ? (
+                <div className="flex flex-wrap items-center gap-1">
+                  <Link2 className="size-2.5 text-sky" />
+                  {related.map((entry) => {
+                    const active = selectedLinks.includes(entry.id);
+                    return (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        onClick={() => setSelectedLinks((current) => toggleValue(current, entry.id))}
+                        className={cn(
+                          "max-w-40 truncate rounded-full border px-1.5 py-0.5 text-[7px] transition-colors",
+                          active
+                            ? "border-sky/60 bg-sky/10 text-foreground"
+                            : "border-border text-muted-foreground hover:border-sky/40",
+                        )}
+                        title={
+                          active
+                            ? "Will be linked — click to remove"
+                            : "Link this note when the capture becomes a page"
+                        }
+                      >
+                        {active ? "✓ " : "+ "}
+                        {entry.title}
+                      </button>
+                    );
+                  })}
+                  <span className="text-[7px] text-muted-foreground/60">related notes</span>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -109,23 +247,7 @@ function CaptureCard({
             size="sm"
             className="h-6 rounded-md text-[8px]"
             disabled={busy || !db || !user || !activeWorkspaceId}
-            onClick={async () => {
-              if (!db || !user || !activeWorkspaceId) return;
-              setBusy(true);
-              try {
-                const page = await organizeCaptureLocal(db, {
-                  captureId: capture.id,
-                  notebookId: notebooks[0]?.id ?? null,
-                  userId: user.id,
-                });
-                if (page) {
-                  toast.success("Capture turned into a page");
-                  onOrganized(page.id);
-                }
-              } finally {
-                setBusy(false);
-              }
-            }}
+            onClick={() => void makePage()}
           >
             <Plus className="size-2.5" /> Make page
           </Button>

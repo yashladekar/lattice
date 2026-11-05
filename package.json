@@ -15,6 +15,7 @@
     "dev:web": "turbo run dev -F web --",
     "dev:server": "turbo run dev -F server --",
     "db:push": "pnpm --filter @notes-learning/db db:push",
+    "db:seed": "pnpm --filter @notes-learning/db db:seed",
     "db:studio": "pnpm --filter @notes-learning/db db:studio",
     "db:generate": "pnpm --filter @notes-learning/db db:generate",
     "db:migrate": "pnpm --filter @notes-learning/db db:migrate",

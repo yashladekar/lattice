@@ -4,7 +4,7 @@ import { createMindMap, snap, CANVAS_TEMPLATES } from "./canvas";
 import { buildDerivedGraph, orphanNodes, summarizeGraph } from "./graph";
 import { buildQuiz, generateFlashcardsFromDoc, masteryScore, scheduleReview } from "./learning";
 import { buildSnippet, cosineSimilarity, rankRecords, scoreText } from "./search";
-import type { Flashcard, KnowledgeEdge, KnowledgeNode, Page, PageDocument } from "./types";
+import type { Canvas, Flashcard, KnowledgeEdge, KnowledgeNode, Page, PageDocument } from "./types";
 
 const now = "2026-01-01T00:00:00.000Z";
 
@@ -81,6 +81,44 @@ describe("graph derivation", () => {
     expect(graph.edges[0]?.relationType).toBe("REFERENCES");
     expect(summarizeGraph(graph)).toEqual({ nodes: 3, edges: 1, orphans: 1, clusters: 2 });
     expect(orphanNodes(graph.nodes, graph.edges)).toHaveLength(1);
+  });
+
+  it("derives CONNECTED_THROUGH edges from canvas cards and nested canvases", () => {
+    const pages = [page("p1", "One"), page("p2", "Two")];
+    const canvas = (id: string, title: string, elements: Canvas["data"]["elements"]): Canvas => ({
+      id,
+      workspaceId: "w1",
+      notebookId: null,
+      title,
+      icon: null,
+      data: { version: 1, elements },
+      schemaVersion: 1,
+      rev: 0,
+      thumbnail: null,
+      createdById: "u1",
+      updatedById: null,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    });
+    const canvases = [
+      canvas("c1", "Board", [
+        { id: "e1", type: "page", x: 0, y: 0, width: 200, height: 150, pageId: "p1", variant: "card" },
+        { id: "e2", type: "canvas", x: 0, y: 0, width: 200, height: 150, canvasId: "c2" },
+        { id: "e3", type: "page", x: 0, y: 0, width: 200, height: 150, pageId: "missing", variant: "card" },
+        { id: "e4", type: "note", x: 0, y: 0, width: 200, height: 150, text: "hi", color: "saffron" },
+      ]),
+      canvas("c2", "Detail", [
+        { id: "e5", type: "page", x: 0, y: 0, width: 200, height: 150, pageId: "p2", variant: "link" },
+      ]),
+    ];
+    const graph = buildDerivedGraph(pages, [], canvases, [], []);
+    const connected = graph.edges.filter((edge) => edge.relationType === "CONNECTED_THROUGH");
+    expect(connected).toHaveLength(3);
+    expect(connected.every((edge) => edge.origin === "CANVAS_LINK")).toBe(true);
+    expect(connected.some((edge) => edge.sourceNodeId === "c1" && edge.targetNodeId === "c2")).toBe(true);
+    expect(connected.some((edge) => edge.sourceNodeId === "c2" && edge.targetNodeId === "p2")).toBe(true);
+    expect(connected.some((edge) => edge.targetNodeId === "missing")).toBe(false);
   });
 });
 

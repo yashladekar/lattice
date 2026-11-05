@@ -31,6 +31,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - notes-learning_uploads:/app/apps/server/storage
     restart: unless-stopped
 
   postgres:
@@ -53,6 +55,7 @@ services:
 
 volumes:
   notes-learning_postgres_data:
+  notes-learning_uploads:
 
 # BuildKit makes these available only while install/build commands run.
 secrets:

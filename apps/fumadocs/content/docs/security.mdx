@@ -44,6 +44,10 @@ Express applies a per-IP budget to RPC and auth endpoints, with a stricter budge
 
 `POST /uploads` requires a valid session, accepts one raw file body up to 25 MB, writes to a server-owned directory with a generated filename, and serves only the file URL. Files are not executed.
 
+## Retention
+
+Deletes are soft deletes. Each workspace can set a trash window (30/90/180/365 days, or keep forever) in Settings → General. A scheduled server job then permanently removes soft-deleted rows older than that window and appends tombstone changes, so clients converge on the same result. There is intentionally no manual purge button; an instant purge needs its own op semantic to stay consistent with local-first clients.
+
 ## Explicitly deferred
 
 The schema and service boundaries include hooks for, but this release does not claim:

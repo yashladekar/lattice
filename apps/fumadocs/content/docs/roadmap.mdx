@@ -5,19 +5,19 @@ description: What this implementation covers and which subsystems are deliberate
 
 ## Implemented in this pass
 
-- Multi-tenant workspaces, organizations, invites, roles, and resource visibility.
+- Multi-tenant workspaces, organizations, invites, roles, and resource visibility — settable from the page context panel and the notebook menu.
 - Local-first IndexedDB repository, outbox, snapshot, cursor pulls, conflict preservation.
-- Block editor with slash menu, mentions, page links, embeds, synced blocks, database block, Mermaid diagrams, page properties, comments, versions, Markdown mode, and focus mode.
-- Infinite whiteboard with shapes, notes, freehand, connectors, linked notes, nested canvases, templates, presentation, and export.
-- Derived knowledge graph with typed edges, filters, orphan detection, manual relations, and AI suggestions.
-- Universal capture inbox, quick capture, URL preview, and capture-to-page.
+- Block editor with slash menu, mentions, page links, embeds, synced blocks, database block, Mermaid diagrams, page properties, block actions (duplicate, turn into, delete, copy block link), favorites, comments, versions, Markdown mode, and focus mode.
+- Infinite whiteboard with shapes, notes, freehand, interactive connectors, linked notes, nested canvases, layers, group resize, node-to-page conversion, outline generators (mind map, flowchart, concept map), snapshots, templates, presentation, and export.
+- Derived knowledge graph with typed edges, canvas-link edges, filters including recency and cluster coloring, local neighborhood view, orphan detection, manual relations, and dashed AI suggestions recorded with AI provenance on accept.
+- Universal capture inbox, quick capture, URL preview, tag and related-note suggestions with explicit approval, and capture-to-page.
 - Workspace JSON export/import, per-page Markdown, GitHub Markdown import with two-way Git sync, and Obsidian and Notion vault import.
-- Learning decks, generated and manual cards, SM-2 review, quizzes, mastery, paths, and gaps.
-- Optional AI with citations and local fallback.
-- Dashboard widgets, command palette, tabs, keyboard-first navigation, search, timeline, trash.
+- Learning decks, generated and manual cards, SM-2 review, quizzes, mastery, paths, gaps, and opt-in due-card reminders while the app is open.
+- Optional AI with citations and local fallback: summarize, explain, compare, examples, connections, cards, mind map, outdated pages, and gaps.
+- Dashboard widgets with reorder and visibility controls, command palette, tabs with a split pane, keyboard-first navigation, search, timeline, trash, and a dismissible first-run checklist.
 - Share links for pages, canvases, notebooks, and graphs; public read-only surfaces.
-- Comments, mentions, notifications, presence heartbeats, audit log, devices.
-- Web, PWA shell, Tauri packaging config, Expo companion, self-host Docker.
+- Comments with a mention picker, notifications, presence heartbeats, audit log, devices with revocation.
+- Web, PWA shell with an update prompt, Tauri packaging config with OS-browser link handling, Expo companion with a persisted offline query cache, self-host Docker with a persistent uploads volume.
 - Fumadocs product/architecture documentation.
 
 ## Shipped: live co-editing
@@ -39,20 +39,18 @@ description: What this implementation covers and which subsystems are deliberate
 - Read-only SQL over workspace-scoped views, with a result grid and schema browser.
 - Write and schema-escape attempts rejected by a tested validator, and by Postgres itself.
 
+## Shipped: retention and purge
+
+- Every workspace chooses a trash window (Keep forever, 30, 90, 180, or 365 days) in Settings → General.
+- A server-side job runs on a schedule: soft-deleted rows past the window are permanently removed, in dependency order, and tombstone changes are appended to the change log so every device reflects the purge.
+- This is deliberately the shape that works. Immediate manual purge is still not a button: a client that dropped rows locally would disagree with the server and resurrect content on the next pull, so that needs its own op semantic and apply path.
+
 ## Next: enterprise
 
 - SSO and SCIM.
 - End-to-end encryption with key custody and recovery.
-- Retention policies, legal hold, export on demand.
+- Legal hold, export on demand.
 - Organization-managed storage regions and BYOK.
-- Retention policies and purge. A CSV audit export ships today. Note before building
-  this: every `DELETE` op is a soft delete (`deletedAt`), for pages, canvases,
-  notebooks and edges alike, so an "empty trash" button that removed rows locally
-  would leave both sides disagreeing and resurrect content on the next pull. The
-  shape that works is one server-side job purging soft-deleted rows past an age the
-  workspace chooses, with clients reflecting the result; immediate manual purge needs
-  its own op semantic and apply path.
-- Legal hold.
 
 ## Shipped: duplicate review
 

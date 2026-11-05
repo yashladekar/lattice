@@ -4,14 +4,23 @@ import {
   CANVAS_TEMPLATES,
   canvasBounds,
   connectorPoint,
+  createConceptMap,
+  createFlowFromOutline,
   createId,
+  createMindMap,
+  docFromText,
   emptyCanvas,
+  extractOutline,
+  safeDoc,
   snap,
   type CanvasCanvasElement,
+  type CanvasConnectorElement,
   type CanvasDocument,
   type CanvasElement,
   type CanvasFrameElement,
   type CanvasFreehandElement,
+  type CanvasImageElement,
+  type CanvasNoteElement,
   type CanvasPageElement,
   type CanvasShapeElement,
   type CanvasTextElement,
@@ -25,6 +34,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@notes-learning/ui/components/dropdown-menu";
 import { Modal } from "@/components/ui/modal";
@@ -38,16 +50,22 @@ import {
   AlignStartVertical,
   ArrowRight,
   BringToFront,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Circle,
+  Cylinder,
   Diamond,
   Download,
   FileText,
   Frame,
+  GitBranch,
   Grid3X3,
   Group,
   Hand,
+  Hexagon,
+  History,
   Image as ImageIcon,
   Layers,
   Lock,
@@ -57,6 +75,7 @@ import {
   Play,
   Redo2,
   SendToBack,
+  Shapes,
   Sparkles,
   Square,
   StickyNote,
@@ -88,10 +107,12 @@ import {
   exportPng,
   printCanvas,
 } from "@/lib/canvas-export";
-import { saveCanvasLocal, updateCanvasLocal } from "@/lib/local/repository";
+import { saveCanvasLocal, createCanvasLocal, createPageLocal, updateCanvasLocal } from "@/lib/local/repository";
+import { uploadFile } from "@/lib/upload";
 import { useCanvasCollaboration } from "@/lib/canvas-collab";
 import { appRouteObject } from "@/lib/navigation";
 import type { LocalCanvas } from "@/lib/local/types";
+import { client } from "@/utils/orpc";
 import { usePage, usePageDocument } from "@/hooks/use-local-data";
 
 type Tool =
@@ -101,6 +122,9 @@ type Tool =
   | "rect"
   | "ellipse"
   | "diamond"
+  | "parallelogram"
+  | "hexagon"
+  | "cylinder"
   | "text"
   | "pen"
   | "connector"
@@ -128,6 +152,20 @@ function shapeBorder(shape: CanvasShapeElement["shape"]): string {
     default:
       return "rounded-xl";
   }
+}
+
+type ConnectorAnchor = "top" | "right" | "bottom" | "left";
+
+function bestAnchors(
+  from: { x: number; y: number; width: number; height: number },
+  to: { x: number; y: number; width: number; height: number },
+): { from: ConnectorAnchor; to: ConnectorAnchor } {
+  const dx = to.x + to.width / 2 - (from.x + from.width / 2);
+  const dy = to.y + to.height / 2 - (from.y + from.height / 2);
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? { from: "right", to: "left" } : { from: "left", to: "right" };
+  }
+  return dy >= 0 ? { from: "bottom", to: "top" } : { from: "top", to: "bottom" };
 }
 
 function LivePageCard({
@@ -233,6 +271,14 @@ type DragState =
       initial: { x: number; y: number; width: number; height: number };
     }
   | {
+      kind: "group-resize";
+      startX: number;
+      startY: number;
+      handle: "nw" | "ne" | "sw" | "se";
+      bounds: { x: number; y: number; width: number; height: number };
+      initial: Array<{ id: string; x: number; y: number; width: number; height: number }>;
+    }
+  | {
       kind: "marquee";
       startX: number;
       startY: number;
@@ -272,11 +318,19 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   const [pagePickerOpen, setPagePickerOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [nestedOpen, setNestedOpen] = useState(false);
+  const [generateIntent, setGenerateIntent] = useState<null | "mindmap" | "flow" | "concept">(null);
+  const [snapshotsOpen, setSnapshotsOpen] = useState(false);
+  const [snapshots, setSnapshots] = useState<
+    Array<{ id: string; version: number; title: string; note: string | null; createdAt: string }>
+  >([]);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(false);
   const [presentation, setPresentation] = useState(false);
   const [presentationIndex, setPresentationIndex] = useState(0);
   const [title, setTitle] = useState(canvas?.title ?? "Untitled canvas");
   const [connectorStart, setConnectorStart] = useState<string | null>(null);
   const spaceRef = useRef(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleFocused = useRef(false);
@@ -297,6 +351,11 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     () => document.elements.filter((element) => selectedIds.includes(element.id)),
     [document.elements, selectedIds],
   );
+  const selectedConnector = useMemo(() => {
+    if (selectedIds.length !== 1) return null;
+    const element = document.elements.find((entry) => entry.id === selectedIds[0]);
+    return element?.type === "connector" ? element : null;
+  }, [document.elements, selectedIds]);
   const frames = useMemo(
     () => document.elements.filter((element): element is CanvasFrameElement => element.type === "frame"),
     [document.elements],
@@ -355,6 +414,26 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         }
         return;
       }
+      if (!mod && !event.altKey) {
+        const shortcuts: Record<string, Tool> = {
+          v: "select",
+          h: "pan",
+          n: "note",
+          r: "rect",
+          o: "ellipse",
+          d: "diamond",
+          t: "text",
+          p: "pen",
+          c: "connector",
+          f: "frame",
+        };
+        const nextTool = shortcuts[event.key.toLowerCase()];
+        if (nextTool) {
+          event.preventDefault();
+          setTool(nextTool);
+          setConnectorStart(null);
+        }
+      }
       if (mod && event.key.toLowerCase() === "z") {
         event.preventDefault();
         if (event.shiftKey) redo();
@@ -366,16 +445,19 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       }
       if (mod && event.key.toLowerCase() === "a") {
         event.preventDefault();
-        setSelectedIds(document.elements.filter((element) => element.type !== "connector").map((element) => element.id));
+        setSelectedIds(document.elements.map((element) => element.id));
       }
       if (mod && event.key.toLowerCase() === "d") {
         event.preventDefault();
         duplicateSelected();
       }
       if (mod && event.key.toLowerCase() === "c") {
-        const elements = selectedElements.filter((element) => element.type !== "connector");
-        if (elements.length) {
-          window.localStorage.setItem("lattice.canvasClipboard", JSON.stringify(elements));
+        const base = selectedElements.filter((element) => element.type !== "connector");
+        if (base.length) {
+          window.localStorage.setItem(
+            "lattice.canvasClipboard",
+            JSON.stringify([...base, ...connectorsWithin(base.map((element) => element.id))]),
+          );
           toast.success("Copied");
         }
       }
@@ -555,24 +637,76 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
 
   const deleteSelected = () => {
     if (!selectedIds.length) return;
+    const removed = new Set(selectedIds);
     mutate((current) => ({
       ...current,
-      elements: current.elements.filter((element) => !selectedIds.includes(element.id)),
+      elements: current.elements.filter((element) => {
+        if (removed.has(element.id)) return false;
+        if (element.type === "connector") {
+          const fromId = element.from.elementId;
+          const toId = element.to.elementId;
+          if ((fromId && removed.has(fromId)) || (toId && removed.has(toId))) return false;
+        }
+        return true;
+      }),
     }));
     setSelectedIds([]);
   };
 
-  const duplicateSelected = () => {
-    const elements = selectedElements.filter((element) => element.type !== "connector");
-    if (!elements.length) return;
+  const cloneElementsWithConnectors = (source: CanvasElement[], offset: number): CanvasElement[] => {
+    const base = source.filter((element) => element.type !== "connector") as Array<
+      Exclude<CanvasElement, CanvasConnectorElement>
+    >;
+    if (!base.length) return [];
     const mapping = new Map<string, string>();
-    for (const element of elements) mapping.set(element.id, createId());
-    const copies = elements.map((element) => ({
-      ...element,
-      id: mapping.get(element.id) as string,
-      x: element.x + 28,
-      y: element.y + 28,
-    })) as CanvasElement[];
+    for (const element of base) mapping.set(element.id, createId());
+    const inside = new Set(base.map((element) => element.id));
+    const copies: CanvasElement[] = base.map(
+      (element) =>
+        ({
+          ...element,
+          id: mapping.get(element.id) as string,
+          x: element.x + offset,
+          y: element.y + offset,
+        }) as CanvasElement,
+    );
+    for (const element of source) {
+      if (element.type !== "connector") continue;
+      const fromId = element.from.elementId;
+      const toId = element.to.elementId;
+      if (!fromId || !toId || !inside.has(fromId) || !inside.has(toId)) continue;
+      copies.push({
+        ...element,
+        id: createId(),
+        from: { ...element.from, elementId: mapping.get(fromId) },
+        to: { ...element.to, elementId: mapping.get(toId) },
+      });
+    }
+    return copies;
+  };
+
+  const connectorsWithin = (ids: string[]): CanvasConnectorElement[] => {
+    const inside = new Set(ids);
+    return document.elements.filter(
+      (element): element is CanvasConnectorElement =>
+        element.type === "connector" &&
+        Boolean(
+          element.from.elementId &&
+            element.to.elementId &&
+            inside.has(element.from.elementId) &&
+            inside.has(element.to.elementId),
+        ),
+    );
+  };
+
+  const duplicateSelected = () => {
+    const base = selectedElements.filter((element) => element.type !== "connector");
+    if (!base.length) return;
+    const copies = cloneElementsWithConnectors(
+      [...base, ...connectorsWithin(base.map((element) => element.id))],
+      28,
+    );
+    if (!copies.length) return;
     mutate((current) => ({ ...current, elements: [...current.elements, ...copies] }));
     setSelectedIds(copies.map((element) => element.id));
   };
@@ -582,16 +716,8 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw) as CanvasElement[];
-      const mapping = new Map<string, string>();
-      for (const element of parsed) mapping.set(element.id, createId());
-      const copies = parsed
-        .filter((element) => element.type !== "connector")
-        .map((element) => ({
-          ...element,
-          id: mapping.get(element.id) as string,
-          x: element.x + 36,
-          y: element.y + 36,
-        }));
+      const copies = cloneElementsWithConnectors(parsed, 36);
+      if (!copies.length) return;
       mutate((current) => ({ ...current, elements: [...current.elements, ...copies] }));
       setSelectedIds(copies.map((element) => element.id));
     } catch {
@@ -628,7 +754,14 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         color: "#25251f",
       } satisfies CanvasTextElement;
     } else {
-      const shape = nextTool === "ellipse" ? "ellipse" : nextTool === "diamond" ? "diamond" : "rectangle";
+      const shape: CanvasShapeElement["shape"] =
+        nextTool === "ellipse" ||
+        nextTool === "diamond" ||
+        nextTool === "parallelogram" ||
+        nextTool === "hexagon" ||
+        nextTool === "cylinder"
+          ? nextTool
+          : "rectangle";
       element = {
         ...base,
         type: "shape",
@@ -727,11 +860,16 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         setConnectorStart(element.id);
         toast.message("Select the target element");
       } else if (connectorStart !== element.id) {
+        const source = elementsById.get(connectorStart);
+        const anchors =
+          source && "x" in source && "x" in element
+            ? bestAnchors(source, element)
+            : { from: "right" as const, to: "left" as const };
         const connector = {
           id: createId(),
           type: "connector" as const,
-          from: { elementId: connectorStart, anchor: "right" as const },
-          to: { elementId: element.id, anchor: "left" as const },
+          from: { elementId: connectorStart, anchor: anchors.from },
+          to: { elementId: element.id, anchor: anchors.to },
           arrowEnd: true,
           style: "solid" as const,
           color: "#8b8b7a",
@@ -741,6 +879,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
           elements: [...current.elements, connector],
         }));
         setConnectorStart(null);
+        setSelectedIds([connector.id]);
       }
       return;
     }
@@ -760,6 +899,18 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         : [...selectedIds, ...groupMembers.map((entry) => entry.id)];
     } else if (!selectedIds.includes(element.id)) {
       nextSelection = groupMembers.map((entry) => entry.id);
+    }
+    if (element.type === "frame" && !event.shiftKey) {
+      const contained = document.elements.filter(
+        (entry) =>
+          entry.type !== "connector" &&
+          entry.id !== element.id &&
+          entry.x >= element.x &&
+          entry.y >= element.y &&
+          entry.x + entry.width <= element.x + element.width &&
+          entry.y + entry.height <= element.y + element.height,
+      );
+      nextSelection = [...new Set([...nextSelection, ...contained.map((entry) => entry.id)])];
     }
     setSelectedIds(nextSelection);
     const initial: Record<string, { x: number; y: number }> = {};
@@ -795,6 +946,47 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       elementId: element.id,
       handle,
       initial: { x: element.x, y: element.y, width: element.width, height: element.height },
+    };
+    dragRef.current = drag;
+    setDragState(drag);
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  };
+
+  const onGroupResizePointerDown = (
+    event: React.PointerEvent,
+    handle: "nw" | "ne" | "sw" | "se",
+  ) => {
+    event.stopPropagation();
+    event.preventDefault();
+    const elements = selectedElements.filter(
+      (element): element is Exclude<CanvasElement, CanvasConnectorElement> =>
+        element.type !== "connector",
+    );
+    if (elements.length < 2) return;
+    const box = {
+      x: Math.min(...elements.map((element) => element.x)),
+      y: Math.min(...elements.map((element) => element.y)),
+      width:
+        Math.max(...elements.map((element) => element.x + element.width)) -
+        Math.min(...elements.map((element) => element.x)),
+      height:
+        Math.max(...elements.map((element) => element.y + element.height)) -
+        Math.min(...elements.map((element) => element.y)),
+    };
+    pushHistory();
+    const drag: DragState = {
+      kind: "group-resize",
+      startX: event.clientX,
+      startY: event.clientY,
+      handle,
+      bounds: box,
+      initial: elements.map((element) => ({
+        id: element.id,
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+      })),
     };
     dragRef.current = drag;
     setDragState(drag);
@@ -857,6 +1049,39 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               }
             : element,
         ),
+      }));
+      return;
+    }
+    if (drag.kind === "group-resize") {
+      const dx = (event.clientX - drag.startX) / viewport.zoom;
+      const dy = (event.clientY - drag.startY) / viewport.zoom;
+      const { bounds, handle } = drag;
+      const minScaleX = 20 / Math.max(1, bounds.width);
+      const minScaleY = 20 / Math.max(1, bounds.height);
+      const scaleX = Math.max(
+        minScaleX,
+        handle.includes("e") ? (bounds.width + dx) / bounds.width : (bounds.width - dx) / bounds.width,
+      );
+      const scaleY = Math.max(
+        minScaleY,
+        handle.includes("s") ? (bounds.height + dy) / bounds.height : (bounds.height - dy) / bounds.height,
+      );
+      const fixedX = handle.includes("w") ? bounds.x + bounds.width : bounds.x;
+      const fixedY = handle.includes("n") ? bounds.y + bounds.height : bounds.y;
+      const byId = new Map(drag.initial.map((entry) => [entry.id, entry]));
+      setDocument((current) => ({
+        ...current,
+        elements: current.elements.map((element) => {
+          const initial = byId.get(element.id);
+          if (!initial) return element;
+          return {
+            ...element,
+            x: snap(fixedX + (initial.x - fixedX) * scaleX, grid ? 8 : 1),
+            y: snap(fixedY + (initial.y - fixedY) * scaleY, grid ? 8 : 1),
+            width: snap(Math.max(20, initial.width * scaleX), grid ? 8 : 1),
+            height: snap(Math.max(20, initial.height * scaleY), grid ? 8 : 1),
+          };
+        }),
       }));
       return;
     }
@@ -1007,29 +1232,209 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     toast.success("Nested canvas added");
   };
 
-  const insertImage = () => {
-    const src = window.prompt("Image URL");
-    if (!src) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const point = getPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  const generateFromPage = async (pageId: string) => {
+    const intent = generateIntent;
+    setGenerateIntent(null);
+    if (!db || !user || !activeWorkspaceId || !intent) return;
+    const sourcePage = pagesById.get(pageId);
+    const sourceDocument = await db.pageDocuments.get(pageId);
+    const outline = extractOutline(safeDoc(sourceDocument?.content));
+    const baseTitle = sourcePage?.title ?? "Untitled";
+    const data =
+      intent === "mindmap"
+        ? createMindMap(baseTitle, outline)
+        : intent === "flow"
+          ? createFlowFromOutline(baseTitle, outline)
+          : createConceptMap(baseTitle, outline);
+    const created = await createCanvasLocal(db, {
+      workspaceId: activeWorkspaceId,
+      userId: user.id,
+      title:
+        intent === "mindmap"
+          ? `${baseTitle} — mind map`
+          : intent === "flow"
+            ? `${baseTitle} — flowchart`
+            : `${baseTitle} — concept map`,
+      icon: "◈",
+      data,
+      notebookId: sourcePage?.notebookId ?? null,
+    });
+    toast.success("Generated a new canvas from the page outline");
+    router.push(appRouteObject({ view: "canvas", id: created.id }));
+  };
+
+  const convertSelectionToPages = async () => {
+    if (!db || !user || !activeWorkspaceId) return;
+    const convertible = selectedElements.filter(
+      (element) => element.type === "note" || element.type === "shape" || element.type === "text",
+    ) as Array<CanvasNoteElement | CanvasShapeElement | CanvasTextElement>;
+    if (!convertible.length) return;
+    const replacements: CanvasPageElement[] = [];
+    for (const element of convertible) {
+      const text = element.text.trim();
+      const firstLine = text.split("\n")[0]?.trim() || "Untitled idea";
+      const created = await createPageLocal(db, {
+        workspaceId: activeWorkspaceId,
+        userId: user.id,
+        notebookId: canvas?.notebookId ?? null,
+        title: firstLine.slice(0, 90),
+        icon: "◇",
+        content: docFromText(text || firstLine),
+      });
+      replacements.push({
+        id: createId(),
+        type: "page",
+        pageId: created.page.id,
+        variant: "card",
+        x: element.x,
+        y: element.y,
+        width: Math.max(220, element.width),
+        height: Math.max(140, element.height),
+      });
+    }
+    const replacementByElement = new Map(
+      convertible.map((element, index) => [element.id, replacements[index]!]),
+    );
     mutate((current) => ({
       ...current,
       elements: [
-        ...current.elements,
-        {
-          id: createId(),
-          type: "image",
-          src,
-          alt: "",
-          x: point.x - 160,
-          y: point.y - 110,
-          width: 320,
-          height: 220,
-        },
+        ...current.elements
+          .filter((element) => !replacementByElement.has(element.id))
+          .map((element) => {
+            if (element.type !== "connector") return element;
+            const from = element.from.elementId
+              ? replacementByElement.get(element.from.elementId)
+              : undefined;
+            const to = element.to.elementId ? replacementByElement.get(element.to.elementId) : undefined;
+            if (!from && !to) return element;
+            return {
+              ...element,
+              from: from ? { ...element.from, elementId: from.id } : element.from,
+              to: to ? { ...element.to, elementId: to.id } : element.to,
+            };
+          }),
+        ...replacements,
       ],
     }));
+    setSelectedIds(replacements.map((element) => element.id));
+    toast.success(
+      replacements.length === 1
+        ? "Page created from the node"
+        : `${replacements.length} pages created from the selection`,
+    );
+  };
+
+  const openSnapshots = async () => {
+    if (!canvas) return;
+    if (!online) {
+      toast.error("Snapshots need a connection to the sync server.");
+      return;
+    }
+    setSnapshotsOpen(true);
+    setSnapshotsLoading(true);
+    try {
+      const result = await client.canvas.versions({ canvasId: canvas.id });
+      setSnapshots(result as unknown as typeof snapshots);
+    } catch {
+      toast.error("Could not load snapshots");
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  };
+
+  const saveSnapshot = async () => {
+    if (!canvas || !online) return;
+    try {
+      await client.canvas.saveVersion({ canvasId: canvas.id });
+      toast.success("Snapshot saved");
+      await openSnapshots();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the snapshot");
+    }
+  };
+
+  const restoreSnapshot = async (versionId: string) => {
+    if (!canvas || !db) return;
+    try {
+      const result = await client.canvas.restoreVersion({ canvasId: canvas.id, versionId });
+      const restored = result.canvas as unknown as LocalCanvas & { data: CanvasDocument };
+      const existing = await db.canvases.get(canvas.id);
+      if (existing) {
+        await db.canvases.put({
+          ...existing,
+          data: restored.data,
+          rev: restored.rev,
+          updatedAt: restored.updatedAt,
+          localUpdatedAt: new Date().toISOString(),
+        } as LocalCanvas);
+      }
+      pushHistory();
+      setDocument(restored.data);
+      documentRef.current = restored.data;
+      setSelectedIds([]);
+      requestAnimationFrame(() => fitDocument(restored.data));
+      setSnapshotsOpen(false);
+      toast.success("Snapshot restored");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not restore the snapshot");
+    }
+  };
+
+  const addImageElement = (
+    src: string,
+    at?: { x: number; y: number },
+    size?: { width: number; height: number },
+  ) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const point =
+      at ?? (rect ? getPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) : { x: 0, y: 0 });
+    const width = size?.width ?? 320;
+    const height = size?.height ?? 220;
+    const element: CanvasImageElement = {
+      id: createId(),
+      type: "image",
+      src,
+      alt: "",
+      x: snap(point.x - width / 2, grid ? 8 : 1),
+      y: snap(point.y - height / 2, grid ? 8 : 1),
+      width,
+      height,
+    };
+    pushHistory();
+    setDocument((current) => ({ ...current, elements: [...current.elements, element] }));
+    setSelectedIds([element.id]);
+  };
+
+  const insertImageFromUrl = () => {
+    const src = window.prompt("Image URL");
+    if (!src) return;
+    addImageElement(src);
     toast.success("Image added");
+  };
+
+  const insertImageFile = async (file: File, at?: { x: number; y: number }) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files can go on the canvas.");
+      return;
+    }
+    try {
+      const uploaded = await uploadFile(file);
+      const size = await new Promise<{ width: number; height: number }>((resolve) => {
+        const probe = new window.Image();
+        probe.onload = () =>
+          resolve({ width: probe.naturalWidth || 320, height: probe.naturalHeight || 220 });
+        probe.onerror = () => resolve({ width: 320, height: 220 });
+        probe.src = uploaded.url;
+      });
+      const scale = Math.min(1, 420 / Math.max(1, size.width));
+      addImageElement(uploaded.url, at, {
+        width: Math.max(80, Math.round(size.width * scale)),
+        height: Math.max(60, Math.round(size.height * scale)),
+      });
+      toast.success("Image added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not upload the image");
+    }
   };
 
   const applyTemplate = (build: () => CanvasDocument) => {
@@ -1100,6 +1505,53 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       const selected = current.elements.filter((element) => selectedIds.includes(element.id));
       const rest = current.elements.filter((element) => !selectedIds.includes(element.id));
       return { ...current, elements: [...selected, ...rest] };
+    });
+  };
+
+  const layerElements = useMemo(
+    () => document.elements.filter((element) => element.type !== "connector").slice().reverse(),
+    [document.elements],
+  );
+
+  const layerLabel = (element: CanvasElement): string => {
+    if (element.type === "frame") return element.title || "Frame";
+    if (element.type === "page") return pagesById.get(element.pageId)?.title ?? "Linked page";
+    if (element.type === "canvas") return canvasesById.get(element.canvasId)?.title ?? "Canvas card";
+    if (element.type === "image") return "Image";
+    if ("text" in element && element.text.trim()) return element.text.trim().slice(0, 45);
+    const names: Record<string, string> = {
+      note: "Sticky note",
+      shape: "Shape",
+      text: "Text",
+      freehand: "Drawing",
+    };
+    return names[element.type] ?? element.type;
+  };
+
+  const moveLayer = (id: string, direction: "up" | "down") => {
+    mutate((current) => {
+      const elements = [...current.elements];
+      const index = elements.findIndex((element) => element.id === id);
+      if (index === -1) return current;
+      let target = -1;
+      if (direction === "up") {
+        for (let cursor = index + 1; cursor < elements.length; cursor += 1) {
+          if (elements[cursor]!.type !== "connector") {
+            target = cursor;
+            break;
+          }
+        }
+      } else {
+        for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+          if (elements[cursor]!.type !== "connector") {
+            target = cursor;
+            break;
+          }
+        }
+      }
+      if (target === -1) return current;
+      [elements[index], elements[target]] = [elements[target]!, elements[index]!];
+      return { ...current, elements };
     });
   };
 
@@ -1204,6 +1656,9 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 ["rect", Square, "Rectangle (R)"],
                 ["ellipse", Circle, "Ellipse (O)"],
                 ["diamond", Diamond, "Diamond"],
+                ["parallelogram", Shapes, "Parallelogram"],
+                ["hexagon", Hexagon, "Hexagon"],
+                ["cylinder", Cylinder, "Cylinder"],
                 ["text", Type, "Text (T)"],
                 ["pen", PenTool, "Pen (P)"],
                 ["connector", ArrowRight, "Connector (C)"],
@@ -1222,7 +1677,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                     return;
                   }
                   if (value === "image") {
-                    insertImage();
+                    imageInputRef.current?.click();
                     return;
                   }
                   setTool(value as Tool);
@@ -1303,12 +1758,37 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               >
                 <Layers className="size-3.5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-48">
+              <DropdownMenuContent align="center" className="w-52">
                 <DropdownMenuItem onClick={() => setNestedOpen(true)}>
                   <Frame className="size-3.5" /> Insert canvas card
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTemplateOpen(true)}>
                   <Sparkles className="size-3.5" /> Apply template
+                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <GitBranch className="size-3.5" /> Generate from outline
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => setGenerateIntent("mindmap")}>
+                      Mind map from page outline
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setGenerateIntent("flow")}>
+                      Flowchart from page outline
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setGenerateIntent("concept")}>
+                      Concept map from page outline
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuItem onClick={() => setLayersOpen(true)}>
+                  <Layers className="size-3.5" /> Layers
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void openSnapshots()}>
+                  <History className="size-3.5" /> Snapshots
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={insertImageFromUrl}>
+                  <ImageIcon className="size-3.5" /> Image from URL
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => exportCanvas("svg")}>
@@ -1430,6 +1910,18 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onWheel={onWheel}
+        onDragOver={(event) => {
+          if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
+        }}
+        onDrop={(event) => {
+          const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+            file.type.startsWith("image/"),
+          );
+          if (!files.length) return;
+          event.preventDefault();
+          const point = getPoint(event.clientX, event.clientY);
+          for (const file of files) void insertImageFile(file, point);
+        }}
       >
         <div
           className="absolute origin-top-left"
@@ -1469,15 +1961,29 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               .map((connector) => {
                 const from = connectorPoint(connector.from, elementsById);
                 const to = connectorPoint(connector.to, elementsById);
+                const selected = selectedIds.includes(connector.id);
                 return (
                   <g key={connector.id}>
+                    {selected ? (
+                      <line
+                        x1={from.x}
+                        y1={from.y}
+                        x2={to.x}
+                        y2={to.y}
+                        className="stroke-primary"
+                        strokeWidth={6}
+                        strokeOpacity={0.25}
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ) : null}
                     <line
                       x1={from.x}
                       y1={from.y}
                       x2={to.x}
                       y2={to.y}
                       stroke={connector.color ?? "#8b8b7a"}
-                      strokeWidth={1.5}
+                      strokeWidth={selected ? 2.5 : 1.5}
                       strokeDasharray={connector.style === "dashed" ? "8 6" : connector.style === "dotted" ? "2 5" : undefined}
                       markerEnd={connector.arrowEnd === false ? undefined : "url(#canvas-arrow)"}
                       vectorEffect="non-scaling-stroke"
@@ -1497,6 +2003,41 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 );
               })}
           </svg>
+
+          {document.elements
+            .filter((element): element is CanvasConnectorElement => element.type === "connector")
+            .map((connector) => {
+              const from = connectorPoint(connector.from, elementsById);
+              const to = connectorPoint(connector.to, elementsById);
+              const length = Math.hypot(to.x - from.x, to.y - from.y);
+              if (length < 2) return null;
+              const angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+              return (
+                <div
+                  key={`hit:${connector.id}`}
+                  role="button"
+                  aria-label="Connector"
+                  title="Click to select · double-click to rename"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    if (presentation || tool === "connector") return;
+                    setSelectedIds([connector.id]);
+                  }}
+                  onDoubleClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedIds([connector.id]);
+                  }}
+                  className="absolute cursor-pointer"
+                  style={{
+                    left: (from.x + to.x) / 2,
+                    top: (from.y + to.y) / 2,
+                    width: Math.max(12, length),
+                    height: 14,
+                    transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+                  }}
+                />
+              );
+            })}
 
           {document.elements.map((element) => {
             if (element.type === "connector") return null;
@@ -1704,6 +2245,34 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               })}
             </>
           ) : null}
+
+          {selectionBounds && selectedElements.length > 1 ? (
+            <>
+              <div
+                className="pointer-events-none absolute border border-dashed border-primary/50"
+                style={{
+                  left: selectionBounds.x,
+                  top: selectionBounds.y,
+                  width: selectionBounds.width,
+                  height: selectionBounds.height,
+                }}
+              />
+              {(["nw", "ne", "sw", "se"] as const).map((handle) => {
+                const x = handle.includes("w") ? selectionBounds.x : selectionBounds.x + selectionBounds.width;
+                const y = handle.includes("n") ? selectionBounds.y : selectionBounds.y + selectionBounds.height;
+                return (
+                  <button
+                    key={`group-${handle}`}
+                    type="button"
+                    aria-label={`Resize selection ${handle}`}
+                    onPointerDown={(event) => onGroupResizePointerDown(event, handle)}
+                    className="canvas-handle canvas-resize absolute z-20"
+                    style={{ left: x - 4, top: y - 4 }}
+                  />
+                );
+              })}
+            </>
+          ) : null}
         </div>
 
         {!document.elements.length ? (
@@ -1746,6 +2315,100 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               <X className="size-3 text-muted-foreground" />
             </button>
           </div>
+          {selectedConnector ? (
+            <div className="mt-2 space-y-2">
+              <label className="block">
+                <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Label
+                </span>
+                <input
+                  value={selectedConnector.label ?? ""}
+                  onChange={(event) =>
+                    updateElement(selectedConnector.id, {
+                      label: event.target.value,
+                    } as Partial<CanvasElement>)
+                  }
+                  placeholder="Describe the connection"
+                  className="h-7 w-full rounded border border-border bg-background px-1.5 text-[9px] outline-none focus:border-primary/40"
+                />
+              </label>
+              <div className="flex items-center gap-1">
+                {(["solid", "dashed", "dotted"] as const).map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    onClick={() =>
+                      updateElement(selectedConnector.id, { style } as Partial<CanvasElement>, true)
+                    }
+                    className={cn(
+                      "flex-1 rounded border px-1.5 py-1 text-[8px] capitalize",
+                      (selectedConnector.style ?? "solid") === style
+                        ? "border-foreground/40 bg-muted"
+                        : "border-border text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {style}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {["#8b8b7a", "#e07a2e", "#2f6b4f", "#3b82f6", "#8b5cf6", "#dc2626"].map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() =>
+                      updateElement(selectedConnector.id, { color } as Partial<CanvasElement>, true)
+                    }
+                    className={cn(
+                      "size-5 rounded-full border",
+                      selectedConnector.color === color ? "border-foreground" : "border-transparent",
+                    )}
+                    style={{ background: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateElement(
+                      selectedConnector.id,
+                      { arrowStart: !selectedConnector.arrowStart } as Partial<CanvasElement>,
+                      true,
+                    )
+                  }
+                  className={cn(
+                    "flex-1 rounded border px-1.5 py-1 text-[8px]",
+                    selectedConnector.arrowStart
+                      ? "border-foreground/40 bg-muted"
+                      : "border-border text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  Start arrow
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateElement(
+                      selectedConnector.id,
+                      { arrowEnd: selectedConnector.arrowEnd === false } as Partial<CanvasElement>,
+                      true,
+                    )
+                  }
+                  className={cn(
+                    "flex-1 rounded border px-1.5 py-1 text-[8px]",
+                    selectedConnector.arrowEnd !== false
+                      ? "border-foreground/40 bg-muted"
+                      : "border-border text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  End arrow
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
           <div className="mt-2 flex flex-wrap gap-1">
             {STICKY_COLORS.map((color) => (
               <button
@@ -1785,9 +2448,24 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               >
                 <Icon className="size-3" />
               </button>
-            ))}
+              ))}
           </div>
+            </>
+          )}
           <div className="mt-2 flex items-center gap-1">
+            {selectedElements.some(
+              (element) =>
+                element.type === "note" || element.type === "shape" || element.type === "text",
+            ) ? (
+              <button
+                type="button"
+                onClick={() => void convertSelectionToPages()}
+                className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[8px] hover:bg-muted"
+                title="Turn the selected node into a documentation page"
+              >
+                <FileText className="size-2.5" /> Page
+              </button>
+            ) : null}
             <button type="button" onClick={bringToFront} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[8px] hover:bg-muted">
               <BringToFront className="size-2.5" /> Front
             </button>
@@ -1836,11 +2514,97 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         </div>
       ) : null}
 
+      <Modal
+        open={layersOpen}
+        onClose={() => setLayersOpen(false)}
+        title="Layers"
+        description="Front-most first. Select, reorder, or lock an element."
+      >
+        <div className="max-h-80 space-y-1 overflow-y-auto">
+          {layerElements.map((element) => {
+            const locked = "locked" in element && Boolean(element.locked);
+            return (
+              <div
+                key={element.id}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md border px-2 py-1.5",
+                  selectedIds.includes(element.id)
+                    ? "border-primary/40 bg-muted/40"
+                    : "border-border/60 bg-background/40",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([element.id])}
+                  className="min-w-0 flex-1 truncate text-left text-[10px]"
+                  title={layerLabel(element)}
+                >
+                  {layerLabel(element)}
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move layer toward front"
+                  title="Move toward front"
+                  onClick={() => moveLayer(element.id, "up")}
+                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <ChevronUp className="size-3" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move layer toward back"
+                  title="Move toward back"
+                  onClick={() => moveLayer(element.id, "down")}
+                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <ChevronDown className="size-3" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={locked ? "Unlock element" : "Lock element"}
+                  title={locked ? "Unlock" : "Lock"}
+                  onClick={() =>
+                    updateElement(
+                      element.id,
+                      { locked: !locked } as Partial<CanvasElement>,
+                      true,
+                    )
+                  }
+                  className={cn(
+                    "grid size-5 place-items-center rounded hover:bg-muted",
+                    locked ? "text-foreground" : "text-muted-foreground/50",
+                  )}
+                >
+                  {locked ? <Lock className="size-3" /> : <Unlock className="size-3" />}
+                </button>
+              </div>
+            );
+          })}
+          {!layerElements.length ? (
+            <p className="py-6 text-center text-[9px] text-muted-foreground">
+              Nothing on the canvas yet.
+            </p>
+          ) : null}
+        </div>
+      </Modal>
+
       <PagePickerDialog
         open={pagePickerOpen}
         mode="link"
         onClose={() => setPagePickerOpen(false)}
         onPick={(pageId, pageTitle) => insertPageCard(pageId, pageTitle)}
+      />
+
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void insertImageFile(file);
+        }}
       />
 
       <Modal
@@ -1897,6 +2661,60 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             </p>
           ) : null}
         </div>
+      </Modal>
+
+      <PagePickerDialog
+        open={Boolean(generateIntent)}
+        mode="link"
+        onClose={() => setGenerateIntent(null)}
+        onPick={(pageId) => void generateFromPage(pageId)}
+      />
+
+      <Modal
+        open={snapshotsOpen}
+        onClose={() => setSnapshotsOpen(false)}
+        title="Snapshots"
+        description="Whiteboard history stored on the sync server."
+      >
+        <div className="mb-3 flex justify-end">
+          <Button size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void saveSnapshot()}>
+            <History className="size-3" /> Save snapshot
+          </Button>
+        </div>
+        {snapshotsLoading ? (
+          <p className="py-6 text-center text-[9px] text-muted-foreground">Loading…</p>
+        ) : snapshots.length ? (
+          <div className="max-h-72 space-y-1 overflow-y-auto">
+            {snapshots.map((snapshot) => (
+              <div
+                key={snapshot.id}
+                className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[10px] font-medium">
+                    v{snapshot.version} · {snapshot.title}
+                  </div>
+                  <div className="truncate text-[8px] text-muted-foreground">
+                    {new Date(snapshot.createdAt).toLocaleString()}
+                    {snapshot.note ? ` · ${snapshot.note}` : ""}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 rounded-md text-[8px]"
+                  onClick={() => void restoreSnapshot(snapshot.id)}
+                >
+                  Restore
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-6 text-center text-[9px] text-muted-foreground">
+            No snapshots yet. Save one before a big change.
+          </p>
+        )}
       </Modal>
     </div>
   );

@@ -10,10 +10,44 @@ The whiteboard is a custom SVG/DOM canvas engine rather than a separately licens
 - Pan with drag, space-drag, or middle mouse.
 - Zoom with `⌘`/`Ctrl` + scroll or pinch.
 - Select, shift-select, marquee select.
-- Move, resize, nudge, align, group, and layer.
+- Move and resize — with two or more elements selected, the corner handles scale
+  the whole group proportionally from the opposite corner.
+- Nudge, align, group, and layer.
 - Undo / redo with a 60-step document history.
-- Copy, paste, and duplicate.
+- Copy, paste, and duplicate — connectors between copied elements come along.
 - Snap to an 8px grid; toggle the grid when you want pure placement.
+
+### Layers
+
+**More → Layers** lists every element front-most first. From there you can
+select an element, move it one step toward the front or back, or lock it. The
+quick controls in the inspector still send a selection all the way to the front
+or back.
+
+### Tool shortcuts
+
+`V` select · `H` pan · `N` sticky note · `R` rectangle · `O` ellipse ·
+`D` diamond · `T` text · `P` pen · `C` connector · `F` frame. Hold space to pan
+temporarily.
+
+### Connectors
+
+Connectors bind to elements. Click one to select it; the inspector then lets you
+
+- edit the label,
+- switch between solid, dashed, and dotted,
+- change the color,
+- toggle start and end arrows,
+- or delete it.
+
+New connectors choose their anchors from the relative positions of the two
+elements, so vertical relationships draw top-to-bottom instead of sideways.
+Deleting an element also removes the connectors that were bound to it.
+
+### Frames
+
+Dragging a frame moves the elements inside it. Frames double as presentation
+slides.
 
 ## Elements
 
@@ -23,9 +57,9 @@ The whiteboard is a custom SVG/DOM canvas engine rather than a separately licens
 | Shape | Rectangle, ellipse, diamond, parallelogram, hexagon, cylinder |
 | Text | Free typography on the canvas |
 | Pen | Freehand strokes |
-| Connector | Bound arrows between elements, with labels |
-| Frame | Presentation slide or region |
-| Image | URL-based visual reference |
+| Connector | Bound arrows between elements, with labels, styles, and colors |
+| Frame | Presentation slide or region; moves its contents |
+| Image | Uploaded files or URLs, sized to the image |
 | Linked note | Live page card that reflects title and excerpt |
 | Nested canvas | A card that opens another whiteboard |
 
@@ -34,10 +68,29 @@ Linked note and nested canvas cards are references, not copies. Opening a card n
 ## Document integration
 
 - Insert a linked note from the toolbar.
-- Drop a page into a board as a live card.
-- Generate a mind map from any page outline (editor page actions).
+- Insert a page as a live card (the card reflects title and excerpt).
+- Turn a sticky note, shape, or text element into a documentation page: select
+  it (or several) and use **Page** in the inspector. Each node becomes a page
+  titled from its first line, and its canvas position becomes a linked page card;
+  connectors bound to the node follow the new card.
+- Generate a **mind map**, **flowchart**, or **concept map** from any page
+  outline: whiteboard toolbar → **More → Generate from outline**, then pick the
+  source page. The generator creates a new whiteboard next to the source page's
+  notebook.
 - Use frames for presentation mode.
 - Future: push a selected diagram outline back into a documentation page.
+
+## Snapshots
+
+**More → Snapshots** keeps whiteboard history on the sync server:
+
+- **Save snapshot** stores the current document with its version number.
+- The list shows version, title, note, and time; **Restore** applies a snapshot.
+- Restoring writes a snapshot of the current state first, so restoring is never
+  destructive.
+
+Conflict resolution also stores pre-conflict canvases as versions, so a
+conflict is recoverable from the same list.
 
 ## Templates
 
@@ -49,3 +102,11 @@ Starter templates cover brainstorm, research, software architecture, flowcharts,
 - PNG export via an SVG rasterization pass.
 - Print / Save as PDF through the browser print dialog.
 - Presentation mode fits each frame and navigates with arrow keys or the control bar.
+
+## Images
+
+The toolbar image button opens a file picker, dropping an image file onto the
+canvas uploads and places it where it landed, and **More → Image from URL**
+still accepts a URL. Uploaded files go through the same authenticated
+`/uploads` endpoint as editor images, and elements are sized to the image's
+aspect ratio.

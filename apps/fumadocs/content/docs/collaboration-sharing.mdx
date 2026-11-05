@@ -25,6 +25,10 @@ Role rank is `GUEST < VIEWER < EDITOR < MEMBER < ADMIN < OWNER`.
 - `WORKSPACE` — all active members.
 - `PUBLIC` — exposed only through an unrevoked share link.
 
+Both surfaces can be changed in the app: the page context panel's Visibility
+row, and the notebook menu's Visibility submenu. Visibility is part of the
+record, so it syncs like any other field.
+
 Private content is filtered from sync snapshots and incremental pulls for other members, including node titles, edges, comments, attachments, and cards derived from those pages.
 
 ## Invites
@@ -36,7 +40,9 @@ Admins create an invite for an email and role. The invite stores a SHA-256 token
 - Page-level threads with replies.
 - Block anchoring through stable `blockId`s.
 - Resolve state.
-- Mentions create notifications for workspace members.
+- The composer has a **Mention** picker; inserting a teammate writes `@Name`
+  into the comment. The server notifies mentioned members and the page author
+  (never the commenter), and notifications appear in the topbar bell.
 - Comments sync through the same change log; presence is online-only and ephemeral.
 
 ## Sharing

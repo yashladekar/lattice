@@ -20,6 +20,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@notes-learning/ui/components/dropdown-menu";
 import { cn } from "@notes-learning/ui/lib/utils";
@@ -34,6 +37,7 @@ import {
   Check,
   Clock3,
   Code2,
+  Copy,
   Download,
   FileText,
   Focus,
@@ -54,8 +58,10 @@ import {
   Redo2,
   Share2,
   Sparkles,
+  Star,
   Strikethrough,
   Trash2,
+  Type,
   Underline as UnderlineIcon,
   Undo2,
 } from "lucide-react";
@@ -115,6 +121,8 @@ interface AiResult {
   cards?: Array<{ front: string; back: string; blockId?: string }>;
   outline?: OutlineItem[];
   suggestions?: Array<{ pageId: string; title: string; score: number; reason: string }>;
+  citations?: Array<{ pageId: string; title: string; excerpt?: string }>;
+  pages?: Array<{ id: string; title: string; updatedAt: string; reason: string }>;
 }
 
 const pendingCollabTeardown = new WeakMap<object, ReturnType<typeof setTimeout>>();
@@ -157,6 +165,11 @@ export function PageEditor({
   const [versions, setVersions] = useState<Array<{ id: string; version: number; title: string; createdAt: string; note: string | null }>>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [remoteUpdate, setRemoteUpdate] = useState(false);
+  const [hoveredBlock, setHoveredBlock] = useState<{
+    pos: number;
+    blockId: string | null;
+    type: string;
+  } | null>(null);
   const [peers, setPeers] = useState<Array<{ userId: string; name: string; image: string | null }>>([]);
   const [collab] = useState<CollabProvider | null>(() =>
     pageId && activeWorkspaceId && online ? new CollabProvider() : null,
@@ -170,6 +183,7 @@ export function PageEditor({
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
   const loaded = useRef(false);
+  const blockTargetRef = useRef<{ pos: number; blockId: string | null } | null>(null);
   const lastRev = useRef<number>(0);
   const menuKeyRef = useRef<(event: KeyboardEvent) => boolean>(() => false);
   const getItemsRef = useRef<(kind: EditorMenuKind, query: string) => Promise<EditorMenuItem[]>>(
@@ -763,6 +777,71 @@ export function PageEditor({
     toast.success("Diagram inserted from the page outline");
   };
 
+  const duplicateBlock = () => {
+    const target = blockTargetRef.current;
+    if (!editor || !target) return;
+    const node = editor.state.doc.nodeAt(target.pos);
+    if (!node) return;
+    editor.view.dispatch(editor.state.tr.insert(target.pos + node.nodeSize, node));
+    toast.success("Block duplicated");
+  };
+
+  const deleteBlock = () => {
+    const target = blockTargetRef.current;
+    if (!editor || !target) return;
+    const node = editor.state.doc.nodeAt(target.pos);
+    if (!node) return;
+    editor.view.dispatch(editor.state.tr.delete(target.pos, target.pos + node.nodeSize));
+    toast.success("Block deleted");
+  };
+
+  const copyBlockLink = async () => {
+    const target = blockTargetRef.current;
+    if (!target?.blockId) {
+      toast.error("This block has no id yet.");
+      return;
+    }
+    const url = `${window.location.origin}${appRouteObject({ view: "page", id: pageId })}&block=${target.blockId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Block link copied");
+    } catch {
+      toast.error("Could not copy the link");
+    }
+  };
+
+  const turnBlockInto = (
+    kind: "paragraph" | "h1" | "h2" | "h3" | "bullet" | "ordered" | "task" | "quote" | "code",
+  ) => {
+    const target = blockTargetRef.current;
+    if (!editor || !target) return;
+    const node = editor.state.doc.nodeAt(target.pos);
+    if (!node) return;
+    const chain = node.isTextblock
+      ? editor.chain().focus().setTextSelection(target.pos + 1)
+      : editor.chain().focus().setNodeSelection(target.pos);
+    if (kind === "paragraph") chain.setParagraph().run();
+    else if (kind === "h1") chain.setParagraph().toggleHeading({ level: 1 }).run();
+    else if (kind === "h2") chain.setParagraph().toggleHeading({ level: 2 }).run();
+    else if (kind === "h3") chain.setParagraph().toggleHeading({ level: 3 }).run();
+    else if (kind === "bullet") chain.toggleBulletList().run();
+    else if (kind === "ordered") chain.toggleOrderedList().run();
+    else if (kind === "task") chain.toggleTaskList().run();
+    else if (kind === "quote") chain.toggleBlockquote().run();
+    else chain.setCodeBlock().run();
+  };
+
+  const isFavorite = Boolean(page?.properties?.favorite);
+
+  const toggleFavorite = async () => {
+    if (!db || !page) return;
+    await updatePageLocal(db, {
+      pageId,
+      properties: { ...page.properties, favorite: !isFavorite },
+    });
+    toast.success(isFavorite ? "Removed from favorites" : "Added to favorites");
+  };
+
   const saveVersion = async () => {
     if (!activeWorkspaceId || !online) {
       toast.error("Version history needs a connection to the sync server.");
@@ -842,7 +921,9 @@ export function PageEditor({
     router.push(appRouteObject({ view: "canvas", id: canvas.id }));
   };
 
-  const runAi = async (action: "summarize" | "explain" | "connections" | "flashcards" | "mindmap") => {
+  const runAi = async (
+    action: "summarize" | "explain" | "compare" | "connections" | "flashcards" | "mindmap" | "outdated" | "examples",
+  ) => {
     if (!activeWorkspaceId || !online) {
       toast.error("Ask Lattice needs a connection to the sync server.");
       return;
@@ -876,6 +957,17 @@ export function PageEditor({
           }>,
           provider: "local",
         });
+      } else if (action === "outdated" && "pages" in result) {
+        setAiResult({
+          title: "Possibly outdated pages",
+          pages: result.pages as Array<{
+            id: string;
+            title: string;
+            updatedAt: string;
+            reason: string;
+          }>,
+          provider: "local",
+        });
       } else if ("answer" in result) {
         setAiResult({
           title:
@@ -883,9 +975,13 @@ export function PageEditor({
               ? "Page summary"
               : action === "explain"
                 ? "Explanation"
-                : "Lattice",
+                : action === "compare"
+                  ? "Comparison"
+                  : "Lattice",
           answer: result.answer,
           provider: result.provider,
+          citations: (result as { citations?: Array<{ pageId: string; title: string; excerpt?: string }> })
+            .citations,
         });
       }
     } catch (error) {
@@ -1014,6 +1110,18 @@ export function PageEditor({
           <Button
             variant="ghost"
             size="icon-sm"
+            className={cn(
+              "h-7 w-7 rounded-md",
+              isFavorite ? "text-saffron" : "text-muted-foreground",
+            )}
+            onClick={() => void toggleFavorite()}
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Star className={cn("size-3.5", isFavorite && "fill-current")} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             className="h-7 w-7 rounded-md text-muted-foreground"
             onClick={onShare}
             title="Share"
@@ -1063,6 +1171,18 @@ export function PageEditor({
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => void runAi("summarize")}>
                 <Sparkles className="size-3.5" /> Summarize
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void runAi("explain")}>
+                <Sparkles className="size-3.5" /> Explain this page
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void runAi("compare")}>
+                <Sparkles className="size-3.5" /> Compare with related notes
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void runAi("examples")}>
+                <Sparkles className="size-3.5" /> Suggest examples
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void runAi("outdated")}>
+                <Clock3 className="size-3.5" /> Find outdated pages
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void runAi("connections")}>
                 <Network className="size-3.5" /> Find connections
@@ -1199,10 +1319,90 @@ export function PageEditor({
         <div className="relative mt-5">
           {editor ? (
             <>
-              <DragHandle editor={editor}>
-                <span className="grid h-6 w-5 cursor-grab place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground">
-                  <GripVertical className="size-3.5" />
-                </span>
+              <DragHandle
+                editor={editor}
+                onNodeChange={({ node, pos }) =>
+                  setHoveredBlock(
+                    node
+                      ? {
+                          pos,
+                          blockId: (node.attrs?.blockId as string | undefined) ?? null,
+                          type: node.type.name,
+                        }
+                      : null,
+                  )
+                }
+              >
+                <div className="flex items-center">
+                  <span className="grid h-6 w-5 cursor-grab place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground">
+                    <GripVertical className="size-3.5" />
+                  </span>
+                  <DropdownMenu
+                    onOpenChange={(open) => {
+                      blockTargetRef.current = open ? hoveredBlock : null;
+                    }}
+                  >
+                    <DropdownMenuTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-label="Block actions"
+                          className="grid h-6 w-4 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                        />
+                      }
+                    >
+                      <MoreHorizontal className="size-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" side="bottom" className="w-48">
+                      <DropdownMenuLabel>Block</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={duplicateBlock}>
+                        <Copy className="size-3.5" /> Duplicate block
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => void copyBlockLink()}>
+                        <Link2 className="size-3.5" /> Copy block link
+                      </DropdownMenuItem>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Type className="size-3.5" /> Turn into
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem onClick={() => turnBlockInto("paragraph")}>
+                            Paragraph
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => turnBlockInto("h1")}>
+                            Heading 1
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => turnBlockInto("h2")}>
+                            Heading 2
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => turnBlockInto("h3")}>
+                            Heading 3
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => turnBlockInto("bullet")}>
+                            <List className="size-3.5" /> Bullet list
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => turnBlockInto("ordered")}>
+                            <ListOrdered className="size-3.5" /> Numbered list
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => turnBlockInto("task")}>
+                            <ListChecks className="size-3.5" /> Task list
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => turnBlockInto("quote")}>
+                            <Quote className="size-3.5" /> Quote
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => turnBlockInto("code")}>
+                            <Code2 className="size-3.5" /> Code block
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onClick={deleteBlock}>
+                        <Trash2 className="size-3.5" /> Delete block
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </DragHandle>
               <BubbleMenu editor={editor}>
                 <EditorBubbleToolbar
@@ -1265,6 +1465,7 @@ export function PageEditor({
         onAddCards={() => void addAiCards()}
         onAddMindMap={() => void addAiMindMap()}
         onAddConnection={(id) => void addAiConnection(id)}
+        onOpenPage={(id) => router.push(appRouteObject({ view: "page", id }))}
       />
 
       <VersionDialog
@@ -1600,6 +1801,7 @@ function AiResultDialog({
   onAddCards,
   onAddMindMap,
   onAddConnection,
+  onOpenPage,
 }: {
   result: AiResult | null;
   busy: boolean;
@@ -1607,6 +1809,7 @@ function AiResultDialog({
   onAddCards: () => void;
   onAddMindMap: () => void;
   onAddConnection: (id: string) => void;
+  onOpenPage: (id: string) => void;
 }) {
   return (
     <Modal
@@ -1631,6 +1834,52 @@ function AiResultDialog({
           {result.answer ? (
             <div className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/20 p-3 text-[11px] leading-relaxed">
               {result.answer}
+            </div>
+          ) : null}
+          {result.citations?.length ? (
+            <div className="flex flex-wrap gap-1">
+              {result.citations.map((citation) => (
+                <button
+                  key={citation.pageId}
+                  type="button"
+                  onClick={() => onOpenPage(citation.pageId)}
+                  title={citation.excerpt}
+                  className="inline-flex max-w-52 items-center gap-1 truncate rounded-full border border-border px-2 py-0.5 text-[8px] text-muted-foreground hover:border-saffron/50 hover:text-foreground"
+                >
+                  <Sparkles className="size-2.5 shrink-0 text-saffron/70" />
+                  <span className="truncate">{citation.title}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {result.pages ? (
+            <div className="space-y-1.5">
+              {result.pages.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[10px] font-medium">{entry.title}</div>
+                    <div className="text-[8px] text-muted-foreground">
+                      {entry.reason} · {formatRelative(entry.updatedAt)}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 rounded text-[8px]"
+                    onClick={() => onOpenPage(entry.id)}
+                  >
+                    Open
+                  </Button>
+                </div>
+              ))}
+              {!result.pages.length ? (
+                <p className="text-[10px] text-muted-foreground">
+                  Nothing looks stale. Every page was updated recently and has no open TODOs.
+                </p>
+              ) : null}
             </div>
           ) : null}
           {result.cards ? (

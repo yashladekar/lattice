@@ -51,6 +51,19 @@ export function appHref(route: Partial<AppRoute> & { view: AppView }): string {
   return `/app?${params.toString()}`;
 }
 
+export function parsePaneKey(
+  pane: string | null | undefined,
+): { view: AppView; id: string | null } | null {
+  if (!pane) return null;
+  const separator = pane.indexOf(":");
+  if (separator === -1) return null;
+  const kind = pane.slice(0, separator);
+  const value = pane.slice(separator + 1);
+  if ((kind === "page" || kind === "canvas") && value) return { view: kind, id: value };
+  if (kind === "view" && isAppView(value)) return { view: value, id: null };
+  return null;
+}
+
 export function appRouteObject(
   route: Partial<AppRoute> & { view: AppView },
 ): string {

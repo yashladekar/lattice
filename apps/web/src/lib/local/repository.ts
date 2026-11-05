@@ -1618,7 +1618,7 @@ export async function addAttachmentLocal(
 export async function updateWorkspaceLocal(
   db: LatticeDB,
   workspaceId: string,
-  input: Partial<Pick<LocalWorkspace, "name" | "description" | "icon" | "accent">>,
+  input: Partial<Pick<LocalWorkspace, "name" | "description" | "icon" | "accent" | "trashRetentionDays">>,
 ): Promise<LocalWorkspace | null> {
   const existing = await db.workspaces.get(workspaceId);
   if (!existing) return null;
@@ -1635,6 +1635,7 @@ export async function updateWorkspaceLocal(
         description: workspace.description,
         icon: workspace.icon,
         accent: workspace.accent,
+        trashRetentionDays: workspace.trashRetentionDays,
       },
     });
   });

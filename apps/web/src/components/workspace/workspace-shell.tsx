@@ -1,8 +1,8 @@
 "use client";
 
-import { appHref, appRouteObject, type AppRoute } from "@/lib/navigation";
+import { appHref, appRouteObject, parsePaneKey, type AppRoute } from "@/lib/navigation";
 import { cn } from "@notes-learning/ui/lib/utils";
-import { Command, Focus, Menu, Plus } from "lucide-react";
+import { Columns2, Command, Focus, Menu, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { AiPanel } from "@/components/ai/ai-panel";
 import { AppSplash } from "@/components/app-splash";
 import { useAppData } from "@/components/app-data-provider";
+import { DueReminders } from "@/components/learning-reminders";
 import { ShareDialog } from "@/components/share/share-dialog";
 import { CommandPalette } from "@/components/workspace/command-palette";
 import { ConflictResolver } from "@/components/workspace/conflict-resolver";
@@ -63,13 +64,16 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
   const notebooks = useWorkspaceNotebooks();
   const page = usePage(route.view === "page" ? route.id : null);
   const canvas = useCanvas(route.view === "canvas" ? route.id : null);
+  const paneTarget = parsePaneKey(route.pane);
+  const panePage = usePage(paneTarget?.view === "page" ? paneTarget.id : null);
+  const paneCanvas = useCanvas(paneTarget?.view === "canvas" ? paneTarget.id : null);
   const { tabs, activeKey, setActiveKey, openTab, closeTab } = useTabs();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareOverride, setShareOverride] = useState<{
-    type: "NOTEBOOK";
+    type: "NOTEBOOK" | "PAGE" | "CANVAS" | "GRAPH";
     id: string;
     title: string;
   } | null>(null);
@@ -203,13 +207,22 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
     return null;
   }, [shareOverride, route.view, page, canvas, activeWorkspace]);
 
+  const withPane = (pane: string | null) => ({
+    view: route.view,
+    id: route.id,
+    notebook: route.notebook,
+    query: route.query,
+    pane,
+    tab: route.tab,
+  });
+
   const handleTabSelect = (tab: (typeof tabs)[number]) => {
     setActiveKey(tab.key);
     router.push(
       appRouteObject(
         tab.view === "page" || tab.view === "canvas"
-          ? { view: tab.view, id: tab.id }
-          : { view: tab.view },
+          ? { view: tab.view, id: tab.id, pane: route.pane }
+          : { view: tab.view, pane: route.pane },
       ),
     );
   };
@@ -230,21 +243,34 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
     ["page", "canvas", "graph"].includes(route.view) ? "overflow-hidden" : "overflow-y-auto",
   );
 
-  const content = (() => {
-    switch (route.view) {
+  const renderRoute = (
+    target: Pick<AppRoute, "view" | "id" | "query">,
+    options: { compact?: boolean } = {},
+  ) => {
+    switch (target.view) {
       case "page":
         return (
           <PageView
-            pageId={route.id}
-            rightPanelOpen={rightPanelOpen}
+            pageId={target.id}
+            compact={options.compact}
+            rightPanelOpen={options.compact ? false : rightPanelOpen}
             onOpenRightPanel={() => setRightPanelOpen(true)}
             onToggleRightPanel={() => setRightPanelOpen((value) => !value)}
-            onShare={() => setShareOpen(true)}
+            onShare={() => {
+              if (options.compact && target.id) {
+                setShareOverride({
+                  type: "PAGE",
+                  id: target.id,
+                  title: panePage?.title ?? "Page",
+                });
+              }
+              setShareOpen(true);
+            }}
             onToggleFocus={() => setFocusMode((value) => !value)}
           />
         );
       case "canvas":
-        return <CanvasView canvasId={route.id} />;
+        return <CanvasView canvasId={target.id} />;
       case "graph":
         return <GraphView onShare={() => setShareOpen(true)} />;
       case "inbox":
@@ -254,7 +280,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
       case "settings":
         return <SettingsView />;
       case "search":
-        return <SearchView initialQuery={route.query} />;
+        return <SearchView initialQuery={target.query} />;
       case "timeline":
         return <TimelineView />;
       case "trash":
@@ -268,10 +294,18 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
           />
         );
     }
-  })();
+  };
+
+  const content = renderRoute(route);
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[200] focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-3 focus:py-1.5 focus:text-[10px]"
+      >
+        Skip to content
+      </a>
       {!focusMode ? (
         <div className="hidden lg:flex">
           <WorkspaceSidebar
@@ -336,12 +370,20 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
             <TabStrip
               tabs={tabs}
               activeKey={activeKey}
+              paneKey={route.pane}
               onSelect={handleTabSelect}
               onClose={(key) => {
                 closeTab(key);
-                if (key === activeKey) router.push(appHref({ view: "home" }));
+                if (route.pane === key) {
+                  router.push(appHref(withPane(null)));
+                  return;
+                }
+                if (key === activeKey) router.push(appHref({ view: "home", pane: route.pane }));
               }}
               onNew={() => void newPage()}
+              onTogglePane={(tab) => {
+                router.push(appHref(withPane(route.pane === tab.key ? null : tab.key)));
+              }}
             />
           </>
         ) : (
@@ -356,7 +398,42 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
             <div className="h-0" />
           </>
         )}
-        <div className={contentClassName}>{content}</div>
+        <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 outline-none">
+          <div className={contentClassName}>{content}</div>
+          {paneTarget ? (
+            <div className="flex min-h-0 w-[42%] max-w-[60%] min-w-[300px] shrink-0 flex-col border-l border-border/60">
+              <div className="flex h-7 shrink-0 items-center justify-between border-b border-border/60 bg-background/60 px-2 text-[9px] text-muted-foreground">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Columns2 className="size-3" />
+                  <span className="truncate">
+                    {panePage?.title ?? paneCanvas?.title ?? TAB_META[paneTarget.view].title}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  aria-label="Close split view"
+                  onClick={() => router.push(appHref(withPane(null)))}
+                  className="grid size-5 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+              <div
+                className={cn(
+                  "min-h-0 flex-1",
+                  ["page", "canvas", "graph"].includes(paneTarget.view)
+                    ? "overflow-hidden"
+                    : "overflow-y-auto",
+                )}
+              >
+                {renderRoute(
+                  { view: paneTarget.view, id: paneTarget.id, query: "" },
+                  { compact: true },
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
         {!focusMode ? (
           <footer className="hidden h-6 shrink-0 items-center justify-between border-t border-border/50 bg-background/50 px-3 text-[8px] text-muted-foreground md:flex">
             <div className="flex items-center gap-2">
@@ -380,6 +457,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
         ) : null}
       </div>
 
+      <DueReminders />
       <CommandPalette
         open={commandOpen}
         onClose={() => setCommandOpen(false)}

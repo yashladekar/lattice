@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 export default function PwaRegistration() {
   useEffect(() => {
@@ -19,6 +20,19 @@ export default function PwaRegistration() {
       return;
     }
     let refreshing = false;
+    const promptUpdate = (worker: ServiceWorker) => {
+      toast("A new version of Lattice is ready", {
+        id: "pwa-update",
+        duration: Number.POSITIVE_INFINITY,
+        action: {
+          label: "Refresh",
+          onClick: () => {
+            refreshing = true;
+            worker.postMessage({ type: "SKIP_WAITING" });
+          },
+        },
+      });
+    };
     const register = async () => {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", {
@@ -27,8 +41,8 @@ export default function PwaRegistration() {
         });
         registration.update().catch(() => undefined);
 
-        if (registration.waiting) {
-          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        if (registration.waiting && navigator.serviceWorker.controller) {
+          promptUpdate(registration.waiting);
         }
 
         registration.addEventListener("updatefound", () => {
@@ -36,14 +50,14 @@ export default function PwaRegistration() {
           if (!installing) return;
           installing.addEventListener("statechange", () => {
             if (installing.state === "installed" && navigator.serviceWorker.controller) {
-              installing.postMessage({ type: "SKIP_WAITING" });
+              promptUpdate(installing);
             }
           });
         });
 
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (refreshing) return;
-          refreshing = true;
+          if (!refreshing) return;
+          refreshing = false;
           window.location.reload();
         });
       } catch (error) {

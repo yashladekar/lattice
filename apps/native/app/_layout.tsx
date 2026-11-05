@@ -1,5 +1,5 @@
 import "@/global.css";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
 import { HeroUINativeProvider, useThemeColor } from "heroui-native";
 import { ActivityIndicator, Text, View } from "react-native";
@@ -11,6 +11,7 @@ import { NativeAuthScreen } from "@/components/native-auth-screen";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { WorkspaceProvider } from "@/contexts/workspace-context";
 import { authClient } from "@/lib/auth-client";
+import { QUERY_CACHE_MAX_AGE, queryPersister } from "@/lib/query-cache";
 import { queryClient } from "@/utils/orpc";
 
 export const unstable_settings = {
@@ -73,7 +74,14 @@ function AppRoot() {
 
 export default function Layout() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: queryPersister,
+        maxAge: QUERY_CACHE_MAX_AGE,
+        buster: "v1",
+      }}
+    >
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
           <AppThemeProvider>
@@ -84,6 +92,6 @@ export default function Layout() {
           </AppThemeProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

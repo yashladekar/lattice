@@ -1439,6 +1439,7 @@ async function applyWorkspace(
     changes.push({ entity: "workspace", entityId: deleted.id, op: "DELETE", data: toJsonSafe(deleted) });
     return { accepted: { entity: "workspace", entityId: deleted.id, updatedAt: deleted.updatedAt } };
   }
+  const retention = numberValue(op.payload.trashRetentionDays);
   const updated = await tx.workspace.update({
     where: { id: workspaceId },
     data: {
@@ -1446,6 +1447,9 @@ async function applyWorkspace(
       description: nullableString(op.payload.description) ?? existing.description,
       icon: nullableString(op.payload.icon) ?? existing.icon,
       accent: nullableString(op.payload.accent) ?? existing.accent,
+      ...(retention !== undefined
+        ? { trashRetentionDays: Math.max(0, Math.min(3650, Math.round(retention))) }
+        : {}),
     },
   });
   changes.push({ entity: "workspace", entityId: updated.id, op: "UPSERT", data: toJsonSafe(updated) });

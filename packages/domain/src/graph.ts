@@ -207,6 +207,34 @@ export function buildDerivedGraph(
     }
   }
 
+  const canvasIds = new Set(canvases.filter((canvas) => !canvas.deletedAt).map((canvas) => canvas.id));
+  for (const canvas of canvases) {
+    if (canvas.deletedAt) continue;
+    const elements = canvas.data?.elements ?? [];
+    for (const element of elements) {
+      if (element.type !== "page" && element.type !== "canvas") continue;
+      const targetId = element.type === "page" ? element.pageId : element.canvasId;
+      if (!targetId || targetId === canvas.id) continue;
+      if (element.type === "page" && !pageById.has(targetId)) continue;
+      if (element.type === "canvas" && !canvasIds.has(targetId)) continue;
+      const edge: KnowledgeEdge = {
+        id: `derived:${canvas.id}:${targetId}:canvas`,
+        workspaceId: canvas.workspaceId,
+        sourceNodeId: canvas.id,
+        targetNodeId: targetId,
+        relationType: "CONNECTED_THROUGH",
+        label: null,
+        weight: 1,
+        origin: "CANVAS_LINK",
+        aiGenerated: false,
+        createdById: canvas.createdById,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      if (!edges.has(edgeKey(edge))) edges.set(edgeKey(edge), edge);
+    }
+  }
+
   return { nodes: [...nodes.values()], edges: [...edges.values()] };
 }
 

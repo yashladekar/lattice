@@ -8,6 +8,9 @@ model Workspace {
   accent      String?
   ownerId     String
   syncVersion Int      @default(0)
+  /// Soft-deleted rows older than this are permanently purged by the server.
+  /// 0 keeps trash forever; there is deliberately no manual purge button.
+  trashRetentionDays Int @default(0)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
   deletedAt   DateTime? @db.Timestamptz(3)

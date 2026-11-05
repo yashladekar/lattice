@@ -15,6 +15,8 @@ import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
 import {
   ArrowRight,
+  Bell,
+  BellRing,
   Brain,
   Check,
   ChevronRight,
@@ -34,6 +36,11 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import {
+  disableReminders,
+  enableReminders,
+  remindersEnabled,
+} from "@/components/learning-reminders";
 import {
   useGraph,
   useLearningStats,
@@ -75,6 +82,27 @@ export function LearnView() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
+  const [reminders, setReminders] = useState(false);
+
+  useEffect(() => {
+    setReminders(remindersEnabled());
+  }, []);
+
+  const toggleReminders = async () => {
+    if (reminders) {
+      disableReminders();
+      setReminders(false);
+      toast.success("Due reminders turned off");
+      return;
+    }
+    const granted = await enableReminders();
+    if (!granted) {
+      toast.error("Notifications are blocked in this browser.");
+      return;
+    }
+    setReminders(true);
+    toast.success("You will get a nudge when cards are due");
+  };
 
   const current = learning.due[0] ?? null;
   const pageById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [pages]);
@@ -210,6 +238,20 @@ export function LearnView() {
           <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[9px] text-muted-foreground">
             <Target className="size-3 text-moss" /> {Math.round(learning.mastery * 100)}% mastery
           </span>
+          <button
+            type="button"
+            onClick={() => void toggleReminders()}
+            title={reminders ? "Turn off due reminders" : "Notify me when cards are due"}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] transition-colors",
+              reminders
+                ? "border-moss/50 bg-moss/10 text-foreground"
+                : "border-border bg-card text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {reminders ? <BellRing className="size-3 text-moss" /> : <Bell className="size-3" />}
+            {reminders ? "Reminders on" : "Remind me"}
+          </button>
         </div>
       </div>
 

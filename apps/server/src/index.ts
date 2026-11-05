@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { appRouter } from "@notes-learning/api/routers/index";
+import { purgeExpiredTrash } from "@notes-learning/api/services/purge";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -15,7 +16,7 @@ import express from "express";
 import { createContext } from "./context";
 import { attachCollaboration } from "./collaboration";
 import { desktopOrigins, ENV, uploadDirectory } from "./env.server";
-import { auth } from "./services";
+import { auth, db } from "./services";
 
 const app = express();
 
@@ -24,13 +25,17 @@ app.set("trust proxy", 1);
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 app.use((req, res, next) => {
   const now = Date.now();
-  const key = `${req.ip ?? "unknown"}:${req.path.startsWith("/api/auth") ? "auth" : "api"}`;
+  const shareRequest =
+    req.path.startsWith("/rpc/share/public") || req.path.startsWith("/rpc/share/preview");
+  const scope = req.path.startsWith("/api/auth") ? "auth" : shareRequest ? "share" : "api";
+  const limit = scope === "auth" ? 60 : scope === "share" ? 90 : 600;
+  const key = `${req.ip ?? "unknown"}:${scope}`;
   const bucket = rateBuckets.get(key);
   if (!bucket || bucket.resetAt < now) {
     rateBuckets.set(key, { count: 1, resetAt: now + 60_000 });
   } else {
     bucket.count += 1;
-    if (bucket.count > (req.path.startsWith("/api/auth") ? 60 : 600)) {
+    if (bucket.count > limit) {
       res.status(429).json({ error: "Too many requests" });
       return;
     }
@@ -197,3 +202,19 @@ const server = app.listen(Number(process.env.PORT ?? 3100), () => {
 });
 
 attachCollaboration(server);
+
+const PURGE_INTERVAL_MS = 60 * 60 * 1000;
+const runRetentionPurge = async () => {
+  try {
+    const result = await purgeExpiredTrash(db);
+    if (result.purged) {
+      console.log(
+        `Retention purge removed ${result.purged} rows across ${result.workspaces} workspace${result.workspaces === 1 ? "" : "s"}`,
+      );
+    }
+  } catch (error) {
+    console.error("Retention purge failed", error);
+  }
+};
+setTimeout(() => void runRetentionPurge(), 60_000).unref();
+setInterval(() => void runRetentionPurge(), PURGE_INTERVAL_MS).unref();

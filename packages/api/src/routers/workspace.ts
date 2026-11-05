@@ -482,6 +482,7 @@ export const workspaceRouter = {
         description: z.string().max(500).nullable().optional(),
         icon: z.string().max(16).nullable().optional(),
         accent: z.string().max(32).nullable().optional(),
+        trashRetentionDays: z.number().int().min(0).max(3650).optional(),
       }),
     )
     .handler(async ({ context, input }) => {

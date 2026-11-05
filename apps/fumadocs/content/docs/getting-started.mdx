@@ -29,6 +29,13 @@ Open:
 - API health: [http://localhost:3100](http://localhost:3100)
 - Docs: [http://localhost:4000/docs](http://localhost:4000/docs)
 
+## Demo content (optional)
+
+`pnpm db:seed` creates a **Lattice demo** workspace for the first user (or
+`--email=<address>`) with linked notes and topics, three tags, a populated
+whiteboard, a review deck, and a capture in the inbox. It is idempotent and
+local-dev only; re-run with `--reset` to rebuild it.
+
 ## Create the first workspace
 
 1. Open `/login` and create an account.
@@ -68,6 +75,7 @@ No key means local retrieval mode. See [Intelligence](/docs/intelligence).
 ```bash
 pnpm check-types
 pnpm --filter @notes-learning/domain test
+pnpm db:seed
 pnpm --filter web build
 pnpm --filter server build
 pnpm --filter fumadocs build

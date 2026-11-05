@@ -9,6 +9,7 @@ import {
   relatedDocuments,
   safeDoc,
   scoreText,
+  tokenize,
   type AiCitation,
   type KnowledgeEdge,
   type KnowledgeNode,
@@ -236,6 +237,7 @@ export const aiRouter = {
         action: z.enum([
           "summarize",
           "explain",
+          "compare",
           "connections",
           "flashcards",
           "mindmap",
@@ -388,6 +390,58 @@ export const aiRouter = {
                   ? "Not updated in six months"
                   : "Contains an unresolved TODO",
             })),
+          local: true,
+        };
+      }
+
+      if (input.action === "compare") {
+        const pages = await context.db.page.findMany({
+          where: {
+            workspaceId: context.workspaceId,
+            deletedAt: null,
+            ...(allowed ? { id: { in: [...allowed] } } : {}),
+          },
+          include: { document: true },
+        });
+        const related = relatedDocuments(
+          { id: page.id, title: page.title, body },
+          pages
+            .filter((entry) => entry.id !== page.id)
+            .map((entry) => ({
+              id: entry.id,
+              title: entry.title,
+              body: entry.document?.plainText ?? "",
+            })),
+          3,
+        ).filter((entry) => entry.score > 0.05);
+        const sourceTerms = new Set(
+          tokenize(`${page.title} ${body}`).filter((term) => term.length > 3),
+        );
+        const lines = related.length
+          ? related.map((entry) => {
+              const shared = [
+                ...new Set(
+                  tokenize(`${entry.title} ${entry.body}`).filter(
+                    (term) => term.length > 3 && sourceTerms.has(term),
+                  ),
+                ),
+              ].slice(0, 6);
+              return `- **${entry.title}** — ${Math.round(entry.score * 100)}% shared language${
+                shared.length ? `: ${shared.join(", ")}` : ""
+              }`;
+            })
+          : ["- No closely related notes yet. Link a few pages, then compare again."];
+        return {
+          action: input.action,
+          answer: `**Local mode — comparing “${page.title}” with ${related.length} related note${
+            related.length === 1 ? "" : "s"
+          }**\n\n${lines.join("\n")}\n\nOpen the notes side by side to trace where they agree and where they diverge.`,
+          provider: "local",
+          citations: related.map((entry) => ({
+            pageId: entry.id,
+            title: entry.title,
+            excerpt: entry.body.slice(0, 500),
+          })),
           local: true,
         };
       }

@@ -321,26 +321,36 @@ export function CommandPalette({
 
   const pageItems = useMemo<PaletteItem[]>(() => {
     if (query.trim()) {
-      return pageResults.map((result) => ({
-        id: `${result.type}:${result.id}`,
-        label: result.title,
-        description: result.snippet,
-        group: "Search results",
-        icon:
-          result.type === "canvas" ? (
-            <Frame className="size-3.5 text-moss" />
-          ) : result.type === "capture" ? (
-            <Inbox className="size-3.5 text-saffron" />
-          ) : (
-            <BookOpen className="size-3.5 text-sky" />
-          ),
-        onSelect: () =>
-          result.type === "page"
-            ? navigate({ view: "page", id: result.id })
-            : result.type === "canvas"
-              ? navigate({ view: "canvas", id: result.id })
-              : navigate({ view: "inbox" }),
-      }));
+      return [
+        ...pageResults.map((result) => ({
+          id: `${result.type}:${result.id}`,
+          label: result.title,
+          description: result.snippet,
+          group: "Search results",
+          icon:
+            result.type === "canvas" ? (
+              <Frame className="size-3.5 text-moss" />
+            ) : result.type === "capture" ? (
+              <Inbox className="size-3.5 text-saffron" />
+            ) : (
+              <BookOpen className="size-3.5 text-sky" />
+            ),
+          onSelect: () =>
+            result.type === "page"
+              ? navigate({ view: "page", id: result.id })
+              : result.type === "canvas"
+                ? navigate({ view: "canvas", id: result.id })
+                : navigate({ view: "inbox" }),
+        })),
+        {
+          id: "search-everything",
+          label: `Search everything for “${query.trim()}”`,
+          description: "Open the full search view with filters",
+          group: "Search",
+          icon: <Search className="size-3.5" />,
+          onSelect: () => navigate({ view: "search", query: query.trim() }),
+        },
+      ];
     }
     return recentPages.map((page) => ({
       id: `recent:${page.id}`,
@@ -401,10 +411,18 @@ export function CommandPalette({
         onSelect: () => void createNotebook(notebookMatch[1]),
       };
     }
-    const openMatch = /^open (graph|inbox|learning|home|settings)$/.exec(normalized);
+    const openMatch = /^open (graph|inbox|learning|home|settings|timeline|search)$/.exec(normalized);
     if (openMatch) {
       const view = openMatch[1] === "learning" ? "learn" : openMatch[1];
-      if (view === "graph" || view === "inbox" || view === "learn" || view === "home" || view === "settings") {
+      if (
+        view === "graph" ||
+        view === "inbox" ||
+        view === "learn" ||
+        view === "home" ||
+        view === "settings" ||
+        view === "timeline" ||
+        view === "search"
+      ) {
         return {
           id: "natural-open",
           label: `Open ${openMatch[1]}`,
