@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  answerGraphQuery,
   docFromText,
   rankRecords,
   type SearchableRecord,
@@ -21,7 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
-import { useWorkspaceSearchIndex } from "@/hooks/use-local-data";
+import { useGraph, useWorkspaceSearchIndex } from "@/hooks/use-local-data";
 import { createPageLocal } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
@@ -42,10 +43,10 @@ interface ChatMessage {
 }
 
 const SUGGESTIONS = [
+  "What are the most connected notes?",
+  "Which notes are orphans?",
   "What are the open questions across my research?",
-  "Connect the ideas I have about knowledge graphs",
   "Summarize what I know about local-first architecture",
-  "What should I learn next?",
 ];
 
 export function AiPanel({
@@ -60,6 +61,7 @@ export function AiPanel({
   const router = useRouter();
   const { db, user, activeWorkspaceId, online } = useAppData();
   const index = useWorkspaceSearchIndex();
+  const graph = useGraph();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -102,6 +104,26 @@ export function AiPanel({
     setMessages((current) => [...current, userMessage]);
     setBusy(true);
     try {
+      const graphAnswer = answerGraphQuery(prompt, graph.nodes, graph.edges);
+      if (graphAnswer) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            content: graphAnswer.answer,
+            citations: graphAnswer.citations.map((citation) => ({
+              pageId: citation.pageId ?? "",
+              title: citation.title,
+              excerpt: citation.excerpt,
+            })),
+            provider: "local",
+            local: true,
+          },
+        ]);
+        setMode("local");
+        return;
+      }
       if (online && activeWorkspaceId) {
         const result = await client.ai.ask({
           question: prompt,

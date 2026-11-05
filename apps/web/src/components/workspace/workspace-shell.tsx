@@ -15,6 +15,7 @@ import { ShareDialog } from "@/components/share/share-dialog";
 import { CommandPalette } from "@/components/workspace/command-palette";
 import { ConflictResolver } from "@/components/workspace/conflict-resolver";
 import { BootErrorBanner, WorkspaceEmptyState } from "@/components/workspace/empty-state";
+import { GitSyncScheduler } from "@/components/workspace/git-sync-scheduler";
 import { QuickCaptureDialog, type CaptureInitial } from "@/components/workspace/quick-capture";
 import { TemplatePickerDialog } from "@/components/workspace/template-picker";
 import { WorkspaceSidebar } from "@/components/workspace/sidebar";
@@ -458,6 +459,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
       </div>
 
       <DueReminders />
+      <GitSyncScheduler />
       <CommandPalette
         open={commandOpen}
         onClose={() => setCommandOpen(false)}

@@ -1,10 +1,11 @@
 "use client";
 
-import { auditExportFilename, auditLogToCsv, createId, RETENTION_OPTIONS, type Role } from "@notes-learning/domain";
+import { auditExportFilename, auditLogToCsv, createId, exportVaultMarkdown, RETENTION_OPTIONS, type Role } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Input } from "@notes-learning/ui/components/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@notes-learning/ui/lib/utils";
+import { strToU8, zipSync } from "fflate";
 import {
   ArrowUpRight,
   Brain,
@@ -42,7 +43,7 @@ import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
 import { PluginManager } from "@/components/workspace/plugin-manager";
 import { DuplicateReviewPanel } from "@/components/workspace/duplicate-review";
 import { authClient } from "@/lib/auth-client";
-import { downloadTextFile } from "@/lib/download";
+import { downloadBytes, downloadTextFile } from "@/lib/download";
 import {
   exportWorkspaceLocal,
   importWorkspaceLocal,
@@ -230,6 +231,61 @@ export function SettingsView() {
     toast.success("Workspace exported as JSON");
   };
 
+  const exportVault = async () => {
+    if (!db || !activeWorkspaceId) return;
+    const [pages, documents, notebooks, tags, pageTags] = await Promise.all([
+      db.pages.where("workspaceId").equals(activeWorkspaceId).toArray(),
+      db.pageDocuments.where("workspaceId").equals(activeWorkspaceId).toArray(),
+      db.notebooks.where("workspaceId").equals(activeWorkspaceId).toArray(),
+      db.tags.where("workspaceId").equals(activeWorkspaceId).toArray(),
+      db.pageTags.toArray(),
+    ]);
+    const documentByPage = new Map(documents.map((document) => [document.pageId, document.content]));
+    const tagById = new Map(tags.map((tag) => [tag.id, tag.name]));
+    const tagsByPage = new Map<string, string[]>();
+    for (const link of pageTags) {
+      const name = tagById.get(link.tagId);
+      if (!name) continue;
+      const list = tagsByPage.get(link.pageId) ?? [];
+      list.push(name);
+      tagsByPage.set(link.pageId, list);
+    }
+    const files = exportVaultMarkdown({
+      pages: pages
+        .filter((page) => !page.deletedAt)
+        .map((page) => ({
+          id: page.id,
+          title: page.title,
+          icon: page.icon,
+          notebookId: page.notebookId,
+          updatedAt: page.updatedAt,
+          content: documentByPage.get(page.id) ?? null,
+          tags: tagsByPage.get(page.id) ?? [],
+        })),
+      notebooks: notebooks
+        .filter((notebook) => !notebook.deletedAt)
+        .map((notebook) => ({
+          id: notebook.id,
+          name: notebook.name,
+          parentId: notebook.parentId,
+        })),
+    });
+    if (!files.length) {
+      toast.error("There are no pages to export yet.");
+      return;
+    }
+    const archive = zipSync(
+      Object.fromEntries(files.map((file) => [file.path, strToU8(file.markdown)])),
+      { level: 6 },
+    );
+    downloadBytes(
+      `${(activeWorkspace?.name ?? "lattice").toLowerCase().replace(/\s+/g, "-")}-vault.zip`,
+      archive,
+      "application/zip",
+    );
+    toast.success(`Exported ${files.length} Markdown files`);
+  };
+
   const requestPersistence = async () => {
     if (!navigator.storage?.persist) return;
     const granted = await navigator.storage.persist();
@@ -388,6 +444,9 @@ export function SettingsView() {
                 </Button>
                 <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void exportWorkspace()}>
                   <Download className="size-3" /> Export this workspace
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void exportVault()}>
+                  <FolderUp className="size-3" /> Export Markdown vault
                 </Button>
               </div>
             </SettingsCard>

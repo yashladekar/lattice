@@ -9,9 +9,9 @@ description: What this implementation covers and which subsystems are deliberate
 - Local-first IndexedDB repository, outbox, snapshot, cursor pulls, conflict preservation.
 - Block editor with slash menu, mentions, page links, embeds, synced blocks, database block, Mermaid diagrams, page properties, block actions (duplicate, turn into, delete, copy block link), favorites, comments, versions, Markdown mode, and focus mode.
 - Infinite whiteboard with shapes, notes, freehand, interactive connectors, linked notes, nested canvases, layers, group resize, node-to-page conversion, outline generators (mind map, flowchart, concept map), snapshots, templates, presentation, and export.
-- Derived knowledge graph with typed edges, canvas-link edges, filters including recency and cluster coloring, local neighborhood view, orphan detection, manual relations, and dashed AI suggestions recorded with AI provenance on accept.
+- Derived knowledge graph with typed edges, canvas-link edges, filters including recency and cluster coloring, local neighborhood view, a minimap, orphan detection, manual relations, natural-language graph questions answered locally, and dashed AI suggestions recorded with AI provenance on accept.
 - Universal capture inbox, quick capture, URL preview, tag and related-note suggestions with explicit approval, and capture-to-page.
-- Workspace JSON export/import, per-page Markdown, GitHub Markdown import with two-way Git sync, and Obsidian and Notion vault import.
+- Workspace JSON export/import, per-page Markdown, GitHub Markdown import with two-way Git sync (including an optional schedule), an Obsidian-style Markdown vault export for round-trips, and Obsidian and Notion vault import.
 - Learning decks, generated and manual cards, SM-2 review, quizzes, mastery, paths, gaps, and opt-in due-card reminders while the app is open.
 - Optional AI with citations and local fallback: summarize, explain, compare, examples, connections, cards, mind map, outdated pages, and gaps.
 - Dashboard widgets with reorder and visibility controls, command palette, tabs with a split pane, keyboard-first navigation, search, timeline, trash, and a dismissible first-run checklist.
@@ -60,7 +60,6 @@ description: What this implementation covers and which subsystems are deliberate
 ## Next: knowledge intelligence
 
 - Embedding-based semantic search with a vector index.
-- Graph queries in natural language.
 - Temporal graph playback across note versions.
 - AI-generated diagrams previewed on the canvas before applying.
 
@@ -70,7 +69,6 @@ description: What this implementation covers and which subsystems are deliberate
 - Audio transcription / speech-to-text.
 - Browser extension distribution.
 - PDF text extraction and attachment OCR.
-- Unattended Git sync: the two-way sync runs today, but driven by a person with a token, not on a schedule.
 
 ## Shipped: plugin runtime
 
@@ -83,7 +81,6 @@ description: What this implementation covers and which subsystems are deliberate
 - Custom blocks and custom canvas tools from plugins.
 - Custom object types and property schemas.
 - Automation triggers and webhooks.
-- Import/export round-trip for Notion, Obsidian, and Markdown vaults.
 
 ## Explicit non-goals for this release
 

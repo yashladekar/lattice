@@ -53,8 +53,14 @@ A push sends the blob SHA it expects to replace, so a file that moved on the
 remote is refused with a conflict rather than overwritten. A file deleted
 remotely never deletes the page — the page is the copy you still have.
 
-The token is used for the session only and is never stored, so a scheduled
-background sync is not part of this release.
+### Scheduled sync
+
+The dialog can save the repository config (including the token) in this browser
+and run the same two-way sync on a schedule: every 15 minutes, 30 minutes, an
+hour, or four hours, checked while Lattice is open and online. Scheduled passes
+only push local edits and pull remote edits — conflicts, deleted-remote files,
+and never-published pages still wait for a person. **Forget saved credentials**
+removes the stored config and token.
 
 ## Obsidian and Notion vaults
 
@@ -73,6 +79,18 @@ The importer reads the conventions those tools write:
 A link that resolves to nothing keeps its literal `[[text]]`, and a name shared by
 two notes is never guessed at — both are reported instead of silently linking the
 wrong page.
+
+### Vault export
+
+**Settings → General → Export Markdown vault** writes the workspace as a `.zip`
+of Markdown files that the importer can read back:
+
+- Pages are grouped under their notebook path, with invalid filename characters
+  replaced and duplicate names numbered.
+- Frontmatter carries `title`, `tags`, and `icon`.
+- Page links are written as `[[Title]]`, so a vault survives a round-trip through
+  Obsidian, Notion, or another Markdown tool and returns as linked pages.
+- Attachments are not bundled; images keep their served URLs.
 
 ## Markdown
 

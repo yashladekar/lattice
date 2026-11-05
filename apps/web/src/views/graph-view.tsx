@@ -236,6 +236,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [positions, setPositions] = useState<Map<string, GraphPosition>>(new Map());
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [suggestions, setSuggestions] = useState<
     Array<{ sourceNodeId: string; targetNodeId: string; sourceTitle: string; targetTitle: string; score: number; reason: string }>
   >([]);
@@ -405,6 +406,47 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
         : [],
     [graph.edges, selectedId],
   );
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const update = () =>
+      setContainerSize({ width: element.clientWidth, height: element.clientHeight });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const minimap = useMemo(() => {
+    const points = [...positions.values()];
+    if (!points.length) return null;
+    const minX = Math.min(...points.map((point) => point.x)) - 60;
+    const maxX = Math.max(...points.map((point) => point.x)) + 60;
+    const minY = Math.min(...points.map((point) => point.y)) - 60;
+    const maxY = Math.max(...points.map((point) => point.y)) + 60;
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    return {
+      minX,
+      minY,
+      width,
+      height,
+      scale: Math.min(150 / width, 80 / height),
+    };
+  }, [positions]);
+
+  const zoomToNode = (nodeId: string) => {
+    const point = positions.get(nodeId);
+    const container = containerRef.current;
+    if (!point || !container) return;
+    const zoom = 1.4;
+    setViewport({
+      zoom,
+      x: container.clientWidth / 2 - point.x * zoom,
+      y: container.clientHeight / 2 - point.y * zoom,
+    });
+  };
 
   const fit = () => {
     const values = [...positions.values()];
@@ -745,8 +787,62 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             <button type="button" onClick={fit} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted">
               <Maximize2 className="size-3" />
             </button>
+            <button
+              type="button"
+              onClick={() => selectedId && zoomToNode(selectedId)}
+              disabled={!selectedId}
+              title="Zoom to selected node"
+              className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted disabled:opacity-30"
+            >
+              <Focus className="size-3" />
+            </button>
           </div>
         </div>
+
+        {minimap ? (
+          <div
+            data-graph-ui
+            role="button"
+            aria-label="Minimap — click to jump"
+            title="Minimap — click to jump"
+            className="absolute right-3 top-12 z-20 h-[96px] w-[166px] cursor-crosshair rounded-lg border border-border/70 bg-popover/90 p-2 shadow-lg backdrop-blur"
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              const padding = 8;
+              const worldX = (event.clientX - rect.left - padding) / minimap.scale + minimap.minX;
+              const worldY = (event.clientY - rect.top - padding) / minimap.scale + minimap.minY;
+              const container = containerRef.current;
+              if (!container) return;
+              setViewport({
+                ...viewport,
+                x: container.clientWidth / 2 - worldX * viewport.zoom,
+                y: container.clientHeight / 2 - worldY * viewport.zoom,
+              });
+            }}
+          >
+            <svg width="150" height="80" className="overflow-visible">
+              {[...positions.entries()].map(([id, point]) => (
+                <circle
+                  key={id}
+                  cx={(point.x - minimap.minX) * minimap.scale}
+                  cy={(point.y - minimap.minY) * minimap.scale}
+                  r={selectedId === id ? 3 : 2}
+                  className={selectedId === id ? "fill-primary" : "fill-muted-foreground/60"}
+                />
+              ))}
+              {containerSize.width ? (
+                <rect
+                  x={(-viewport.x / viewport.zoom - minimap.minX) * minimap.scale}
+                  y={(-viewport.y / viewport.zoom - minimap.minY) * minimap.scale}
+                  width={(containerSize.width / viewport.zoom) * minimap.scale}
+                  height={(containerSize.height / viewport.zoom) * minimap.scale}
+                  className="fill-primary/5 stroke-primary/50"
+                  strokeWidth={1}
+                />
+              ) : null}
+            </svg>
+          </div>
+        ) : null}
 
         <div data-graph-ui className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
           <Button variant="outline" size="sm" className="h-7 rounded-md bg-popover/90 text-[9px] backdrop-blur" onClick={() => void suggestConnections()} disabled={suggesting}>

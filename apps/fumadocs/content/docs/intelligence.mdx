@@ -49,6 +49,21 @@ The base URL is server-controlled. User input never becomes an outbound AI endpo
 Editor results render citations as clickable chips that open the source page,
 and every "apply" action (cards, mind map, connection) stays explicit.
 
+## Graph queries
+
+Some questions are better answered from the graph than from a language model.
+The Ask panel recognizes them and answers **locally, with citations, even
+offline**:
+
+- “What is connected to *Spaced repetition*?” — lists in/out relations with
+  their types.
+- “How are *X* and *Y* related?” — finds the shortest path and shows each hop.
+- “Which notes are orphans?” — lists nodes with no connections.
+- “What are the most connected notes?” — ranks hubs by degree.
+
+Ambiguous names return the candidate list instead of guessing. Anything that is
+not a graph question falls through to the server retrieval/provider path.
+
 ## Guardrails
 
 - AI can propose; it cannot silently write. Applying cards, connections, or pages is a user action.

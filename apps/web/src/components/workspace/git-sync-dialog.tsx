@@ -3,13 +3,19 @@
 import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { ArrowDownToLine, ArrowUpFromLine, GitBranch, Loader2, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
 import { parseRepoInput } from "@/lib/github-import";
 import { planSync, pullRow, pushRow, type GitSyncRow, type GitTarget } from "@/lib/git-sync";
+import {
+  clearGitSyncConfig,
+  loadGitSyncConfig,
+  saveGitSyncConfig,
+  type GitSyncConfig,
+} from "@/lib/git-sync-schedule";
 
 const STATE_LABELS: Record<GitSyncRow["action"], string> = {
   "in-sync": "In sync",
@@ -44,6 +50,55 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [busy, setBusy] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [autoSync, setAutoSync] = useState(false);
+  const [intervalMinutes, setIntervalMinutes] = useState("60");
+  const [savedConfig, setSavedConfig] = useState<GitSyncConfig | null>(null);
+
+  useEffect(() => {
+    if (!open || !activeWorkspaceId) return;
+    const config = loadGitSyncConfig(activeWorkspaceId);
+    setSavedConfig(config);
+    if (!config) return;
+    setRepo(config.repo);
+    setBranch(config.branch);
+    setPrefix(config.pathPrefix);
+    setToken(config.token);
+    setCommitMessage(config.commitMessage);
+    setAutoSync(config.enabled);
+    setIntervalMinutes(String(config.intervalMinutes));
+  }, [open, activeWorkspaceId]);
+
+  const saveSchedule = () => {
+    if (!activeWorkspaceId || !parsed) {
+      toast.error("Enter the repository first.");
+      return;
+    }
+    const config: GitSyncConfig = {
+      repo: `${parsed.owner}/${parsed.repo}`,
+      branch,
+      pathPrefix: prefix,
+      token,
+      commitMessage: commitMessage.trim(),
+      intervalMinutes: Number(intervalMinutes) || 60,
+      enabled: autoSync,
+    };
+    saveGitSyncConfig(activeWorkspaceId, config);
+    setSavedConfig(config);
+    toast.success(
+      autoSync
+        ? `Scheduled sync saved — every ${config.intervalMinutes} min`
+        : "Scheduled sync is off; the saved config stays for manual runs",
+    );
+  };
+
+  const forgetSchedule = () => {
+    if (!activeWorkspaceId) return;
+    clearGitSyncConfig(activeWorkspaceId);
+    setSavedConfig(null);
+    setAutoSync(false);
+    setToken("");
+    toast.success("Saved sync credentials removed from this browser");
+  };
 
   const parsed = parseRepoInput(repo);
   const target: GitTarget | null = parsed
@@ -149,7 +204,11 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
           <span className="text-[9px] text-muted-foreground">
             {counts
               ? `${counts.push} to push · ${counts.pull} to pull · ${counts.conflicts} conflicts`
-              : "The token is used for this session only and never stored."}
+              : savedConfig
+                ? savedConfig.enabled
+                  ? `Scheduled sync every ${savedConfig.intervalMinutes} min · token saved in this browser`
+                  : "Saved config · scheduled sync is off"
+                : "The token is used for this session only unless you save it for scheduled sync."}
           </span>
           <div className="flex items-center gap-2">
             {rows?.length ? (
@@ -241,6 +300,52 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
             className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary/40"
           />
         </label>
+
+        <div className="rounded-lg border border-border/60 bg-background/40 px-2.5 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-[10px]">
+              <input
+                type="checkbox"
+                checked={autoSync}
+                onChange={(event) => setAutoSync(event.target.checked)}
+                className="size-3 accent-[var(--saffron)]"
+              />
+              Sync on a schedule
+            </label>
+            <select
+              value={intervalMinutes}
+              onChange={(event) => setIntervalMinutes(event.target.value)}
+              className="h-7 rounded-md border border-border bg-background px-1.5 text-[9px]"
+            >
+              <option value="15">every 15 min</option>
+              <option value="30">every 30 min</option>
+              <option value="60">every hour</option>
+              <option value="240">every 4 hours</option>
+            </select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-md text-[9px]"
+              disabled={!target}
+              onClick={saveSchedule}
+            >
+              Save for scheduled sync
+            </Button>
+            {savedConfig ? (
+              <button
+                type="button"
+                onClick={forgetSchedule}
+                className="text-[8px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
+              >
+                Forget saved credentials
+              </button>
+            ) : null}
+          </div>
+          <p className="mt-1.5 text-[8px] leading-relaxed text-muted-foreground">
+            Scheduled passes push local edits and pull remote edits; conflicts and unpublished pages
+            still wait for you. The token is stored in this browser so the background run can use it.
+          </p>
+        </div>
 
         {error ? (
           <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive">
