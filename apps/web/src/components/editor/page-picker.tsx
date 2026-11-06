@@ -68,7 +68,7 @@ export function PagePickerDialog({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Find a page…"
-          className="h-9 rounded-lg pl-8 text-[12px]"
+          className="h-9 rounded-lg pl-8 text-xs"
           autoFocus
         />
       </div>
@@ -86,9 +86,9 @@ export function PagePickerDialog({
               "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted/60",
             )}
           >
-            <span className="w-4 text-center text-[11px]">{page.icon ?? "◇"}</span>
-            <span className="min-w-0 flex-1 truncate text-[11px]">{page.title}</span>
-            <span className="text-[8px] text-muted-foreground">
+            <span className="w-4 text-center text-xs">{page.icon ?? "◇"}</span>
+            <span className="min-w-0 flex-1 truncate text-xs">{page.title}</span>
+            <span className="text-xs text-muted-foreground">
               {new Date(page.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             </span>
           </button>
@@ -96,11 +96,11 @@ export function PagePickerDialog({
         {!filtered.length ? (
           <div className="py-8 text-center">
             <FileText className="mx-auto size-5 text-muted-foreground/40" />
-            <p className="mt-2 text-[10px] text-muted-foreground">No pages match.</p>
+            <p className="mt-2 text-xs text-muted-foreground">No pages match.</p>
             <button
               type="button"
               onClick={() => void createAndPick()}
-              className="mt-2 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-[10px] hover:bg-muted"
+              className="mt-2 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-muted"
             >
               <Plus className="size-3" /> Create “{query.trim() || "Linked page"}”
             </button>
@@ -111,7 +111,7 @@ export function PagePickerDialog({
         <button
           type="button"
           onClick={() => void createAndPick()}
-          className="mt-2 flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-2 py-2 text-left text-[10px] text-muted-foreground hover:bg-muted/50"
+          className="mt-2 flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-2 py-2 text-left text-xs text-muted-foreground hover:bg-muted/50"
         >
           <Plus className="size-3" /> Create a new page called “{query.trim()}”
         </button>

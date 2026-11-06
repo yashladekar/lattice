@@ -121,13 +121,13 @@ export function AuthView() {
         <div className="absolute -left-24 top-[30%] size-96 rounded-full bg-saffron/20 blur-3xl" />
         <div className="relative z-10 flex items-center justify-between">
           <LatticeLogo href="/" className="[&_span]:text-[oklch(0.94_0.008_85)]" />
-          <Link href="/" className="flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white">
+          <Link href="/" className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white">
             <ArrowLeft className="size-3" /> Back home
           </Link>
         </div>
 
         <div className="relative z-10 my-auto max-w-md">
-          <div className="mb-5 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/40">
+          <div className="mb-5 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
             <span className="size-1.5 rounded-full bg-saffron" />
             A local-first knowledge OS
           </div>
@@ -140,7 +140,7 @@ export function AuthView() {
           </p>
 
           <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
-            <div className="flex items-center justify-between text-[10px] text-white/45">
+            <div className="flex items-center justify-between text-xs text-white/45">
               <span className="flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-[#6f9c7d]" /> Saved locally
               </span>
@@ -150,20 +150,20 @@ export function AuthView() {
               <LatticeMark className="size-7" />
               <div className="flex-1">
                 <div className="font-display text-xl">The shape of an idea</div>
-                <div className="mt-1 text-[10px] leading-relaxed text-white/45">
+                <div className="mt-1 text-xs leading-relaxed text-white/45">
                   Every note is a node. Every canvas is a lens. Nothing is copied to make a new view work.
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  <span className="rounded-full border border-white/15 px-2 py-0.5 text-[8px] text-white/50">research</span>
-                  <span className="rounded-full border border-white/15 px-2 py-0.5 text-[8px] text-white/50">graph</span>
-                  <span className="ml-auto text-[8px] text-saffron">◇ 4 connections</span>
+                  <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs text-white/50">research</span>
+                  <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs text-white/50">graph</span>
+                  <span className="ml-auto text-xs text-saffron">◇ 4 connections</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center gap-5 text-[10px] text-white/35">
+        <div className="relative z-10 flex items-center gap-5 text-xs text-white/35">
           <span className="flex items-center gap-1.5"><Lock className="size-3" /> Encrypted in transit</span>
           <span className="flex items-center gap-1.5"><Shield className="size-3" /> Export anytime</span>
         </div>
@@ -172,21 +172,21 @@ export function AuthView() {
       <section className="flex min-h-dvh flex-col">
         <div className="flex items-center justify-between p-5 lg:hidden">
           <LatticeLogo />
-          <Link href="/" className="text-[11px] text-muted-foreground">
+          <Link href="/" className="text-xs text-muted-foreground">
             Back home
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-center px-5 py-10">
           <div className="w-full max-w-sm">
             <div className="mb-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-2.5 py-1 text-[10px] text-muted-foreground">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-2.5 py-1 text-xs text-muted-foreground">
                 <span className="size-1.5 rounded-full bg-saffron" />
                 {mode === "signup" ? "Create your lattice" : "Welcome back"}
               </div>
               <h2 className="mt-5 font-display text-4xl leading-[1.02] tracking-[-0.03em]">
                 {mode === "signup" ? "Start with one idea." : "Return to your thinking."}
               </h2>
-              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {mode === "signup"
                   ? "Your personal workspace is ready in a moment — local storage first, cloud sync optional."
                   : "Pick up where you left off. Everything is still here."}
@@ -196,7 +196,7 @@ export function AuthView() {
             <form onSubmit={submit} className="space-y-4">
               {mode === "signup" ? (
                 <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-[11px]">Name</Label>
+                  <Label htmlFor="name" className="text-xs">Name</Label>
                   <Input
                     id="name"
                     name="name"
@@ -209,7 +209,7 @@ export function AuthView() {
                 </div>
               ) : null}
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-[11px]">Email</Label>
+                <Label htmlFor="email" className="text-xs">Email</Label>
                 <Input
                   id="email"
                   name="email"
@@ -223,9 +223,9 @@ export function AuthView() {
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-[11px]">Password</Label>
+                  <Label htmlFor="password" className="text-xs">Password</Label>
                   {mode === "signin" ? (
-                    <span className="text-[10px] text-muted-foreground">8+ characters</span>
+                    <span className="text-xs text-muted-foreground">8+ characters</span>
                   ) : null}
                 </div>
                 <div className="relative">
@@ -251,7 +251,7 @@ export function AuthView() {
               </div>
 
               {error ? (
-                <div className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
+                <div className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive">
                   {error}
                 </div>
               ) : null}
@@ -259,7 +259,7 @@ export function AuthView() {
               <Button
                 type="submit"
                 disabled={submitting}
-                className="h-10 w-full rounded-lg text-[13px]"
+                className="h-10 w-full rounded-lg text-sm"
               >
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -274,13 +274,13 @@ export function AuthView() {
 
             {mode === "signin" ? (
               <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-3">
-                <div className="text-[10px] font-medium text-foreground">Single sign-on</div>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                <div className="text-xs font-medium text-foreground">Single sign-on</div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   If your workspace uses an identity provider, enter your work email and continue
                   there.
                 </p>
                 {ssoError ? (
-                  <div className="mt-2 rounded-md border border-destructive/25 bg-destructive/5 px-2 py-1.5 text-[10px] text-destructive">
+                  <div className="mt-2 rounded-md border border-destructive/25 bg-destructive/5 px-2 py-1.5 text-xs text-destructive">
                     {ssoError}
                   </div>
                 ) : null}
@@ -288,7 +288,7 @@ export function AuthView() {
                   type="button"
                   variant="outline"
                   disabled={ssoBusy}
-                  className="mt-2 h-9 w-full rounded-lg text-[11px]"
+                  className="mt-2 h-9 w-full rounded-lg text-xs"
                   onClick={() => void startSso()}
                 >
                   {ssoBusy ? (
@@ -302,7 +302,7 @@ export function AuthView() {
               </div>
             ) : null}
 
-            <div className="mt-5 text-center text-[11px] text-muted-foreground">
+            <div className="mt-5 text-center text-xs text-muted-foreground">
               {mode === "signup" ? "Already have a workspace?" : "New to Lattice?"}{" "}
               <button
                 type="button"
@@ -316,7 +316,7 @@ export function AuthView() {
               </button>
             </div>
 
-            <div className="mt-10 flex items-center justify-center gap-4 text-[9px] text-muted-foreground/70">
+            <div className="mt-10 flex items-center justify-center gap-4 text-xs text-muted-foreground/70">
               <span className="flex items-center gap-1"><Lock className="size-2.5" /> Local-first</span>
               <span className="flex items-center gap-1"><Shield className="size-2.5" /> No tracking</span>
               <span className="flex items-center gap-1"><ArrowLeft className="size-2.5 rotate-45" /> Portable</span>

@@ -45,10 +45,10 @@ export function PageView({
         <div>
           <FileQuestion className="mx-auto size-8 text-muted-foreground/40" />
           <h2 className="mt-3 font-display text-2xl">No page selected</h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Choose a page from the sidebar or press ⌘K to search.
           </p>
-          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-[11px] text-primary">
+          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-xs text-primary">
             <ArrowLeft className="size-3" /> Back home
           </Link>
         </div>
@@ -62,10 +62,10 @@ export function PageView({
         <div>
           <FileQuestion className="mx-auto size-8 text-muted-foreground/40" />
           <h2 className="mt-3 font-display text-2xl">Page not available</h2>
-          <p className="mt-1 max-w-sm text-[11px] text-muted-foreground">
+          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
             It may have been deleted, or it is private to another collaborator.
           </p>
-          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-[11px] text-primary">
+          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-xs text-primary">
             <ArrowLeft className="size-3" /> Back home
           </Link>
         </div>
@@ -115,7 +115,7 @@ export function PageView({
           className="hidden w-7 shrink-0 items-start justify-center border-l border-border/50 pt-4 text-muted-foreground/40 hover:bg-muted/30 hover:text-foreground xl:flex"
           aria-label="Open page context"
         >
-          <span className="rotate-90 whitespace-nowrap text-[8px] uppercase tracking-[0.15em]">Context</span>
+          <span className="rotate-90 whitespace-nowrap text-xs uppercase tracking-[0.15em]">Context</span>
         </button>
       )}
     </div>

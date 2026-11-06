@@ -57,11 +57,11 @@ export function DiagramNodeView({ node, updateAttributes, selected }: NodeViewPr
         className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5"
         data-drag-handle
       >
-        <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
           {editing ? "Diagram source" : `${diagramTypeOf(source)} diagram`}
         </span>
         {status === "error" && !editing ? (
-          <span className="rounded-full border border-destructive/30 px-1.5 py-0.5 text-[8px] text-destructive">
+          <span className="rounded-full border border-destructive/30 px-1.5 py-0.5 text-xs text-destructive">
             needs fixing
           </span>
         ) : null}
@@ -126,16 +126,16 @@ export function DiagramNodeView({ node, updateAttributes, selected }: NodeViewPr
             spellCheck={false}
             rows={Math.min(18, Math.max(6, draft.split("\n").length + 1))}
             placeholder={DEFAULT_DIAGRAM_SOURCE}
-            className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 font-mono text-[11px] leading-relaxed outline-none focus:border-primary/40"
+            className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-primary/40"
           />
           <div className="mt-2 flex items-center gap-2">
             <input
               value={captionDraft}
               onChange={(event) => setCaptionDraft(event.target.value)}
               placeholder="Caption (optional)"
-              className="h-7 flex-1 rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+              className="h-8 flex-1 rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
             />
-            <span className="text-[9px] text-muted-foreground">⌘↵ to apply</span>
+            <span className="text-xs text-muted-foreground">⌘↵ to apply</span>
           </div>
         </div>
       ) : (
@@ -146,7 +146,7 @@ export function DiagramNodeView({ node, updateAttributes, selected }: NodeViewPr
             onStatusChange={setStatus}
           />
           {caption ? (
-            <p className="mt-2 text-center text-[9.5px] text-muted-foreground">{caption}</p>
+            <p className="mt-2 text-center text-xs text-muted-foreground">{caption}</p>
           ) : null}
         </div>
       )}

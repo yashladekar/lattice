@@ -303,7 +303,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
     <div className="flex h-dvh overflow-hidden bg-background">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[200] focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-3 focus:py-1.5 focus:text-[10px]"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[200] focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-3 focus:py-1.5 focus:text-xs"
       >
         Skip to content
       </a>
@@ -392,7 +392,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
             <button
               type="button"
               onClick={() => setFocusMode(false)}
-              className="fixed right-4 top-4 z-50 inline-flex items-center gap-1 rounded-full border border-border bg-card/90 px-3 py-1.5 text-[9px] text-muted-foreground shadow-lg backdrop-blur hover:text-foreground"
+              className="fixed right-4 top-4 z-50 inline-flex items-center gap-1 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-lg backdrop-blur hover:text-foreground"
             >
               <Focus className="size-3" /> Exit focus mode
             </button>
@@ -403,7 +403,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
           <div className={contentClassName}>{content}</div>
           {paneTarget ? (
             <div className="flex min-h-0 w-[42%] max-w-[60%] min-w-[300px] shrink-0 flex-col border-l border-border/60">
-              <div className="flex h-7 shrink-0 items-center justify-between border-b border-border/60 bg-background/60 px-2 text-[9px] text-muted-foreground">
+              <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/60 bg-background/60 px-2 text-xs text-muted-foreground">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <Columns2 className="size-3" />
                   <span className="truncate">
@@ -436,7 +436,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
           ) : null}
         </div>
         {!focusMode ? (
-          <footer className="hidden h-6 shrink-0 items-center justify-between border-t border-border/50 bg-background/50 px-3 text-[8px] text-muted-foreground md:flex">
+          <footer className="hidden h-7 shrink-0 items-center justify-between border-t border-border/50 bg-background/50 px-3 text-xs text-muted-foreground md:flex">
             <div className="flex items-center gap-2">
               <span className={cn("status-dot", online ? "bg-moss" : "bg-saffron")} />
               {online ? (syncState.pending ? `${syncState.pending} changes queued` : "All changes local") : "Offline · local only"}
@@ -509,7 +509,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
       <ConflictResolver open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
 
       {db && activeWorkspaceId && !page && route.view === "page" && route.id ? (
-        <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-card/90 px-3 py-1.5 text-[9px] text-muted-foreground shadow-lg backdrop-blur">
+        <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-lg backdrop-blur">
           This page is missing or private.
           <button type="button" onClick={() => router.push(appHref({ view: "home" }))} className="ml-2 text-primary hover:underline">
             Go home

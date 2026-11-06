@@ -95,15 +95,15 @@ export function ReviewQueue() {
       <div className="rounded-xl border border-border/70 bg-card/40 p-4">
         <div className="flex items-center gap-1.5">
           <GitPullRequest className="size-3.5 text-moss" />
-          <h3 className="text-[11px] font-medium">Pending suggestions</h3>
-          <span className="ml-auto text-[9px] text-muted-foreground">{pending.length} open</span>
+          <h3 className="text-xs font-medium">Pending suggestions</h3>
+          <span className="ml-auto text-xs text-muted-foreground">{pending.length} open</span>
         </div>
-        <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Suggestions change nothing until an editor accepts them. Accepting writes the proposed
           body through the normal document save; rejecting leaves the page untouched.
         </p>
         {!canReview ? (
-          <p className="mt-2 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-[9px] text-muted-foreground">
+          <p className="mt-2 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground">
             Your role can propose edits but not review them.
           </p>
         ) : null}
@@ -119,20 +119,20 @@ export function ReviewQueue() {
                   className="rounded-lg border border-border/60 bg-background/40 px-2.5 py-2"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[10px] font-medium">
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium">
                       {page?.title ?? "Missing page"}
                     </span>
-                    <span className="text-[8px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {nameOf(edit.authorId)} · {formatRelative(edit.createdAt)}
                     </span>
                     {stale ? (
-                      <span className="rounded-full border border-saffron/40 px-1.5 py-0.5 text-[7px] text-saffron">
+                      <span className="rounded-full border border-saffron/40 px-1.5 py-0.5 text-xs text-saffron">
                         page changed
                       </span>
                     ) : null}
                   </div>
                   {edit.note ? (
-                    <p className="mt-1 line-clamp-2 text-[9px] leading-relaxed text-muted-foreground">
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                       {edit.note}
                     </p>
                   ) : null}
@@ -140,14 +140,14 @@ export function ReviewQueue() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-6 rounded-md text-[8px]"
+                      className="h-7 rounded-md text-xs"
                       onClick={() => setPreview(edit)}
                     >
                       <Eye className="size-2.5" /> Preview
                     </Button>
                     <Button
                       size="sm"
-                      className="h-6 rounded-md text-[8px]"
+                      className="h-7 rounded-md text-xs"
                       disabled={!canReview || !page}
                       onClick={() => setPendingAccept(edit)}
                     >
@@ -156,7 +156,7 @@ export function ReviewQueue() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-6 rounded-md text-[8px] text-destructive"
+                      className="h-7 rounded-md text-xs text-destructive"
                       disabled={!canReview}
                       onClick={() => void resolve(edit, "REJECTED")}
                     >
@@ -167,7 +167,7 @@ export function ReviewQueue() {
               );
             })
           ) : (
-            <p className="py-4 text-center text-[9px] text-muted-foreground">
+            <p className="py-4 text-center text-xs text-muted-foreground">
               No open suggestions. Page actions → Suggest an edit creates one.
             </p>
           )}
@@ -176,12 +176,12 @@ export function ReviewQueue() {
 
       {reviewed.length ? (
         <div className="rounded-xl border border-border/70 bg-card/40 p-4">
-          <h3 className="text-[11px] font-medium">Recently reviewed</h3>
+          <h3 className="text-xs font-medium">Recently reviewed</h3>
           <div className="mt-2 space-y-1">
             {reviewed.map((edit) => (
               <div
                 key={edit.id}
-                className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-[9px]"
+                className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-xs"
               >
                 <span className="min-w-0 flex-1 truncate">
                   {pageById.get(edit.pageId)?.title ?? "Missing page"}
@@ -225,7 +225,7 @@ export function ReviewQueue() {
         className="max-w-2xl"
       >
         {preview ? (
-          <div className="rounded-lg border border-border/60 bg-card/40 p-3 text-[11px] leading-relaxed">
+          <div className="rounded-lg border border-border/60 bg-card/40 p-3 text-xs leading-relaxed">
             <ReadOnlyDocument doc={safeDoc(preview.content)} />
           </div>
         ) : null}

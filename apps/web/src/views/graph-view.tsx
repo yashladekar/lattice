@@ -730,7 +730,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Find a node…"
-              className="h-7 w-44 rounded-md bg-popover/90 pl-7 text-[10px] backdrop-blur"
+              className="h-8 w-44 rounded-md bg-popover/90 pl-7 text-xs backdrop-blur"
             />
           </div>
           <DropdownMenu>
@@ -739,7 +739,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 rounded-md bg-popover/90 px-2 text-[9px] backdrop-blur"
+                  className="h-8 rounded-md bg-popover/90 px-2 text-xs backdrop-blur"
                 />
               }
             >
@@ -760,7 +760,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 rounded-md bg-popover/90 px-2 text-[9px] backdrop-blur"
+                  className="h-8 rounded-md bg-popover/90 px-2 text-xs backdrop-blur"
                 />
               }
             >
@@ -782,7 +782,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 rounded-md bg-popover/90 px-2 text-[9px] backdrop-blur"
+                  className="h-8 rounded-md bg-popover/90 px-2 text-xs backdrop-blur"
                 />
               }
             >
@@ -804,7 +804,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 rounded-md bg-popover/90 px-2 text-[9px] backdrop-blur"
+                  className="h-8 rounded-md bg-popover/90 px-2 text-xs backdrop-blur"
                 />
               }
             >
@@ -819,7 +819,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <label className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-popover/90 px-2 text-[9px] text-muted-foreground backdrop-blur">
+          <label className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-popover/90 px-2 text-xs text-muted-foreground backdrop-blur">
             <input
               type="checkbox"
               checked={orphansOnly}
@@ -832,7 +832,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             type="button"
             onClick={() => setClusterColors((current) => !current)}
             className={cn(
-              "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] backdrop-blur",
+              "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs backdrop-blur",
               clusterColors
                 ? "border-border bg-card text-foreground"
                 : "border-border bg-popover/90 text-muted-foreground",
@@ -849,7 +849,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             disabled={!timeline}
             title="Play the graph back through time"
             className={cn(
-              "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] backdrop-blur disabled:opacity-40",
+              "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs backdrop-blur disabled:opacity-40",
               playbackAt !== null
                 ? "border-border bg-card text-foreground"
                 : "border-border bg-popover/90 text-muted-foreground",
@@ -858,7 +858,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             <Clock className="size-3" /> Playback
           </button>
           {focusDepth > 0 && selectedNode ? (
-            <span className="inline-flex h-7 items-center gap-1 rounded-md border border-saffron/40 bg-saffron/[0.08] px-2 text-[9px] backdrop-blur">
+            <span className="inline-flex h-8 items-center gap-1 rounded-md border border-saffron/40 bg-saffron/[0.08] px-2 text-xs backdrop-blur">
               <Focus className="size-3 text-saffron" />
               Local · depth {focusDepth} · {selectedNode.title}
               <button type="button" onClick={() => setFocusDepth(0)} aria-label="Exit local view">
@@ -870,7 +870,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.2) }))} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted">
               <ZoomOut className="size-3" />
             </button>
-            <span className="w-8 text-center font-mono text-[8px] text-muted-foreground">{Math.round(viewport.zoom * 100)}%</span>
+            <span className="w-8 text-center font-mono text-xs text-muted-foreground">{Math.round(viewport.zoom * 100)}%</span>
             <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(3, current.zoom * 1.2) }))} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted">
               <ZoomIn className="size-3" />
             </button>
@@ -939,7 +939,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             data-graph-ui
             className="absolute bottom-14 left-1/2 z-20 flex w-[min(520px,90%)] -translate-x-1/2 items-center gap-2 rounded-xl border border-border/70 bg-popover/95 px-3 py-2 shadow-xl backdrop-blur"
           >
-            <span className="shrink-0 text-[9px] text-muted-foreground">Graph at</span>
+            <span className="shrink-0 text-xs text-muted-foreground">Graph at</span>
             <input
               type="range"
               min={timeline.min}
@@ -950,14 +950,14 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               className="min-w-0 flex-1 accent-[var(--saffron)]"
               aria-label="Graph playback date"
             />
-            <span className="w-20 shrink-0 text-right text-[9px] text-muted-foreground">
+            <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
               {new Date(playbackAt).toLocaleDateString(undefined, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               })}
             </span>
-            <span className="w-28 shrink-0 truncate text-[8px] text-muted-foreground">
+            <span className="w-28 shrink-0 truncate text-xs text-muted-foreground">
               {versionTimeline.isFetching
                 ? "loading history…"
                 : playbackCaption
@@ -967,7 +967,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             <button
               type="button"
               onClick={() => setPlaybackAt(null)}
-              className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[8px] hover:bg-muted"
+              className="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs hover:bg-muted"
             >
               Live
             </button>
@@ -975,14 +975,14 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
         ) : null}
 
         <div data-graph-ui className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-          <Button variant="outline" size="sm" className="h-7 rounded-md bg-popover/90 text-[9px] backdrop-blur" onClick={() => void suggestConnections()} disabled={suggesting}>
+          <Button variant="outline" size="sm" className="h-8 rounded-md bg-popover/90 text-xs backdrop-blur" onClick={() => void suggestConnections()} disabled={suggesting}>
             <Sparkles className="size-3 text-saffron" /> {suggesting ? "Thinking…" : "Suggest"}
           </Button>
-          <Button variant="outline" size="sm" className="h-7 rounded-md bg-popover/90 text-[9px] backdrop-blur" onClick={() => setCreatingTopic(true)}>
+          <Button variant="outline" size="sm" className="h-8 rounded-md bg-popover/90 text-xs backdrop-blur" onClick={() => setCreatingTopic(true)}>
             <Plus className="size-3" /> Topic
           </Button>
           {onShare ? (
-            <Button variant="outline" size="sm" className="h-7 rounded-md bg-popover/90 text-[9px] backdrop-blur" onClick={onShare}>
+            <Button variant="outline" size="sm" className="h-8 rounded-md bg-popover/90 text-xs backdrop-blur" onClick={onShare}>
               Share
             </Button>
           ) : null}
@@ -1002,7 +1002,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 })
               }
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[8px] transition-colors",
+                "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors",
                 kindFilter.has(kind)
                   ? "border-border bg-card text-foreground"
                   : "border-transparent bg-muted/40 text-muted-foreground opacity-50",
@@ -1012,7 +1012,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               {NODE_META[kind].label}
             </button>
           ))}
-          <span className="ml-2 text-[8px] text-muted-foreground">
+          <span className="ml-2 text-xs text-muted-foreground">
             {filtered.nodes.length} nodes · {filtered.edges.length} edges · {orphans.size} orphan{orphans.size === 1 ? "" : "s"} · {components.length} cluster{components.length === 1 ? "" : "s"}
           </span>
         </div>
@@ -1133,8 +1133,8 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                   {kindIcon(node.kind)}
                 </span>
                 <span className="min-w-0 flex flex-col">
-                  <span className="max-w-40 truncate text-[9px] font-medium">{node.title}</span>
-                  <span className="text-[7px] uppercase tracking-[0.1em] text-muted-foreground">
+                  <span className="max-w-40 truncate text-xs font-medium">{node.title}</span>
+                  <span className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
                     {node.kind.toLowerCase()}
                     {page?.notebookId ? ` · ${notebookById.get(page.notebookId)?.name ?? ""}` : ""}
                   </span>
@@ -1152,7 +1152,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             <div className="max-w-sm text-center">
               <Network className="mx-auto size-8 text-muted-foreground/40" />
               <h2 className="mt-3 font-display text-2xl">Your graph is waiting</h2>
-              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Create pages and link them with [[, or add a topic and connect it to what you already know.
               </p>
             </div>
@@ -1170,8 +1170,8 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               {kindIcon(selectedNode.kind)}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[11px] font-medium">{selectedNode.title}</div>
-              <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+              <div className="truncate text-xs font-medium">{selectedNode.title}</div>
+              <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
                 {selectedNode.kind.toLowerCase()} · {degreeCount(selectedNode.id)} connections
               </div>
             </div>
@@ -1184,7 +1184,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               {selectedNode.pageId && pageById.get(selectedNode.pageId) ? (
                 <Button
                   size="sm"
-                  className="h-7 rounded-md text-[9px]"
+                  className="h-8 rounded-md text-xs"
                   onClick={() => router.push(appRouteObject({ view: "page", id: selectedNode.pageId as string }))}
                 >
                   Open page <ArrowUpRight className="size-3" />
@@ -1193,7 +1193,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               {selectedNode.canvasId && canvasById.get(selectedNode.canvasId) ? (
                 <Button
                   size="sm"
-                  className="h-7 rounded-md text-[9px]"
+                  className="h-8 rounded-md text-xs"
                   onClick={() => router.push(appRouteObject({ view: "canvas", id: selectedNode.canvasId as string }))}
                 >
                   Open canvas <ArrowUpRight className="size-3" />
@@ -1203,7 +1203,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 rounded-md text-[9px]"
+                  className="h-8 rounded-md text-xs"
                   onClick={() => void removeNode(selectedNode)}
                 >
                   <Trash2 className="size-3" /> Delete topic
@@ -1212,7 +1212,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               <Button
                 variant={focusDepth > 0 ? "default" : "outline"}
                 size="sm"
-                className="h-7 rounded-md text-[9px]"
+                className="h-8 rounded-md text-xs"
                 onClick={() => setFocusDepth((current) => (current > 0 ? 0 : 2))}
               >
                 <Focus className="size-3" /> {focusDepth > 0 ? "Exit local view" : "Focus neighborhood"}
@@ -1221,7 +1221,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 <select
                   value={focusDepth}
                   onChange={(event) => setFocusDepth(Number(event.target.value))}
-                  className="h-7 rounded-md border border-border bg-background px-1.5 text-[9px]"
+                  className="h-8 rounded-md border border-border bg-background px-1.5 text-xs"
                 >
                   <option value={1}>1 hop</option>
                   <option value={2}>2 hops</option>
@@ -1230,7 +1230,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               ) : null}
             </div>
 
-            <div className="mt-4 text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+            <div className="mt-4 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
               Relations
             </div>
             <div className="mt-1.5 space-y-1">
@@ -1241,7 +1241,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 return (
                   <div key={edge.id} className="flex items-center gap-1 rounded-md border border-border/50 bg-card/40 px-2 py-1.5">
                     <span className="size-1.5 rounded-full" style={{ background: RELATION_META[edge.relationType as RelationType]?.color ?? "#8b8b7a" }} />
-                    <button type="button" onClick={() => setSelectedId(otherId)} className="min-w-0 flex-1 truncate text-left text-[9px]">
+                    <button type="button" onClick={() => setSelectedId(otherId)} className="min-w-0 flex-1 truncate text-left text-xs">
                       {outgoing ? "" : "← "}{RELATION_META[edge.relationType as RelationType]?.label ?? edge.relationType}
                       {outgoing ? " → " : " "}
                       <span className="text-muted-foreground">{other?.title ?? "Unknown"}</span>
@@ -1265,18 +1265,18 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 );
               })}
               {!selectedEdges.length ? (
-                <p className="text-[9px] text-muted-foreground">No relations yet.</p>
+                <p className="text-xs text-muted-foreground">No relations yet.</p>
               ) : null}
             </div>
 
-            <div className="mt-4 text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+            <div className="mt-4 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
               Add a relation
             </div>
             <div className="mt-1.5 space-y-1.5">
               <select
                 value={targetNode}
                 onChange={(event) => setTargetNode(event.target.value)}
-                className="h-7 w-full rounded-md border border-border bg-background px-1.5 text-[9px]"
+                className="h-8 w-full rounded-md border border-border bg-background px-1.5 text-xs"
               >
                 <option value="">Connect to…</option>
                 {graph.nodes
@@ -1290,7 +1290,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               <select
                 value={relationType}
                 onChange={(event) => setRelationType(event.target.value as RelationType)}
-                className="h-7 w-full rounded-md border border-border bg-background px-1.5 text-[9px]"
+                className="h-8 w-full rounded-md border border-border bg-background px-1.5 text-xs"
               >
                 {RELATIONS.map((relation) => (
                   <option key={relation} value={relation}>
@@ -1298,12 +1298,12 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                   </option>
                 ))}
               </select>
-              <Button size="sm" className="h-7 w-full rounded-md text-[9px]" disabled={!targetNode} onClick={() => void addRelation()}>
+              <Button size="sm" className="h-8 w-full rounded-md text-xs" disabled={!targetNode} onClick={() => void addRelation()}>
                 <Link2 className="size-3" /> Add relation
               </Button>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+            <div className="mt-4 flex items-center justify-between text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
               AI suggestions
               <Sparkles className="size-3 text-saffron/60" />
             </div>
@@ -1313,21 +1313,21 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 .slice(0, 4)
                 .map((entry) => (
                   <div key={`${entry.sourceNodeId}-${entry.targetNodeId}`} className="rounded-md border border-saffron/20 bg-saffron/[0.04] px-2 py-1.5">
-                    <div className="text-[9px]">
+                    <div className="text-xs">
                       {entry.sourceNodeId === selectedNode.id ? entry.targetTitle : entry.sourceTitle}
                     </div>
-                    <div className="mt-0.5 text-[8px] text-muted-foreground">{entry.reason} · {entry.score}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{entry.reason} · {entry.score}</div>
                     <button
                       type="button"
                       onClick={() => void acceptSuggestion(entry.sourceNodeId, entry.targetNodeId)}
-                      className="mt-1 text-[8px] text-primary hover:underline"
+                      className="mt-1 text-xs text-primary hover:underline"
                     >
                       Add connection
                     </button>
                   </div>
                 ))}
               {!suggestions.length ? (
-                <p className="text-[8px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Use Suggest above to find missing connections from shared vocabulary.
                 </p>
               ) : null}
@@ -1338,7 +1338,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
 
       {suggestions.length ? (
         <div className="absolute bottom-14 right-4 z-30 w-64 rounded-xl border border-border bg-popover p-2 shadow-xl">
-          <div className="flex items-center gap-1.5 text-[9px] font-medium">
+          <div className="flex items-center gap-1.5 text-xs font-medium">
             <Sparkles className="size-3 text-saffron" /> Suggested connections
             <button type="button" onClick={() => setSuggestions([])} className="ml-auto">
               <X className="size-3 text-muted-foreground" />
@@ -1347,14 +1347,14 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
           <div className="mt-1 max-h-40 space-y-1 overflow-y-auto">
             {suggestions.slice(0, 6).map((entry) => (
               <div key={`${entry.sourceNodeId}-${entry.targetNodeId}`} className="rounded border border-border/50 bg-background/50 px-2 py-1.5">
-                <div className="text-[8px] leading-snug">
+                <div className="text-xs leading-snug">
                   {entry.sourceTitle} ↔ {entry.targetTitle}
                 </div>
-                <div className="mt-0.5 text-[7px] text-muted-foreground">{entry.reason}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{entry.reason}</div>
                 <button
                   type="button"
                   onClick={() => void acceptSuggestion(entry.sourceNodeId, entry.targetNodeId)}
-                  className="mt-1 text-[7px] text-primary hover:underline"
+                  className="mt-1 text-xs text-primary hover:underline"
                 >
                   Add
                 </button>
@@ -1368,12 +1368,12 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
         <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/25 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <div className="text-[12px] font-semibold">Create a topic</div>
+              <div className="text-xs font-semibold">Create a topic</div>
               <button type="button" onClick={() => setCreatingTopic(false)} aria-label="Close">
                 <X className="size-4 text-muted-foreground" />
               </button>
             </div>
-            <p className="mt-1 text-[9px] text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               Topics are first-class graph nodes that can connect pages, people, and resources.
             </p>
             <Input
@@ -1381,7 +1381,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               onChange={(event) => setTopicTitle(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && void createTopic()}
               placeholder="e.g. Embodied cognition"
-              className="mt-3 h-9 rounded-lg text-[11px]"
+              className="mt-3 h-9 rounded-lg text-xs"
               autoFocus
             />
             <div className="mt-3 flex justify-end gap-2">

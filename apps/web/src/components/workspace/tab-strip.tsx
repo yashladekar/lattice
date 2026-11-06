@@ -28,14 +28,14 @@ export function TabStrip({
         <div
           key={tab.key}
           className={cn(
-            "group flex h-6 shrink-0 items-center gap-1.5 rounded-md border border-transparent px-2 text-[10px] transition-colors",
+            "group flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-transparent px-2 text-xs transition-colors",
             activeKey === tab.key
               ? "border-border/70 bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
           )}
         >
           <button type="button" onClick={() => onSelect(tab)} className="flex items-center gap-1.5">
-            <span className="text-[10px]">{tab.icon}</span>
+            <span className="text-xs">{tab.icon}</span>
             <span className="max-w-40 truncate">{tab.title || "Untitled"}</span>
           </button>
           <button

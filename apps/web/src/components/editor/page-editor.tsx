@@ -341,7 +341,7 @@ export function PageEditor({
         label: entry.title || "Untitled",
         description: "Page",
         group: kind === "mention" ? "Pages" : "Pages",
-        icon: <span className="text-[11px]">{entry.icon ?? "◇"}</span>,
+        icon: <span className="text-xs">{entry.icon ?? "◇"}</span>,
         select: (editor, range) => {
           editor
             .chain()
@@ -403,7 +403,7 @@ export function PageEditor({
           label: person.name,
           description: "Mention teammate",
           group: "People",
-          icon: <span className="text-[9px] font-semibold">{person.name.slice(0, 1)}</span>,
+          icon: <span className="text-xs font-semibold">{person.name.slice(0, 1)}</span>,
           select: (editor, range) =>
             editor.chain().focus().deleteRange(range).insertContent(`@${person.name} `).run(),
         }));
@@ -1215,7 +1215,7 @@ export function PageEditor({
   return (
     <div className="relative mx-auto w-full max-w-3xl px-5 pb-32 pt-7 md:px-10 md:pt-10">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="capitalize">{page.type.toLowerCase()}</span>
           <span className="opacity-30">·</span>
           <span>{formatRelative(page.updatedAt)}</span>
@@ -1356,7 +1356,7 @@ export function PageEditor({
       </div>
 
       {remoteUpdate ? (
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-sky/25 bg-sky/[0.06] px-3 py-2 text-[10px] text-muted-foreground">
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-sky/25 bg-sky/[0.06] px-3 py-2 text-xs text-muted-foreground">
           <span className="size-1.5 rounded-full bg-sky" />
           A newer version arrived from another device.
           <button
@@ -1398,14 +1398,14 @@ export function PageEditor({
       </div>
 
       {clobberBlocked ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/[0.05] px-2.5 py-2 text-[9px]">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/[0.05] px-2.5 py-2 text-xs">
           <span className="text-destructive">
             This note was changed from outside this session, so saving here would overwrite the
             newer body. Reload to continue from the newer version.
           </span>
           <Button
             size="sm"
-            className="ml-auto h-6 rounded-md text-[8px]"
+            className="ml-auto h-7 rounded-md text-xs"
             onClick={() => void reloadFromDocument()}
           >
             Reload note
@@ -1413,7 +1413,7 @@ export function PageEditor({
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-b border-border/60 pb-3 text-[9px] text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-b border-border/60 pb-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5">
           <span className="size-1.5 rounded-full bg-moss" />
           {saveStatus === "saving" ? "Saving locally…" : saveStatus === "error" ? "Local save failed" : "Saved locally"}
@@ -1428,13 +1428,13 @@ export function PageEditor({
               {livePeers.slice(0, 3).map((peer) => (
                 <span
                   key={peer.id}
-                  className="grid size-4 place-items-center rounded-full border border-background bg-moss/20 text-[7px] font-semibold text-moss"
+                  className="grid size-5 place-items-center rounded-full border border-background bg-moss/20 text-xs font-semibold text-moss"
                 >
                   {peer.name.slice(0, 1).toUpperCase()}
                 </span>
               ))}
             </span>
-            <span className="text-[8px]">editing</span>
+            <span className="text-xs">editing</span>
           </span>
         ) : null}
         {collab ? (
@@ -1458,7 +1458,7 @@ export function PageEditor({
                     : "bg-border",
               )}
             />
-            <span className="text-[8px]">
+            <span className="text-xs">
               {collabStatus === "connected" ? "Live" : collabStatus === "connecting" ? "Connecting" : "Solo"}
             </span>
           </span>
@@ -1471,16 +1471,16 @@ export function PageEditor({
 
       {markdownMode ? (
         <div className="mt-5">
-          <div className="mb-2 flex items-center justify-between text-[9px] text-muted-foreground">
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
             <span>Markdown mode · edits replace the page when applied</span>
-            <Button size="sm" className="h-7 rounded-md text-[9px]" onClick={toggleMarkdown}>
+            <Button size="sm" className="h-8 rounded-md text-xs" onClick={toggleMarkdown}>
               Apply Markdown
             </Button>
           </div>
           <textarea
             value={markdownText}
             onChange={(event) => setMarkdownText(event.target.value)}
-            className="min-h-[55vh] w-full resize-y rounded-xl border border-border bg-card/40 p-4 font-mono text-[12px] leading-relaxed outline-none focus:border-ring"
+            className="min-h-[55vh] w-full resize-y rounded-xl border border-border bg-card/40 p-4 font-mono text-xs leading-relaxed outline-none focus:border-ring"
             spellCheck={false}
           />
         </div>
@@ -1592,7 +1592,7 @@ export function PageEditor({
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3 text-[8.5px] text-muted-foreground">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-2">
           <span className={`status-dot ${saveStatus === "error" ? "bg-destructive" : "bg-moss"}`} />
           Local-first · IndexedDB
@@ -1657,20 +1657,20 @@ export function PageEditor({
                 onClick={() => insertPluginBlock(choice)}
                 className="w-full rounded-lg border border-border/60 bg-background/40 px-2.5 py-2 text-left hover:bg-muted/40"
               >
-                <span className="block text-[10px] font-medium">{choice.tool.label}</span>
-                <span className="block text-[8.5px] text-muted-foreground">
+                <span className="block text-xs font-medium">{choice.tool.label}</span>
+                <span className="block text-xs text-muted-foreground">
                   {choice.plugin.manifest.name}
                   {choice.tool.output === "markdown" ? " · renders Markdown" : ""}
                 </span>
                 {choice.tool.description ? (
-                  <span className="mt-0.5 block text-[8.5px] leading-relaxed text-muted-foreground">
+                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
                     {choice.tool.description}
                   </span>
                 ) : null}
               </button>
             ))
           ) : (
-            <p className="py-4 text-center text-[9px] text-muted-foreground">
+            <p className="py-4 text-center text-xs text-muted-foreground">
               No plugin blocks installed. Install a plugin with a{" "}
               <span className="font-mono">blocks</span> entry in Settings → Plugins.
             </p>
@@ -1702,7 +1702,7 @@ export function PageEditor({
       >
         <div className="space-y-2">
           <label className="block">
-            <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
               Proposed body (Markdown)
             </span>
             <textarea
@@ -1710,18 +1710,18 @@ export function PageEditor({
               onChange={(event) => setSuggestText(event.target.value)}
               rows={14}
               spellCheck={false}
-              className="w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-[10px] leading-relaxed outline-none focus:border-primary/40"
+              className="w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-xs leading-relaxed outline-none focus:border-primary/40"
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
               Note for reviewers
             </span>
             <input
               value={suggestNote}
               onChange={(event) => setSuggestNote(event.target.value)}
               placeholder="Why this change?"
-              className="h-8 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
             />
           </label>
         </div>
@@ -1797,16 +1797,16 @@ function SaveTemplateDialog({
       description="Reuse this page's structure in any notebook."
       footer={
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[9px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Templates stay in this workspace and sync with it.
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-[11px]" onClick={onClose}>
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs" onClick={onClose}>
               Cancel
             </Button>
             <Button
               size="sm"
-              className="h-8 rounded-lg text-[11px]"
+              className="h-8 rounded-lg text-xs"
               disabled={!name.trim()}
               onClick={() => void onSave(name.trim(), category)}
             >
@@ -1818,24 +1818,24 @@ function SaveTemplateDialog({
     >
       <div className="space-y-3">
         <label className="block">
-          <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
             Template name
           </span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary/40"
+            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs outline-none focus:border-primary/40"
             autoFocus
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
             Category
           </span>
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            className="h-9 w-full rounded-lg border border-border bg-background px-2 text-[12px] outline-none focus:border-primary/40"
+            className="h-9 w-full rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
           >
             {["Work", "Writing", "Research", "Learning", "Engineering", "Personal"].map((value) => (
               <option key={value} value={value}>
@@ -1844,7 +1844,7 @@ function SaveTemplateDialog({
             ))}
           </select>
         </label>
-        <p className="text-[9.5px] leading-relaxed text-muted-foreground">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           The page body and properties are copied. Later edits to this page do not change the
           template.
         </p>
@@ -2042,28 +2042,28 @@ function VersionDialog({
   return (
     <Modal open={open} onClose={onClose} title="Version history" description="Restoring creates a new version; nothing is lost.">
       {loading ? (
-        <div className="py-8 text-center text-[10px] text-muted-foreground">Loading versions…</div>
+        <div className="py-8 text-center text-xs text-muted-foreground">Loading versions…</div>
       ) : versions.length ? (
         <div className="space-y-1.5">
           {versions.map((version) => (
             <div key={version.id} className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 px-3 py-2">
-              <span className="grid size-6 place-items-center rounded-full border border-border text-[9px] text-muted-foreground">
+              <span className="grid size-6 place-items-center rounded-full border border-border text-xs text-muted-foreground">
                 v{version.version}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[10px] font-medium">{version.title}</div>
-                <div className="text-[8px] text-muted-foreground">
+                <div className="truncate text-xs font-medium">{version.title}</div>
+                <div className="text-xs text-muted-foreground">
                   {new Date(version.createdAt).toLocaleString()} · {version.note ?? "Manual snapshot"}
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="h-6 rounded text-[8px]" onClick={() => onRestore(version.id)}>
+              <Button variant="outline" size="sm" className="h-7 rounded text-xs" onClick={() => onRestore(version.id)}>
                 Restore
               </Button>
             </div>
           ))}
         </div>
       ) : (
-        <div className="py-8 text-center text-[10px] text-muted-foreground">
+        <div className="py-8 text-center text-xs text-muted-foreground">
           No versions yet. Save one before a big edit.
         </div>
       )}
@@ -2097,19 +2097,19 @@ function AiResultDialog({
       className="max-w-2xl"
     >
       {busy ? (
-        <div className="flex items-center gap-2 py-10 text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-2 py-10 text-xs text-muted-foreground">
           <span className="size-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
           Retrieving your notes…
         </div>
       ) : result ? (
         <div className="space-y-3">
           {result.provider ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">
               <Sparkles className="size-2.5 text-saffron" /> {result.provider === "local" ? "local mode" : result.provider}
             </span>
           ) : null}
           {result.answer ? (
-            <div className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/20 p-3 text-[11px] leading-relaxed">
+            <div className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/20 p-3 text-xs leading-relaxed">
               {result.answer}
             </div>
           ) : null}
@@ -2121,7 +2121,7 @@ function AiResultDialog({
                   type="button"
                   onClick={() => onOpenPage(citation.pageId)}
                   title={citation.excerpt}
-                  className="inline-flex max-w-52 items-center gap-1 truncate rounded-full border border-border px-2 py-0.5 text-[8px] text-muted-foreground hover:border-saffron/50 hover:text-foreground"
+                  className="inline-flex max-w-52 items-center gap-1 truncate rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-saffron/50 hover:text-foreground"
                 >
                   <Sparkles className="size-2.5 shrink-0 text-saffron/70" />
                   <span className="truncate">{citation.title}</span>
@@ -2137,15 +2137,15 @@ function AiResultDialog({
                   className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[10px] font-medium">{entry.title}</div>
-                    <div className="text-[8px] text-muted-foreground">
+                    <div className="truncate text-xs font-medium">{entry.title}</div>
+                    <div className="text-xs text-muted-foreground">
                       {entry.reason} · {formatRelative(entry.updatedAt)}
                     </div>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-6 rounded text-[8px]"
+                    className="h-7 rounded text-xs"
                     onClick={() => onOpenPage(entry.id)}
                   >
                     Open
@@ -2153,7 +2153,7 @@ function AiResultDialog({
                 </div>
               ))}
               {!result.pages.length ? (
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Nothing looks stale. Every page was updated recently and has no open TODOs.
                 </p>
               ) : null}
@@ -2163,11 +2163,11 @@ function AiResultDialog({
             <div className="space-y-1.5">
               {result.cards.map((card, index) => (
                 <div key={index} className="rounded-lg border border-border/60 bg-card/50 p-2.5">
-                  <div className="text-[10px] font-medium">{card.front}</div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">{card.back}</div>
+                  <div className="text-xs font-medium">{card.front}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{card.back}</div>
                 </div>
               ))}
-              <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={onAddCards}>
+              <Button size="sm" className="h-8 rounded-lg text-xs" onClick={onAddCards}>
                 Add {result.cards.length} cards
               </Button>
             </div>
@@ -2176,11 +2176,11 @@ function AiResultDialog({
             <div className="space-y-1">
               {result.canvas ? <CanvasPlanPreview document={result.canvas} /> : null}
               {result.outline.map((item) => (
-                <div key={item.id} className="text-[10px] text-muted-foreground" style={{ paddingLeft: (item.level - 1) * 10 }}>
+                <div key={item.id} className="text-xs text-muted-foreground" style={{ paddingLeft: (item.level - 1) * 10 }}>
                   {item.text}
                 </div>
               ))}
-              <Button size="sm" className="mt-2 h-8 rounded-lg text-[10px]" onClick={onAddMindMap}>
+              <Button size="sm" className="mt-2 h-8 rounded-lg text-xs" onClick={onAddMindMap}>
                 Create whiteboard
               </Button>
             </div>
@@ -2189,15 +2189,15 @@ function AiResultDialog({
             <div className="space-y-1.5">
               {result.suggestions.map((suggestion) => (
                 <div key={suggestion.pageId} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2">
-                  <span className="text-[10px]">◇</span>
+                  <span className="text-xs">◇</span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[10px] font-medium">{suggestion.title}</div>
-                    <div className="text-[8px] text-muted-foreground">{suggestion.reason} · {suggestion.score}</div>
+                    <div className="truncate text-xs font-medium">{suggestion.title}</div>
+                    <div className="text-xs text-muted-foreground">{suggestion.reason} · {suggestion.score}</div>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-6 rounded text-[8px]"
+                    className="h-7 rounded text-xs"
                     onClick={() => onAddConnection(suggestion.pageId)}
                   >
                     Link

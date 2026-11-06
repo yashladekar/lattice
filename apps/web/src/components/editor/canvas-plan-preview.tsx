@@ -74,7 +74,7 @@ export function CanvasPlanPreview({ document }: { document: CanvasDocument }) {
           );
         })}
       </svg>
-      <p className="mt-1 text-center text-[8px] text-muted-foreground">
+      <p className="mt-1 text-center text-xs text-muted-foreground">
         Preview · the whiteboard opens with these nodes
       </p>
     </div>

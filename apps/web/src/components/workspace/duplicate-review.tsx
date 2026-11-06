@@ -83,12 +83,12 @@ export function DuplicateReviewPanel() {
       <div className="rounded-xl border border-border/70 bg-card/35 p-4">
         <div className="flex items-center gap-2">
           <CopyCheck className="size-3.5 text-muted-foreground" />
-          <h3 className="text-[11px] font-medium">Possible duplicates</h3>
-          <span className="ml-auto text-[8.5px] text-muted-foreground">
+          <h3 className="text-xs font-medium">Possible duplicates</h3>
+          <span className="ml-auto text-xs text-muted-foreground">
             {clusters ? `${clusters.length} group${clusters.length === 1 ? "" : "s"}` : "—"}
           </span>
         </div>
-        <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Notes are paired on a shared title, a title that drifted, or a body that repeats. Nothing is
           merged automatically: you pick which page to keep and the rest move to Trash, where they can
           be restored.
@@ -97,7 +97,7 @@ export function DuplicateReviewPanel() {
           <Button
             variant="outline"
             size="sm"
-            className="h-7 rounded-md text-[9px]"
+            className="h-8 rounded-md text-xs"
             disabled={scanning}
             onClick={() => void scan()}
           >
@@ -111,16 +111,16 @@ export function DuplicateReviewPanel() {
         clusters.map((cluster) => (
           <div key={cluster.id} className="rounded-xl border border-border/70 bg-card/35 p-4">
             <div className="flex items-center gap-2">
-              <span className={cn("text-[9px] uppercase tracking-wide", reasonTone(cluster.reason))}>
+              <span className={cn("text-xs uppercase tracking-wide", reasonTone(cluster.reason))}>
                 {REASON_LABELS[cluster.reason]}
               </span>
-              <span className="text-[8.5px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {Math.round(cluster.score * 100)}% match · {cluster.members.length} pages
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                className="ml-auto h-6 rounded-md text-[9px]"
+                className="ml-auto h-7 rounded-md text-xs"
                 disabled={Boolean(busy)}
                 onClick={() => void archiveOthers(cluster)}
               >
@@ -149,15 +149,15 @@ export function DuplicateReviewPanel() {
                         <button
                           type="button"
                           onClick={() => router.push(appRouteObject({ view: "page", id: member.id }))}
-                          className="truncate text-left text-[11px] hover:underline"
+                          className="truncate text-left text-xs hover:underline"
                         >
                           {member.title || "Untitled"}
                         </button>
                         {member.id === cluster.survivorId && !keepById[cluster.id] ? (
-                          <span className="rounded bg-moss/15 px-1 text-[8px] text-moss">suggested</span>
+                          <span className="rounded bg-moss/15 px-1 text-xs text-moss">suggested</span>
                         ) : null}
                       </div>
-                      <div className="truncate text-[8.5px] text-muted-foreground">
+                      <div className="truncate text-xs text-muted-foreground">
                         {member.excerpt || "No text"}
                       </div>
                     </div>
@@ -168,7 +168,7 @@ export function DuplicateReviewPanel() {
                       }
                       disabled={keeping}
                       className={cn(
-                        "shrink-0 rounded px-1.5 py-0.5 text-[8.5px]",
+                        "shrink-0 rounded px-1.5 py-0.5 text-xs",
                         keeping
                           ? "text-moss"
                           : "text-muted-foreground hover:text-foreground",
@@ -184,7 +184,7 @@ export function DuplicateReviewPanel() {
         ))
       ) : (
         <div className="rounded-xl border border-border/70 bg-card/35 p-4">
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {clusters === null
               ? "Scanning…"
               : "Nothing looks duplicated. Titles and bodies were both checked."}

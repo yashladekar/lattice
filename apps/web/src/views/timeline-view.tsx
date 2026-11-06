@@ -63,11 +63,11 @@ export function TimelineView() {
         </span>
         <div>
           <h1 className="font-display text-3xl tracking-[-0.03em]">Timeline</h1>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             How your thinking has moved across pages, canvases, and captures.
           </p>
         </div>
-        <div className="ml-auto rounded-full border border-border px-2 py-1 text-[9px] text-muted-foreground">
+        <div className="ml-auto rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
           {cards.length} cards due
         </div>
       </div>
@@ -77,9 +77,9 @@ export function TimelineView() {
           groups.map(([day, entries]) => (
             <section key={day}>
               <div className="sticky top-0 z-10 -mx-2 flex items-center gap-2 bg-background/90 px-2 py-1.5 backdrop-blur">
-                <span className="text-[10px] font-medium">{day}</span>
+                <span className="text-xs font-medium">{day}</span>
                 <span className="h-px flex-1 bg-border/60" />
-                <span className="text-[8px] text-muted-foreground">{entries.length} updates</span>
+                <span className="text-xs text-muted-foreground">{entries.length} updates</span>
               </div>
               <div className="mt-2 space-y-1 border-l border-border/60 pl-4">
                 {entries.map((entry) => (
@@ -102,7 +102,7 @@ export function TimelineView() {
                     className="group relative flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-card/60"
                   >
                     <span className="absolute -left-[21px] size-2 rounded-full border border-background bg-border group-hover:bg-saffron" />
-                    <span className="grid size-6 place-items-center rounded-md border border-border/60 bg-card text-[10px]">
+                    <span className="grid size-6 place-items-center rounded-md border border-border/60 bg-card text-xs">
                       {entry.kind === "canvas" ? (
                         <Frame className="size-3 text-moss" />
                       ) : entry.kind === "capture" ? (
@@ -111,8 +111,8 @@ export function TimelineView() {
                         entry.icon ?? <FileText className="size-3" />
                       )}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[11px]">{entry.title}</span>
-                    <span className="text-[8px] text-muted-foreground">{formatRelative(entry.time)}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{entry.title}</span>
+                    <span className="text-xs text-muted-foreground">{formatRelative(entry.time)}</span>
                   </button>
                 ))}
               </div>
@@ -121,8 +121,8 @@ export function TimelineView() {
         ) : (
           <div className="rounded-xl border border-dashed border-border py-16 text-center">
             <Clock className="mx-auto size-6 text-muted-foreground/40" />
-            <p className="mt-3 text-[12px] font-medium">Your timeline is quiet</p>
-            <p className="mt-1 text-[10px] text-muted-foreground">
+            <p className="mt-3 text-xs font-medium">Your timeline is quiet</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               Create a page or capture something to see activity here.
             </p>
           </div>

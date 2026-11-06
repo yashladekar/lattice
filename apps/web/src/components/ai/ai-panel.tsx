@@ -241,8 +241,8 @@ export function AiPanel({
               <Sparkles className="size-3.5" />
             </span>
             <div>
-              <div className="text-[12px] font-semibold">Ask Lattice</div>
-              <div className="flex items-center gap-1 text-[8px] text-muted-foreground">
+              <div className="text-xs font-semibold">Ask Lattice</div>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span
                   className={cn(
                     "size-1 rounded-full",
@@ -284,7 +284,7 @@ export function AiPanel({
                   <Sparkles className="size-4 text-saffron" />
                 </span>
                 <h2 className="mt-4 font-display text-2xl tracking-[-0.02em]">Ask your second brain.</h2>
-                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                   Every answer cites the notes it used. Nothing is rewritten without your approval.
                 </p>
               </div>
@@ -294,7 +294,7 @@ export function AiPanel({
                     key={suggestion}
                     type="button"
                     onClick={() => void ask(suggestion)}
-                    className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/40 px-3 py-2 text-left text-[10px] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/40 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                   >
                     <Sparkles className="size-3 text-saffron/70" />
                     {suggestion}
@@ -307,26 +307,26 @@ export function AiPanel({
               {messages.map((message) =>
                 message.role === "user" ? (
                   <div key={message.id} className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-3 py-2 text-[11px] text-background">
+                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-3 py-2 text-xs text-background">
                       {message.content}
                     </div>
                   </div>
                 ) : (
                   <div key={message.id} className="space-y-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="grid size-4 place-items-center rounded-full bg-saffron/15 text-[8px] text-saffron">
+                      <span className="grid size-4 place-items-center rounded-full bg-saffron/15 text-xs text-saffron">
                         ✦
                       </span>
-                      <span className="text-[8px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
                         {message.local ? "Local mode" : message.provider ?? "Lattice"}
                       </span>
                     </div>
-                    <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-card/45 px-3 py-2.5 text-[11px] leading-relaxed">
+                    <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-card/45 px-3 py-2.5 text-xs leading-relaxed">
                       {message.content}
                     </div>
                     {message.citations.length ? (
                       <div className="space-y-1">
-                        <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                        <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
                           Sources
                         </div>
                         {message.citations.map((citation, index) =>
@@ -340,10 +340,10 @@ export function AiPanel({
                               }}
                               className="flex w-full items-start gap-2 rounded-md border border-border/50 bg-background/60 px-2 py-1.5 text-left hover:bg-muted/50"
                             >
-                              <span className="mt-0.5 text-[8px] text-saffron">[{index + 1}]</span>
+                              <span className="mt-0.5 text-xs text-saffron">[{index + 1}]</span>
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[9px] font-medium">{citation.title}</span>
-                                <span className="mt-0.5 line-clamp-2 block text-[8px] text-muted-foreground">
+                                <span className="block truncate text-xs font-medium">{citation.title}</span>
+                                <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">
                                   {citation.excerpt}
                                 </span>
                               </span>
@@ -357,7 +357,7 @@ export function AiPanel({
                       <button
                         type="button"
                         onClick={() => void createPageFromAnswer(message)}
-                        className="inline-flex items-center gap-1 text-[8px] text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                       >
                         <BookOpen className="size-2.5" /> Save answer as a page
                       </button>
@@ -366,7 +366,7 @@ export function AiPanel({
                 ),
               )}
               {busy ? (
-                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/45 px-3 py-2.5 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/45 px-3 py-2.5 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
                   Reading your workspace…
                 </div>
@@ -387,15 +387,15 @@ export function AiPanel({
                 }
               }}
               placeholder={pageId ? "Ask about this page or across the workspace…" : "Ask across your knowledge…"}
-              className="min-h-14 resize-none border-0 bg-transparent px-1 py-0.5 text-[11px] shadow-none focus-visible:ring-0"
+              className="min-h-14 resize-none border-0 bg-transparent px-1 py-0.5 text-xs shadow-none focus-visible:ring-0"
             />
             <div className="flex items-center justify-between pt-1">
-              <span className="text-[8px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {online ? "Citations always included" : "Offline · local retrieval only"}
               </span>
               <Button
                 size="sm"
-                className="h-6 rounded-md px-2 text-[9px]"
+                className="h-7 rounded-md px-2 text-xs"
                 disabled={busy || !question.trim()}
                 onClick={() => void ask()}
               >

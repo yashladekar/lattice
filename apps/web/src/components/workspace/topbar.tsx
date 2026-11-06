@@ -128,7 +128,7 @@ export function WorkspaceTopbar({
           <Command className="size-4" />
         </button>
 
-        <div className="flex min-w-0 items-center gap-1 text-[10.5px]">
+        <div className="flex min-w-0 items-center gap-1 text-xs">
           <button
             type="button"
             onClick={() => router.push(appRouteObject({ view: "home" }))}
@@ -173,7 +173,7 @@ export function WorkspaceTopbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <span className="hidden text-[9px] uppercase tracking-[0.12em] text-muted-foreground/50 md:inline">
+        <span className="hidden text-xs uppercase tracking-[0.12em] text-muted-foreground/50 md:inline">
           {role ?? ""}
         </span>
         <SyncBadge onConflicts={onOpenConflicts} />
@@ -190,7 +190,7 @@ export function WorkspaceTopbar({
           >
             <Bell className="size-3.5" />
             {(unread.data ?? 0) > 0 ? (
-              <span className="absolute right-0.5 top-0.5 grid min-w-3 place-items-center rounded-full bg-saffron px-0.5 text-[7px] font-semibold text-primary-foreground">
+              <span className="absolute right-0.5 top-0.5 grid min-w-3 place-items-center rounded-full bg-saffron px-0.5 text-xs font-semibold text-primary-foreground">
                 {Math.min(9, unread.data ?? 0)}
               </span>
             ) : null}
@@ -213,22 +213,22 @@ export function WorkspaceTopbar({
                       )}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[10px] font-medium leading-snug">
+                      <span className="block text-xs font-medium leading-snug">
                         {notification.title}
                       </span>
                       {notification.body ? (
-                        <span className="mt-0.5 line-clamp-2 block text-[8.5px] leading-snug text-muted-foreground">
+                        <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-muted-foreground">
                           {notification.body}
                         </span>
                       ) : null}
-                      <span className="mt-0.5 block text-[7.5px] text-muted-foreground/60">
+                      <span className="mt-0.5 block text-xs text-muted-foreground/60">
                         {new Date(notification.createdAt).toLocaleString()}
                       </span>
                     </span>
                   </DropdownMenuItem>
                 ))
               ) : (
-                <div className="px-3 py-6 text-center text-[9px] text-muted-foreground">
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">
                   No notifications yet.
                 </div>
               )}
@@ -263,7 +263,7 @@ export function WorkspaceTopbar({
         <Button
           variant="outline"
           size="sm"
-          className="hidden h-7 rounded-md border-border bg-card/60 px-2 text-[10px] text-muted-foreground hover:text-foreground sm:flex"
+          className="hidden h-8 rounded-md border-border bg-card/60 px-2 text-xs text-muted-foreground hover:text-foreground sm:flex"
           onClick={onOpenAsk}
         >
           <Sparkles className="size-3 text-saffron" />
@@ -284,7 +284,7 @@ export function WorkspaceTopbar({
             render={
               <button
                 type="button"
-                className="grid size-7 place-items-center rounded-full bg-moss/15 text-[9px] font-semibold text-moss ring-1 ring-moss/20 transition-opacity hover:opacity-80"
+                className="grid size-7 place-items-center rounded-full bg-moss/15 text-xs font-semibold text-moss ring-1 ring-moss/20 transition-opacity hover:opacity-80"
                 aria-label="Account menu"
               />
             }
@@ -294,8 +294,8 @@ export function WorkspaceTopbar({
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="px-2 py-1.5">
-                <div className="truncate text-[11px] font-medium text-foreground">{user?.name}</div>
-                <div className="truncate text-[9px] font-normal text-muted-foreground">{user?.email}</div>
+                <div className="truncate text-xs font-medium text-foreground">{user?.name}</div>
+                <div className="truncate text-xs font-normal text-muted-foreground">{user?.email}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push(appRouteObject({ view: "settings" }))}>

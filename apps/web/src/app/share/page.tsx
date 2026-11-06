@@ -214,14 +214,14 @@ function SharedContent() {
         <header className="flex h-16 items-center justify-between">
           <LatticeLogo href="/" />
           <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full border border-[#20201b]/10 bg-white/60 px-2.5 py-1 text-[9px] text-[#6b6a60] sm:flex">
+            <span className="hidden items-center gap-1.5 rounded-full border border-[#20201b]/10 bg-white/60 px-2.5 py-1 text-xs text-[#6b6a60] sm:flex">
               <Lock className="size-2.5" /> Read-only shared view
             </span>
             <ModeToggle />
             <Button
               variant="outline"
               size="sm"
-              className="h-8 rounded-lg border-[#20201b]/15 bg-white/60 text-[10px]"
+              className="h-8 rounded-lg border-[#20201b]/15 bg-white/60 text-xs"
               render={<Link href="/login" />}
             >
               Open Lattice
@@ -233,7 +233,7 @@ function SharedContent() {
           <div className="grid min-h-[60vh] place-items-center">
             <div className="flex flex-col items-center">
               <Loader2 className="size-5 animate-spin text-[#e8892f]" />
-              <p className="mt-2 text-[10px] text-[#6b6a60]">Opening shared knowledge…</p>
+              <p className="mt-2 text-xs text-[#6b6a60]">Opening shared knowledge…</p>
             </div>
           </div>
         ) : error ? (
@@ -241,15 +241,15 @@ function SharedContent() {
             <div className="max-w-sm">
               <AlertTriangle className="mx-auto size-7 text-[#b45309]" />
               <h1 className="mt-3 font-display text-3xl">This link is unavailable</h1>
-              <p className="mt-2 text-[11px] leading-relaxed text-[#6b6a60]">{error}</p>
-              <Link href="/" className="mt-4 inline-flex items-center gap-1 text-[11px] text-[#b45309]">
+              <p className="mt-2 text-xs leading-relaxed text-[#6b6a60]">{error}</p>
+              <Link href="/" className="mt-4 inline-flex items-center gap-1 text-xs text-[#b45309]">
                 <ArrowLeft className="size-3" /> Go to Lattice
               </Link>
             </div>
           </div>
         ) : payload ? (
           <main>
-            <div className="mb-6 flex flex-wrap items-center gap-2 text-[10px] text-[#6b6a60]">
+            <div className="mb-6 flex flex-wrap items-center gap-2 text-xs text-[#6b6a60]">
               <span className="inline-flex items-center gap-1.5">
                 <LatticeMark className="size-5" />
                 {payload.workspace.name}
@@ -272,7 +272,7 @@ function SharedContent() {
                 {payload.page.coverUrl ? (
                   <img src={payload.page.coverUrl} alt="" className="mb-6 max-h-56 w-full rounded-xl object-cover" />
                 ) : null}
-                <div className="mb-2 flex items-center gap-2 text-[11px] text-[#6b6a60]">
+                <div className="mb-2 flex items-center gap-2 text-xs text-[#6b6a60]">
                   {payload.notebook ? (
                     <>
                       <span>{payload.notebook.icon ?? "◫"}</span>
@@ -284,7 +284,7 @@ function SharedContent() {
                   {payload.page.icon ? <span className="mr-2">{payload.page.icon}</span> : null}
                   {payload.page.title}
                 </h1>
-                <p className="mb-8 text-[10px] text-[#6b6a60]">
+                <p className="mb-8 text-xs text-[#6b6a60]">
                   By {payload.page.authorName} · hosted with Lattice
                 </p>
                 <ReadOnlyDocument doc={payload.page.document} />
@@ -301,7 +301,7 @@ function SharedContent() {
             {payload.type === "NOTEBOOK" ? (
               <section className="grid gap-4 md:grid-cols-[210px_1fr]">
                 <aside className="rounded-xl border border-[#20201b]/10 bg-white/55 p-2">
-                  <div className="px-2 py-1 text-[9px] font-medium uppercase tracking-[0.14em] text-[#6b6a60]">
+                  <div className="px-2 py-1 text-xs font-medium uppercase tracking-[0.14em] text-[#6b6a60]">
                     {payload.notebook.icon ?? "◫"} {payload.notebook.name}
                   </div>
                   <div className="mt-1 space-y-0.5">
@@ -311,7 +311,7 @@ function SharedContent() {
                         type="button"
                         onClick={() => setSelectedPage(page.id)}
                         className={cn(
-                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px]",
+                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs",
                           selectedPage === page.id ? "bg-[#20201b] text-white" : "text-[#55544c] hover:bg-white/70",
                         )}
                       >
@@ -320,7 +320,7 @@ function SharedContent() {
                       </button>
                     ))}
                     {!payload.pages.length ? (
-                      <p className="px-2 py-4 text-[9px] text-[#6b6a60]">No public pages in this notebook.</p>
+                      <p className="px-2 py-4 text-xs text-[#6b6a60]">No public pages in this notebook.</p>
                     ) : null}
                   </div>
                 </aside>
@@ -328,7 +328,7 @@ function SharedContent() {
                   {(() => {
                     const page = payload.pages.find((entry) => entry.id === selectedPage) ?? payload.pages[0];
                     if (!page) {
-                      return <p className="text-[11px] text-[#6b6a60]">Select a page to read.</p>;
+                      return <p className="text-xs text-[#6b6a60]">Select a page to read.</p>;
                     }
                     return (
                       <>
@@ -336,7 +336,7 @@ function SharedContent() {
                           {page.icon ? <span className="mr-1.5">{page.icon}</span> : null}
                           {page.title}
                         </h1>
-                        <p className="mb-6 mt-1 text-[9px] text-[#6b6a60]">
+                        <p className="mb-6 mt-1 text-xs text-[#6b6a60]">
                           Updated {page.updatedAt.slice(0, 10)}
                         </p>
                         <ReadOnlyDocument doc={page.document} />
@@ -352,14 +352,14 @@ function SharedContent() {
                 <h1 className="mb-1 font-display text-4xl tracking-[-0.03em]">
                   {payload.workspace.name} graph
                 </h1>
-                <p className="mb-4 text-[10px] text-[#6b6a60]">
+                <p className="mb-4 text-xs text-[#6b6a60]">
                   {payload.nodes.length} nodes · {payload.edges.length} connections · read-only
                 </p>
                 <PublicGraph nodes={payload.nodes} edges={payload.edges} />
               </section>
             ) : null}
 
-            <footer className="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-[#20201b]/10 pt-4 text-[9px] text-[#6b6a60]">
+            <footer className="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-[#20201b]/10 pt-4 text-xs text-[#6b6a60]">
               <span className="flex items-center gap-1.5">
                 <LatticeMark className="size-4" />
                 Published from a local-first Lattice workspace.

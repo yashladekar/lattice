@@ -39,7 +39,7 @@ export function ConfirmDialog({
         </div>
       }
     >
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-xs leading-relaxed text-muted-foreground">
         This keeps the data recoverable — nothing is purged instantly.
       </p>
     </Modal>

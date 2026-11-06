@@ -27,7 +27,7 @@ export function SiteNav() {
     <header className="relative z-40">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
         <LatticeLogo />
-        <nav className="hidden items-center gap-7 text-[13px] text-muted-foreground md:flex">
+        <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
           {links.map((link) =>
             link.external ? (
               <a
@@ -54,13 +54,13 @@ export function SiteNav() {
           <ModeToggle />
           <Button
             variant="ghost"
-            className="h-9 rounded-lg px-3 text-[13px]"
+            className="h-9 rounded-lg px-3 text-sm"
             render={<Link href={signedIn ? "/app" : "/login"} />}
           >
             {isPending ? "…" : signedIn ? "Open workspace" : "Sign in"}
           </Button>
           <Button
-            className="h-9 rounded-lg px-3.5 text-[13px]"
+            className="h-9 rounded-lg px-3.5 text-sm"
             render={<Link href={signedIn ? "/app" : "/login?mode=signup"} />}
           >
             {signedIn ? "Continue" : "Start free"}

@@ -126,15 +126,15 @@ export function PluginBlockView({ node, updateAttributes, deleteNode }: NodeView
       >
         <div className="flex flex-wrap items-center gap-2">
           <Blocks className="size-3.5 text-moss" />
-          <span className="text-[10px] font-medium">{tool?.label ?? "Plugin block"}</span>
-          <span className="text-[8px] text-muted-foreground">
+          <span className="text-xs font-medium">{tool?.label ?? "Plugin block"}</span>
+          <span className="text-xs text-muted-foreground">
             {plugin?.manifest.name ?? node.attrs.pluginName ?? "Unknown plugin"}
           </span>
           <div className="ml-auto flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
-              className="h-6 rounded-md text-[8px]"
+              className="h-7 rounded-md text-xs"
               disabled={busy || !plugin || !tool}
               onClick={() => void run()}
             >
@@ -159,11 +159,11 @@ export function PluginBlockView({ node, updateAttributes, deleteNode }: NodeView
         </div>
 
         {tool?.description ? (
-          <p className="mt-1 text-[8.5px] leading-relaxed text-muted-foreground">{tool.description}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{tool.description}</p>
         ) : null}
 
         {!plugin || !tool ? (
-          <p className="mt-2 rounded-lg border border-saffron/30 bg-saffron/[0.05] px-2 py-1.5 text-[9px] text-muted-foreground">
+          <p className="mt-2 rounded-lg border border-saffron/30 bg-saffron/[0.05] px-2 py-1.5 text-xs text-muted-foreground">
             This block&apos;s plugin is not installed or is disabled on this device. The stored output
             is kept below.
           </p>
@@ -173,12 +173,12 @@ export function PluginBlockView({ node, updateAttributes, deleteNode }: NodeView
             onChange={(event) => setInput(event.target.value)}
             onBlur={() => updateAttributes({ input })}
             placeholder="Optional input for this block"
-            className="mt-2 h-7 w-full rounded-md border border-border/60 bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+            className="mt-2 h-8 w-full rounded-md border border-border/60 bg-background px-2 text-xs outline-none focus:border-primary/40"
           />
         )}
 
         {error ? (
-          <p className="mt-2 rounded-lg border border-destructive/30 bg-destructive/[0.05] px-2 py-1.5 text-[9px] text-destructive">
+          <p className="mt-2 rounded-lg border border-destructive/30 bg-destructive/[0.05] px-2 py-1.5 text-xs text-destructive">
             {error}
           </p>
         ) : null}
@@ -188,17 +188,17 @@ export function PluginBlockView({ node, updateAttributes, deleteNode }: NodeView
             {renderedDoc ? (
               <ReadOnlyDocument doc={renderedDoc} compact />
             ) : (
-              <pre className="whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed">
+              <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
                 {output}
               </pre>
             )}
           </div>
         ) : !error ? (
-          <p className="mt-2 text-[9px] text-muted-foreground">Not run yet.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Not run yet.</p>
         ) : null}
 
         {ranAt ? (
-          <p className="mt-1 text-[8px] text-muted-foreground/70">
+          <p className="mt-1 text-xs text-muted-foreground/70">
             Last run {new Date(ranAt).toLocaleString()}
           </p>
         ) : null}

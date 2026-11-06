@@ -226,16 +226,16 @@ export function LearnView() {
           </span>
           <div>
             <h1 className="font-display text-3xl tracking-[-0.03em]">Learning</h1>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Turn notes into retrieval practice. Remember what you chose to keep.
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[9px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
             <Flame className="size-3 text-saffron" /> {learning.streak} day streak
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[9px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
             <Target className="size-3 text-moss" /> {Math.round(learning.mastery * 100)}% mastery
           </span>
           <button
@@ -243,7 +243,7 @@ export function LearnView() {
             onClick={() => void toggleReminders()}
             title={reminders ? "Turn off due reminders" : "Notify me when cards are due"}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] transition-colors",
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors",
               reminders
                 ? "border-moss/50 bg-moss/10 text-foreground"
                 : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -263,7 +263,7 @@ export function LearnView() {
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-xl border border-border/60 bg-card/40 px-3 py-2.5">
             <div className="text-2xl font-semibold tracking-[-0.03em]">{value}</div>
-            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+            <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
           </div>
         ))}
       </div>
@@ -282,7 +282,7 @@ export function LearnView() {
             type="button"
             onClick={() => setTab(value)}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] transition-colors",
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition-colors",
               tab === value
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -294,7 +294,7 @@ export function LearnView() {
         <Button
           variant="ghost"
           size="sm"
-          className="ml-auto h-7 rounded-md text-[9px] text-muted-foreground"
+          className="ml-auto h-8 rounded-md text-xs text-muted-foreground"
           onClick={() => setAddingCard(true)}
         >
           <Plus className="size-3" /> Add card
@@ -305,7 +305,7 @@ export function LearnView() {
         <div className="mt-4">
           {current ? (
             <div className="rounded-2xl border border-border/70 bg-card/40 p-5">
-              <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <span className="size-1.5 rounded-full bg-saffron" />
                   {learning.due.length} due · {cardFreshness(current)}
@@ -323,14 +323,14 @@ export function LearnView() {
                 ) : null}
               </div>
               <div className="mt-6 min-h-32">
-                <div className="text-[8px] uppercase tracking-[0.16em] text-muted-foreground">Prompt</div>
+                <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Prompt</div>
                 <p className="mt-2 whitespace-pre-wrap text-[17px] font-medium leading-relaxed">
                   {current.front}
                 </p>
                 {revealed ? (
                   <div className="mt-6 border-t border-border/60 pt-4">
-                    <div className="text-[8px] uppercase tracking-[0.16em] text-muted-foreground">Answer</div>
-                    <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground">
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Answer</div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                       {current.back}
                     </p>
                   </div>
@@ -338,7 +338,7 @@ export function LearnView() {
               </div>
               <div className="mt-5">
                 {!revealed ? (
-                  <Button className="h-9 w-full rounded-lg text-[11px]" onClick={() => setRevealed(true)}>
+                  <Button className="h-9 w-full rounded-lg text-xs" onClick={() => setRevealed(true)}>
                     Reveal answer <span className="kbd ml-1">space</span>
                   </Button>
                 ) : (
@@ -349,12 +349,12 @@ export function LearnView() {
                         type="button"
                         onClick={() => void rate(entry.rating)}
                         className={cn(
-                          "flex flex-col items-center gap-0.5 rounded-lg border bg-background/60 px-2 py-2 text-[10px] transition-colors",
+                          "flex flex-col items-center gap-0.5 rounded-lg border bg-background/60 px-2 py-2 text-xs transition-colors",
                           entry.className,
                         )}
                       >
                         <span className="font-medium">{entry.label}</span>
-                        <span className="text-[7px] opacity-60">{entry.hint}</span>
+                        <span className="text-xs opacity-60">{entry.hint}</span>
                       </button>
                     ))}
                   </div>
@@ -364,10 +364,10 @@ export function LearnView() {
           ) : (
             <div className="rounded-2xl border border-dashed border-border py-14 text-center">
               <Check className="mx-auto size-6 text-moss" />
-              <p className="mt-3 text-[13px] font-medium">
+              <p className="mt-3 text-sm font-medium">
                 {learning.cards.length ? "All caught up" : "No cards yet"}
               </p>
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {learning.cards.length
                   ? "Your next review is scheduled. Come back when it is due."
                   : "Generate cards from a page, or add one manually."}
@@ -376,7 +376,7 @@ export function LearnView() {
                 <select
                   value={pageToGenerate}
                   onChange={(event) => setPageToGenerate(event.target.value)}
-                  className="h-8 flex-1 rounded-md border border-border bg-background px-2 text-[10px]"
+                  className="h-8 flex-1 rounded-md border border-border bg-background px-2 text-xs"
                 >
                   <option value="">Choose a page…</option>
                   {pages.map((page) => (
@@ -387,7 +387,7 @@ export function LearnView() {
                 </select>
                 <Button
                   size="sm"
-                  className="h-8 rounded-md text-[9px]"
+                  className="h-8 rounded-md text-xs"
                   disabled={!pageToGenerate}
                   onClick={() => void generate()}
                 >
@@ -397,7 +397,7 @@ export function LearnView() {
             </div>
           )}
           {learning.cards.length ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[9px] text-muted-foreground">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>Review queue refreshes after each rating.</span>
               <button
                 type="button"
@@ -418,17 +418,17 @@ export function LearnView() {
               <div key={entry.deckId} className="rounded-xl border border-border/70 bg-card/40 p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="grid size-6 place-items-center rounded-md bg-moss/15 text-[10px] text-moss">
+                    <span className="grid size-6 place-items-center rounded-md bg-moss/15 text-xs text-moss">
                       ◒
                     </span>
                     <div>
-                      <div className="text-[11px] font-medium">{entry.deck?.name ?? "Deck"}</div>
-                      <div className="text-[8px] text-muted-foreground">
+                      <div className="text-xs font-medium">{entry.deck?.name ?? "Deck"}</div>
+                      <div className="text-xs text-muted-foreground">
                         {entry.cards.length} cards · {entry.due} due
                       </div>
                     </div>
                   </div>
-                  <span className="text-[10px] text-muted-foreground">{Math.round(entry.mastery * 100)}%</span>
+                  <span className="text-xs text-muted-foreground">{Math.round(entry.mastery * 100)}%</span>
                 </div>
                 <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-moss/70" style={{ width: `${Math.round(entry.mastery * 100)}%` }} />
@@ -437,11 +437,11 @@ export function LearnView() {
                   <button
                     type="button"
                     onClick={() => setTab("review")}
-                    className="text-[8px] text-primary hover:underline"
+                    className="text-xs text-primary hover:underline"
                   >
                     Review due
                   </button>
-                  <span className="text-[8px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {entry.cards.filter((card) => card.source === "NOTE").length} generated
                   </span>
                 </div>
@@ -449,21 +449,21 @@ export function LearnView() {
             ))}
           </div>
           <div className="rounded-xl border border-border/60 bg-card/30 p-3">
-            <div className="text-[9px] font-medium">New deck</div>
+            <div className="text-xs font-medium">New deck</div>
             <div className="mt-2 flex gap-2">
               <Input
                 value={deckName}
                 onChange={(event) => setDeckName(event.target.value)}
                 placeholder="Deck name"
-                className="h-8 rounded-md text-[10px]"
+                className="h-8 rounded-md text-xs"
               />
-              <Button size="sm" className="h-8 rounded-md text-[9px]" onClick={() => void addDeck()}>
+              <Button size="sm" className="h-8 rounded-md text-xs" onClick={() => void addDeck()}>
                 <Plus className="size-3" /> Create
               </Button>
             </div>
           </div>
           <div>
-            <div className="mb-1 text-[8px] uppercase tracking-[0.14em] text-muted-foreground">All cards</div>
+            <div className="mb-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">All cards</div>
             <div className="max-h-64 space-y-1 overflow-y-auto">
               {learning.cards.slice(0, 40).map((card) =>
                 editingCardId === card.id ? (
@@ -473,7 +473,7 @@ export function LearnView() {
                       onChange={(event) => setEditFront(event.target.value)}
                       placeholder="Front"
                       aria-label="Card front"
-                      className="h-7 rounded-md text-[10px]"
+                      className="h-8 rounded-md text-xs"
                       autoFocus
                     />
                     <Input
@@ -481,7 +481,7 @@ export function LearnView() {
                       onChange={(event) => setEditBack(event.target.value)}
                       placeholder="Back"
                       aria-label="Card back"
-                      className="h-7 rounded-md text-[10px]"
+                      className="h-8 rounded-md text-xs"
                       onKeyDown={(event) => {
                         if (event.key === "Enter") void saveCard(card.id);
                         if (event.key === "Escape") setEditingCardId(null);
@@ -491,14 +491,14 @@ export function LearnView() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 rounded-md text-[8px]"
+                        className="h-7 rounded-md text-xs"
                         onClick={() => setEditingCardId(null)}
                       >
                         Cancel
                       </Button>
                       <Button
                         size="sm"
-                        className="h-6 rounded-md text-[8px]"
+                        className="h-7 rounded-md text-xs"
                         disabled={!editFront.trim() || !editBack.trim()}
                         onClick={() => void saveCard(card.id)}
                       >
@@ -508,9 +508,9 @@ export function LearnView() {
                   </div>
                 ) : (
                   <div key={card.id} className="group flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
-                    <span className="text-[9px]">◒</span>
-                    <span className="min-w-0 flex-1 truncate text-[9.5px]">{card.front}</span>
-                    <span className="text-[8px] text-muted-foreground">{cardFreshness(card)}</span>
+                    <span className="text-xs">◒</span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{card.front}</span>
+                    <span className="text-xs text-muted-foreground">{cardFreshness(card)}</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -545,11 +545,11 @@ export function LearnView() {
             <div className="rounded-2xl border border-border/70 bg-card/40 p-6 text-center">
               <CircleHelp className="mx-auto size-7 text-saffron" />
               <h2 className="mt-3 font-display text-2xl">Test recall, not recognition.</h2>
-              <p className="mx-auto mt-1 max-w-sm text-[10px] leading-relaxed text-muted-foreground">
+              <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
                 A quiz is built from your cards with plausible distractors. It does not grade your
                 knowledge permanently; it is a quick retrieval check.
               </p>
-              <Button className="mt-4 h-9 rounded-lg text-[11px]" onClick={startQuiz}>
+              <Button className="mt-4 h-9 rounded-lg text-xs" onClick={startQuiz}>
                 Start {Math.min(8, learning.cards.length)}-question quiz
               </Button>
             </div>
@@ -558,11 +558,11 @@ export function LearnView() {
               <div className="text-4xl font-semibold tracking-[-0.04em]">
                 {quizScore}/{quiz.length}
               </div>
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-xs text-muted-foreground">
                 {quizScore === quiz.length ? "Perfect recall." : "Use the gaps to choose what to review next."}
               </p>
               <Button
-                className="mt-4 h-8 rounded-lg text-[10px]"
+                className="mt-4 h-8 rounded-lg text-xs"
                 onClick={() => {
                   setQuiz([]);
                   setQuizScore(0);
@@ -573,11 +573,11 @@ export function LearnView() {
             </div>
           ) : (
             <div className="rounded-2xl border border-border/70 bg-card/40 p-5">
-              <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Question {quizIndex + 1} of {quiz.length}</span>
                 <span>{quizScore} correct</span>
               </div>
-              <p className="mt-4 text-[16px] font-medium leading-relaxed">{quiz[quizIndex]?.prompt}</p>
+              <p className="mt-4 text-base font-medium leading-relaxed">{quiz[quizIndex]?.prompt}</p>
               <div className="mt-5 space-y-1.5">
                 {quiz[quizIndex]?.options.map((option, index) => {
                   const question = quiz[quizIndex];
@@ -593,13 +593,13 @@ export function LearnView() {
                         if (isCorrect) setQuizScore((score) => score + 1);
                       }}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-[11px] transition-colors",
+                        "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors",
                         answered && isCorrect && "border-moss/40 bg-moss/10",
                         answered && quizAnswer === index && !isCorrect && "border-destructive/40 bg-destructive/10",
                         !answered && "border-border/60 hover:bg-muted/50",
                       )}
                     >
-                      <span className="grid size-4 place-items-center rounded border border-border/60 text-[8px]">
+                      <span className="grid size-4 place-items-center rounded border border-border/60 text-xs">
                         {String.fromCharCode(65 + index)}
                       </span>
                       {option}
@@ -609,7 +609,7 @@ export function LearnView() {
               </div>
               {quizAnswer !== null ? (
                 <Button
-                  className="mt-3 h-8 rounded-lg text-[10px]"
+                  className="mt-3 h-8 rounded-lg text-xs"
                   onClick={() => {
                     setQuizAnswer(null);
                     setQuizIndex((index) => index + 1);
@@ -626,7 +626,7 @@ export function LearnView() {
       {tab === "path" ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-border/70 bg-card/40 p-4">
-            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               <Target className="size-3" /> Suggested path
             </div>
             <div className="mt-3 space-y-1.5">
@@ -639,11 +639,11 @@ export function LearnView() {
                   }
                   className="flex w-full items-center gap-2 rounded-lg border border-border/50 bg-background/50 px-2 py-2 text-left hover:bg-muted/40"
                 >
-                  <span className="grid size-5 place-items-center rounded-full border border-border text-[8px] text-muted-foreground">
+                  <span className="grid size-5 place-items-center rounded-full border border-border text-xs text-muted-foreground">
                     {node.step}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[10px]">{node.title}</span>
+                    <span className="block truncate text-xs">{node.title}</span>
                     <span className="mt-0.5 flex items-center gap-1">
                       <span className="h-1 w-16 overflow-hidden rounded-full bg-muted">
                         <span
@@ -651,24 +651,24 @@ export function LearnView() {
                           style={{ width: `${Math.round(node.mastery * 100)}%` }}
                         />
                       </span>
-                      <span className="text-[7px] text-muted-foreground">{Math.round(node.mastery * 100)}%</span>
+                      <span className="text-xs text-muted-foreground">{Math.round(node.mastery * 100)}%</span>
                     </span>
                   </span>
                   <ChevronRight className="size-3 text-muted-foreground/50" />
                 </button>
               ))}
               {!path.length ? (
-                <p className="py-6 text-center text-[9px] text-muted-foreground">
+                <p className="py-6 text-center text-xs text-muted-foreground">
                   Add concepts and dependency edges in the graph to build a path.
                 </p>
               ) : null}
             </div>
           </div>
           <div className="rounded-xl border border-border/70 bg-card/40 p-4">
-            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               <CircleHelp className="size-3" /> Knowledge gaps
             </div>
-            <p className="mt-1 text-[8px] text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               Topics with incoming dependencies but low mastery.
             </p>
             <div className="mt-3 space-y-1.5">
@@ -679,17 +679,17 @@ export function LearnView() {
                   onClick={() =>
                     node.pageId && router.push(appRouteObject({ view: "page", id: node.pageId }))
                   }
-                  className="flex w-full items-center gap-2 rounded-lg border border-saffron/20 bg-saffron/[0.04] px-2 py-2 text-left text-[10px] hover:bg-saffron/[0.08]"
+                  className="flex w-full items-center gap-2 rounded-lg border border-saffron/20 bg-saffron/[0.04] px-2 py-2 text-left text-xs hover:bg-saffron/[0.08]"
                 >
                   <span className="size-1.5 rounded-full bg-saffron" />
                   <span className="min-w-0 flex-1 truncate">{node.title}</span>
-                  <span className="text-[8px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {Math.round((masteryByPage.get(node.id) ?? 0) * 100)}%
                   </span>
                 </button>
               ))}
               {!gaps.length ? (
-                <p className="py-6 text-center text-[9px] text-muted-foreground">
+                <p className="py-6 text-center text-xs text-muted-foreground">
                   No obvious gaps yet. Add prerequisite relationships to reveal them.
                 </p>
               ) : null}
@@ -702,7 +702,7 @@ export function LearnView() {
         <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/25 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <div className="text-[12px] font-semibold">Add a flashcard</div>
+              <div className="text-xs font-semibold">Add a flashcard</div>
               <button type="button" onClick={() => setAddingCard(false)} aria-label="Close">
                 <X className="size-4 text-muted-foreground" />
               </button>
@@ -711,14 +711,14 @@ export function LearnView() {
               value={front}
               onChange={(event) => setFront(event.target.value)}
               placeholder="Front / prompt"
-              className="mt-3 h-9 rounded-lg text-[11px]"
+              className="mt-3 h-9 rounded-lg text-xs"
               autoFocus
             />
             <Textarea
               value={back}
               onChange={(event) => setBack(event.target.value)}
               placeholder="Back / answer"
-              className="mt-2 min-h-24 rounded-lg text-[11px]"
+              className="mt-2 min-h-24 rounded-lg text-xs"
             />
             <div className="mt-3 flex justify-end gap-2">
               <Button variant="ghost" size="sm" className="h-8" onClick={() => setAddingCard(false)}>

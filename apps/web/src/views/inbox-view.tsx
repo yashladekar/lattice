@@ -261,7 +261,7 @@ function CaptureCard({
   return (
     <article className="rounded-xl border border-border/60 bg-card/40 p-3 transition-colors hover:border-border">
       <div className="flex items-start gap-2.5">
-        <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-border/60 bg-background text-[11px] text-saffron">
+        <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-border/60 bg-background text-xs text-saffron">
           {capture.type === "BOOKMARK" ? (
             <Link2 className="size-3.5" />
           ) : capture.type === "EMAIL" ? (
@@ -272,15 +272,15 @@ function CaptureCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-[11.5px] font-medium">
+            <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
               {capture.title || capture.url || "Untitled capture"}
             </h3>
-            <span className="shrink-0 text-[8px] text-muted-foreground">
+            <span className="shrink-0 text-xs text-muted-foreground">
               {formatRelative(capture.createdAt)}
             </span>
           </div>
           {capture.content ? (
-            <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[10px] leading-relaxed text-muted-foreground">
+            <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
               {capture.content}
             </p>
           ) : null}
@@ -289,7 +289,7 @@ function CaptureCard({
               href={capture.url}
               target="_blank"
               rel="noreferrer noopener"
-              className="mt-1 inline-flex items-center gap-1 text-[9px] text-sky hover:underline"
+              className="mt-1 inline-flex items-center gap-1 text-xs text-sky hover:underline"
             >
               {capture.url.replace(/^https?:\/\//, "").slice(0, 60)}
               <ArrowUpRight className="size-2.5" />
@@ -299,7 +299,7 @@ function CaptureCard({
             <audio controls preload="none" src={mediaUrl(capture.url)} className="mt-1.5 h-8 w-full" />
           ) : null}
           {capture.type === "EMAIL" && capture.source ? (
-            <p className="mt-1 truncate text-[8px] text-muted-foreground">From {capture.source}</p>
+            <p className="mt-1 truncate text-xs text-muted-foreground">From {capture.source}</p>
           ) : null}
           {capture.status === "INBOX" && (tags.length || related.length) ? (
             <div className="mt-2 space-y-1.5">
@@ -314,7 +314,7 @@ function CaptureCard({
                         type="button"
                         onClick={() => setSelectedTags((current) => toggleValue(current, tag))}
                         className={cn(
-                          "rounded-full border px-1.5 py-0.5 text-[7px] transition-colors",
+                          "rounded-full border px-1.5 py-0.5 text-xs transition-colors",
                           active
                             ? "border-moss/60 bg-moss/10 text-foreground"
                             : "border-border text-muted-foreground hover:border-moss/40",
@@ -326,7 +326,7 @@ function CaptureCard({
                       </button>
                     );
                   })}
-                  <span className="text-[7px] text-muted-foreground/60">tags</span>
+                  <span className="text-xs text-muted-foreground/60">tags</span>
                 </div>
               ) : null}
               {related.length ? (
@@ -340,7 +340,7 @@ function CaptureCard({
                         type="button"
                         onClick={() => setSelectedLinks((current) => toggleValue(current, entry.id))}
                         className={cn(
-                          "max-w-40 truncate rounded-full border px-1.5 py-0.5 text-[7px] transition-colors",
+                          "max-w-40 truncate rounded-full border px-1.5 py-0.5 text-xs transition-colors",
                           active
                             ? "border-sky/60 bg-sky/10 text-foreground"
                             : "border-border text-muted-foreground hover:border-sky/40",
@@ -356,7 +356,7 @@ function CaptureCard({
                       </button>
                     );
                   })}
-                  <span className="text-[7px] text-muted-foreground/60">related notes</span>
+                  <span className="text-xs text-muted-foreground/60">related notes</span>
                 </div>
               ) : null}
             </div>
@@ -368,7 +368,7 @@ function CaptureCard({
         {capture.status === "INBOX" ? (
           <Button
             size="sm"
-            className="h-6 rounded-md text-[8px]"
+            className="h-7 rounded-md text-xs"
             disabled={busy || !db || !user || !activeWorkspaceId}
             onClick={() => void makePage()}
           >
@@ -379,7 +379,7 @@ function CaptureCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 rounded-md text-[8px]"
+            className="h-7 rounded-md text-xs"
             onClick={() => onOrganized(pageId)}
           >
             <ArrowUpRight className="size-2.5" /> Open page
@@ -389,7 +389,7 @@ function CaptureCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            className="h-7 rounded-md text-xs text-muted-foreground"
             disabled={!db}
             onClick={() => db && void updateCaptureLocal(db, capture.id, { status: "ARCHIVED" })}
           >
@@ -400,7 +400,7 @@ function CaptureCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            className="h-7 rounded-md text-xs text-muted-foreground"
             disabled={transcribing || !online}
             onClick={() => void transcribe()}
             title={online ? "Transcribe with the server's AI provider" : "Needs a sync server"}
@@ -417,7 +417,7 @@ function CaptureCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            className="h-7 rounded-md text-xs text-muted-foreground"
             disabled={extracting}
             onClick={() => void extractPdf()}
             title="Read the text layer, or run OCR in this browser for scanned pages"
@@ -434,7 +434,7 @@ function CaptureCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            className="h-7 rounded-md text-xs text-muted-foreground"
             disabled={extracting}
             onClick={() => void runOcr("image")}
             title="Read the text in this image with in-browser OCR"
@@ -448,13 +448,13 @@ function CaptureCard({
           </Button>
         ) : null}
         {ocrStage && extracting ? (
-          <span className="text-[8px] text-muted-foreground">OCR · {ocrStage}</span>
+          <span className="text-xs text-muted-foreground">OCR · {ocrStage}</span>
         ) : null}
         {capture.status === "ARCHIVED" ? (
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            className="h-7 rounded-md text-xs text-muted-foreground"
             disabled={!db}
             onClick={() => db && void updateCaptureLocal(db, capture.id, { status: "INBOX" })}
           >
@@ -566,19 +566,19 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
           </span>
           <div>
             <h1 className="font-display text-3xl tracking-[-0.03em]">Knowledge inbox</h1>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Capture first. Decide where it belongs when you are ready.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px]" onClick={onQuickCapture}>
+          <Button variant="outline" size="sm" className="h-8 rounded-lg text-xs" onClick={onQuickCapture}>
             <Link2 className="size-3" /> Capture a link
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg text-[10px]"
+            className="h-8 rounded-lg text-xs"
             onClick={() => uploadInputRef.current?.click()}
           >
             <Upload className="size-3" /> Upload file
@@ -609,11 +609,11 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             }
           }}
           placeholder="Drop a thought, a quote, a question…"
-          className="min-h-16 resize-none border-0 bg-transparent px-1 py-0.5 text-[11px] shadow-none focus-visible:ring-0"
+          className="min-h-16 resize-none border-0 bg-transparent px-1 py-0.5 text-xs shadow-none focus-visible:ring-0"
         />
         <div className="flex items-center justify-between pt-1">
-          <span className="text-[8px] text-muted-foreground">Saved locally · process later</span>
-          <Button size="sm" className="h-6 rounded-md text-[9px]" disabled={saving || !text.trim()} onClick={() => void save()}>
+          <span className="text-xs text-muted-foreground">Saved locally · process later</span>
+          <Button size="sm" className="h-7 rounded-md text-xs" disabled={saving || !text.trim()} onClick={() => void save()}>
             {saving ? "Saving…" : "Capture"}
           </Button>
         </div>
@@ -626,7 +626,7 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             type="button"
             onClick={() => setStatus(tab.id)}
             className={cn(
-              "rounded-full px-2.5 py-1 text-[9px] transition-colors",
+              "rounded-full px-2.5 py-1 text-xs transition-colors",
               status === tab.id
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -635,12 +635,12 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             {tab.label}
           </button>
         ))}
-        <span className="ml-auto flex items-center gap-2 text-[9px] text-muted-foreground">
+        <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
           <select
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
             aria-label="Filter by capture type"
-            className="h-6 rounded-full border border-border bg-background px-2 text-[9px]"
+            className="h-7 rounded-full border border-border bg-background px-2 text-xs"
           >
             {TYPE_FILTERS.map((filter) => (
               <option key={filter.id} value={filter.id}>
@@ -666,16 +666,16 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             {status === "INBOX" ? (
               <>
                 <Check className="mx-auto size-6 text-moss" />
-                <p className="mt-3 text-[12px] font-medium">Inbox zero</p>
-                <p className="mt-1 text-[10px] text-muted-foreground">
+                <p className="mt-3 text-xs font-medium">Inbox zero</p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   Nothing waiting. Capture something new when inspiration arrives.
                 </p>
               </>
             ) : (
               <>
                 <Archive className="mx-auto size-6 text-muted-foreground/40" />
-                <p className="mt-3 text-[12px] font-medium">Nothing here yet</p>
-                <p className="mt-1 text-[10px] text-muted-foreground">
+                <p className="mt-3 text-xs font-medium">Nothing here yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   Captures you {status === "ORGANIZED" ? "turn into pages" : "archive"} will appear here.
                 </p>
               </>
@@ -686,7 +686,7 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
 
       <div className="mt-6 flex items-start gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5">
         <Sparkles className="mt-0.5 size-3.5 text-saffron" />
-        <div className="text-[9px] leading-relaxed text-muted-foreground">
+        <div className="text-xs leading-relaxed text-muted-foreground">
           <span className="font-medium text-foreground">A note about suggestions.</span> Tags and related
           notes are proposed from your own content. Approve them in the capture card; Lattice never
           silently rewrites your knowledge.

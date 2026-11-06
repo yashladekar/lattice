@@ -57,7 +57,7 @@ function InviteContent() {
         title="You are invited to a workspace"
         body="Sign in or create an account with the invited email, then return to this link to join."
       >
-        <Button className="h-10 rounded-lg text-[11px]" render={<Link href={`/login?invite=${encodeURIComponent(token)}`} />}>
+        <Button className="h-10 rounded-lg text-xs" render={<Link href={`/login?invite=${encodeURIComponent(token)}`} />}>
           <Mail className="size-3.5" /> Sign in to accept
         </Button>
       </InviteShell>
@@ -77,10 +77,10 @@ function InviteContent() {
     >
       {state === "error" ? (
         <div className="flex flex-col items-center gap-2">
-          <Button variant="outline" className="h-9 rounded-lg text-[11px]" render={<Link href="/app" />}>
+          <Button variant="outline" className="h-9 rounded-lg text-xs" render={<Link href="/app" />}>
             Go to your workspace <ArrowRight className="size-3" />
           </Button>
-          <Link href={`/login?invite=${encodeURIComponent(token)}`} className="text-[10px] text-muted-foreground underline">
+          <Link href={`/login?invite=${encodeURIComponent(token)}`} className="text-xs text-muted-foreground underline">
             Try signing in with a different account
           </Link>
         </div>
@@ -106,10 +106,10 @@ function InviteShell({
         <LatticeLogo href="/" className="justify-center" />
         <div className="mt-8 rounded-2xl border border-border/70 bg-card/50 p-6 shadow-sm">
           <h1 className="font-display text-3xl tracking-[-0.03em]">{title}</h1>
-          <p className="mx-auto mt-2 max-w-sm text-[11px] leading-relaxed text-muted-foreground">{body}</p>
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">{body}</p>
           <div className="mt-5">{children}</div>
         </div>
-        <Link href="/" className="mt-4 inline-block text-[9px] text-muted-foreground hover:text-foreground">
+        <Link href="/" className="mt-4 inline-block text-xs text-muted-foreground hover:text-foreground">
           Back to Lattice
         </Link>
       </div>

@@ -56,7 +56,7 @@ export function ConflictResolver({
             <Check className="size-4 text-moss" />
           </span>
           <p className="mt-3 text-sm font-medium">No unresolved conflicts</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Your local and synced copies are in agreement.
           </p>
         </div>
@@ -67,7 +67,7 @@ export function ConflictResolver({
             return (
               <div key={conflict.id} className="rounded-xl border border-border/80 bg-background/60">
                 <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-                  <div className="flex items-center gap-2 text-[11px]">
+                  <div className="flex items-center gap-2 text-xs">
                     <AlertTriangle className="size-3.5 text-saffron" />
                     <span className="font-medium">
                       {conflict.entity === "pageDocument" ? "Page body" : "Canvas"}
@@ -76,36 +76,36 @@ export function ConflictResolver({
                       local revision {conflict.baseRev} · remote {conflict.remoteRev}
                     </span>
                   </div>
-                  <span className="text-[9px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {new Date(conflict.createdAt).toLocaleString()}
                   </span>
                 </div>
                 <div className="grid gap-3 p-4 md:grid-cols-2">
                   <div className="rounded-lg border border-saffron/25 bg-saffron/[0.04] p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium">
+                    <div className="flex items-center gap-1.5 text-xs font-medium">
                       <Laptop className="size-3 text-saffron" /> This device
                     </div>
-                    <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap text-[10px] leading-relaxed text-muted-foreground">
+                    <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
                       {preview(conflict.localData)}
                     </p>
                   </div>
                   <div className="rounded-lg border border-sky/25 bg-sky/[0.04] p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium">
+                    <div className="flex items-center gap-1.5 text-xs font-medium">
                       <Server className="size-3 text-sky" /> Sync server
                     </div>
-                    <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap text-[10px] leading-relaxed text-muted-foreground">
+                    <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
                       {preview(conflict.remoteData)}
                     </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 px-4 py-3">
-                  <span className="mr-auto text-[9px] text-muted-foreground">
+                  <span className="mr-auto text-xs text-muted-foreground">
                     {isResolved ? "Resolved. Syncing…" : "A remote snapshot is kept in version history."}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 rounded-md text-[10px]"
+                    className="h-8 rounded-md text-xs"
                     disabled={busy === conflict.id || isResolved}
                     onClick={() => void resolve(conflict, "KEEP_REMOTE")}
                   >
@@ -113,7 +113,7 @@ export function ConflictResolver({
                   </Button>
                   <Button
                     size="sm"
-                    className="h-7 rounded-md text-[10px]"
+                    className="h-8 rounded-md text-xs"
                     disabled={busy === conflict.id || isResolved}
                     onClick={() => void resolve(conflict, "KEEP_LOCAL")}
                   >

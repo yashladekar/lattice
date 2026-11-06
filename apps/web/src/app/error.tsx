@@ -24,18 +24,18 @@ export default function RouteError({
         <h1 className="mt-3 font-display text-3xl tracking-[-0.03em]">
           Something broke on this screen
         </h1>
-        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           Writes go to local storage first, so work saved before this point is still on this
           device. Try again, or open the workspace from the start.
         </p>
         <div className="mt-4 flex justify-center gap-2">
-          <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={reset}>
+          <Button size="sm" className="h-8 rounded-lg text-xs" onClick={reset}>
             <RefreshCw className="size-3" /> Try again
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg text-[10px]"
+            className="h-8 rounded-lg text-xs"
             onClick={() => {
               window.location.assign("/");
             }}

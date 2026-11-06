@@ -134,17 +134,17 @@ export function ObjectTypeManager() {
     <section className="space-y-4">
       <div className="rounded-xl border border-border/70 bg-card/40 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-[11px] font-medium">Object types</h3>
+          <h3 className="text-xs font-medium">Object types</h3>
           <Button
             size="sm"
-            className="h-7 rounded-md text-[9px]"
+            className="h-8 rounded-md text-xs"
             disabled={!canEdit}
             onClick={openNew}
           >
             <Plus className="size-3" /> New type
           </Button>
         </div>
-        <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Give pages a typed schema — a book, a project, a person — with fields that render in the
           page context panel. Values live in page properties, so they sync and export with the page.
         </p>
@@ -156,21 +156,21 @@ export function ObjectTypeManager() {
                 className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5"
               >
                 <span
-                  className="grid size-6 shrink-0 place-items-center rounded-md text-[11px]"
+                  className="grid size-6 shrink-0 place-items-center rounded-md text-xs"
                   style={{ backgroundColor: `${type.color}22`, color: type.color }}
                 >
                   {type.icon ?? "◈"}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[10px] font-medium">{type.name}</div>
-                  <div className="truncate text-[8px] text-muted-foreground">
+                  <div className="truncate text-xs font-medium">{type.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
                     {type.properties.map((property) => property.label).join(" · ") || "No fields yet"}
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 rounded-md text-[8px]"
+                  className="h-7 rounded-md text-xs"
                   disabled={!canEdit}
                   onClick={() => openEdit(type)}
                 >
@@ -188,7 +188,7 @@ export function ObjectTypeManager() {
               </div>
             ))
           ) : (
-            <p className="py-4 text-center text-[9px] text-muted-foreground">
+            <p className="py-4 text-center text-xs text-muted-foreground">
               No object types yet. Create one to add typed fields to pages.
             </p>
           )}
@@ -232,28 +232,28 @@ export function ObjectTypeManager() {
         <div className="space-y-2">
           <div className="flex gap-2">
             <label className="block w-14">
-              <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
                 Icon
               </span>
               <input
                 value={icon}
                 onChange={(event) => setIcon(event.target.value.slice(0, 4))}
-                className="h-8 w-full rounded-md border border-border bg-background px-2 text-center text-[13px] outline-none focus:border-primary/40"
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-center text-sm outline-none focus:border-primary/40"
               />
             </label>
             <label className="block flex-1">
-              <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
                 Name
               </span>
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Book, Project, Person…"
-                className="h-8 w-full rounded-md border border-border bg-background px-2 text-[11px] outline-none focus:border-primary/40"
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
               />
             </label>
             <label className="block w-16">
-              <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
                 Color
               </span>
               <input
@@ -265,26 +265,26 @@ export function ObjectTypeManager() {
             </label>
           </div>
           <label className="block">
-            <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
               Description
             </span>
             <input
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="What this type represents"
-              className="h-8 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
             />
           </label>
 
           <div className="pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
                 Fields
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-6 rounded-md text-[8px]"
+                className="h-7 rounded-md text-xs"
                 onClick={() => setDrafts((current) => [...current, { ...BLANK_DRAFT }])}
               >
                 <Plus className="size-2.5" /> Add field
@@ -304,7 +304,7 @@ export function ObjectTypeManager() {
                         )
                       }
                       placeholder="Field name"
-                      className="h-7 min-w-0 flex-1 rounded border border-border bg-background px-1.5 text-[10px] outline-none focus:border-primary/40"
+                      className="h-8 min-w-0 flex-1 rounded border border-border bg-background px-1.5 text-xs outline-none focus:border-primary/40"
                     />
                     <select
                       value={draft.type}
@@ -317,7 +317,7 @@ export function ObjectTypeManager() {
                           ),
                         )
                       }
-                      className="h-7 rounded border border-border bg-background px-1 text-[9px]"
+                      className="h-8 rounded border border-border bg-background px-1 text-xs"
                     >
                       {PROPERTY_TYPES.map((type) => (
                         <option key={type} value={type}>
@@ -351,7 +351,7 @@ export function ObjectTypeManager() {
                         )
                       }
                       placeholder="Options, comma separated"
-                      className="mt-1 h-7 w-full rounded border border-border bg-background px-1.5 text-[9px] outline-none focus:border-primary/40"
+                      className="mt-1 h-8 w-full rounded border border-border bg-background px-1.5 text-xs outline-none focus:border-primary/40"
                     />
                   ) : null}
                 </div>

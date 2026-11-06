@@ -112,7 +112,7 @@ function PropertyRow({
   return (
     <div className="group flex items-center gap-1">
       <span
-        className="w-16 shrink-0 truncate text-[9px] text-muted-foreground"
+        className="w-16 shrink-0 truncate text-xs text-muted-foreground"
         title={name}
       >
         {name}
@@ -131,7 +131,7 @@ function PropertyRow({
             event.currentTarget.blur();
           }
         }}
-        className="h-6 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[10px] outline-none hover:border-border focus:border-primary/40 focus:bg-background"
+        className="h-7 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-xs outline-none hover:border-border focus:border-primary/40 focus:bg-background"
       />
       <button
         type="button"
@@ -339,26 +339,26 @@ export function PageContextPanel({
         )}
       >
         <div className="flex items-center gap-1.5">
-          <span className="grid size-4 place-items-center rounded-full bg-moss/20 text-[7px] font-semibold text-moss">
+          <span className="grid size-5 place-items-center rounded-full bg-moss/20 text-xs font-semibold text-moss">
             {authorName(thread.authorId).slice(0, 1)}
           </span>
           <span
-            className={cn("text-[9px] font-medium", thread.resolvedAt && "text-muted-foreground")}
+            className={cn("text-xs font-medium", thread.resolvedAt && "text-muted-foreground")}
           >
             {authorName(thread.authorId)}
           </span>
           {thread.resolvedAt ? (
-            <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[7px] text-muted-foreground">
+            <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-xs text-muted-foreground">
               resolved
             </span>
           ) : null}
-          <span className="ml-auto text-[8px] text-muted-foreground">
+          <span className="ml-auto text-xs text-muted-foreground">
             {formatRelative(thread.createdAt)}
           </span>
         </div>
         <p
           className={cn(
-            "mt-1.5 whitespace-pre-wrap text-[10px] leading-relaxed",
+            "mt-1.5 whitespace-pre-wrap text-xs leading-relaxed",
             thread.resolvedAt && "text-muted-foreground",
           )}
         >
@@ -368,12 +368,12 @@ export function PageContextPanel({
           <button
             type="button"
             onClick={() => jumpToBlock(thread.blockId!)}
-            className="mt-1 inline-flex items-center gap-1 rounded-full border border-saffron/30 px-1.5 py-0.5 text-[7px] text-saffron hover:bg-saffron/10"
+            className="mt-1 inline-flex items-center gap-1 rounded-full border border-saffron/30 px-1.5 py-0.5 text-xs text-saffron hover:bg-saffron/10"
           >
             <CircleDot className="size-2" /> Jump to block
           </button>
         ) : null}
-        <div className="mt-1.5 flex items-center gap-2 text-[8px] text-muted-foreground">
+        <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
           {thread.resolvedAt ? (
             <button
               type="button"
@@ -432,12 +432,12 @@ export function PageContextPanel({
         {shown.map((reply) => (
           <div key={reply.id} className="mt-2 border-l border-border/70 pl-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-[8px] font-medium">{authorName(reply.authorId)}</span>
-              <span className="text-[7px] text-muted-foreground">
+              <span className="text-xs font-medium">{authorName(reply.authorId)}</span>
+              <span className="text-xs text-muted-foreground">
                 {formatRelative(reply.createdAt)}
               </span>
             </div>
-            <p className="mt-0.5 whitespace-pre-wrap text-[9px] leading-relaxed text-muted-foreground">
+            <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
               {reply.body}
             </p>
           </div>
@@ -453,7 +453,7 @@ export function PageContextPanel({
                 return next;
               })
             }
-            className="mt-1.5 text-[8px] text-muted-foreground hover:text-foreground"
+            className="mt-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             {expanded ? "Show fewer replies" : `Show ${replies.length - 2} more replies`}
           </button>
@@ -477,14 +477,14 @@ export function PageContextPanel({
             type="button"
             onClick={() => setTab(value)}
             className={cn(
-              "inline-flex h-6 items-center gap-1 rounded-md px-2 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground",
+              "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
               tab === value && "bg-muted text-foreground",
             )}
           >
             <Icon className="size-3" />
             {label}
             {value === "comments" && stats.open ? (
-              <span className="rounded-full bg-saffron/20 px-1 text-[8px] text-saffron">{stats.open}</span>
+              <span className="rounded-full bg-saffron/20 px-1 text-xs text-saffron">{stats.open}</span>
             ) : null}
           </button>
         ))}
@@ -504,10 +504,10 @@ export function PageContextPanel({
         {tab === "info" ? (
           <div className="space-y-5">
             <section>
-              <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+              <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                 Page
               </div>
-              <div className="mt-2 space-y-1.5 text-[10px]">
+              <div className="mt-2 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Created</span>
                   <span>{new Date(page.createdAt).toLocaleDateString()}</span>
@@ -523,7 +523,7 @@ export function PageContextPanel({
                       render={
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-[9px] capitalize hover:bg-muted"
+                          className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-xs capitalize hover:bg-muted"
                         />
                       }
                     >
@@ -538,8 +538,8 @@ export function PageContextPanel({
                           onClick={() => void setVisibility(option.value)}
                         >
                           <span className="flex flex-col">
-                            <span className="text-[10px]">{option.label}</span>
-                            <span className="text-[8px] text-muted-foreground">{option.hint}</span>
+                            <span className="text-xs">{option.label}</span>
+                            <span className="text-xs text-muted-foreground">{option.hint}</span>
                           </span>
                         </DropdownMenuItem>
                       ))}
@@ -556,7 +556,7 @@ export function PageContextPanel({
                     value={assignedType?.id ?? ""}
                     disabled={!db || !objectTypes.length}
                     onChange={(event) => void setObjectType(event.target.value)}
-                    className="h-6 max-w-[140px] rounded-md border border-border/60 bg-background px-1 text-[9px] outline-none focus:border-primary/40 disabled:opacity-50"
+                    className="h-7 max-w-[140px] rounded-md border border-border/60 bg-background px-1 text-xs outline-none focus:border-primary/40 disabled:opacity-50"
                   >
                     <option value="">None</option>
                     {objectTypes
@@ -574,11 +574,11 @@ export function PageContextPanel({
             {assignedType ? (
               <section>
                 <div className="flex items-center justify-between">
-                  <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                  <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                     {assignedType.name}
                   </div>
                   <span
-                    className="grid size-5 place-items-center rounded text-[10px]"
+                    className="grid size-5 place-items-center rounded text-xs"
                     style={{ backgroundColor: `${assignedType.color}22`, color: assignedType.color }}
                   >
                     {assignedType.icon ?? "◈"}
@@ -594,7 +594,7 @@ export function PageContextPanel({
                       return (
                         <label
                           key={definition.key}
-                          className="flex items-center justify-between text-[10px]"
+                          className="flex items-center justify-between text-xs"
                         >
                           <span className="text-muted-foreground">{definition.label}</span>
                           <input
@@ -611,13 +611,13 @@ export function PageContextPanel({
                     if (definition.type === "select") {
                       return (
                         <label key={definition.key} className="block">
-                          <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                          <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
                             {definition.label}
                           </span>
                           <select
                             value={typeof value === "string" ? value : ""}
                             onChange={(event) => void setTypedValue(definition.key, event.target.value)}
-                            className="h-7 w-full rounded-md border border-border/60 bg-background px-1.5 text-[10px] outline-none focus:border-primary/40"
+                            className="h-8 w-full rounded-md border border-border/60 bg-background px-1.5 text-xs outline-none focus:border-primary/40"
                           >
                             <option value="">—</option>
                             {(definition.options ?? []).map((option) => (
@@ -631,7 +631,7 @@ export function PageContextPanel({
                     }
                     return (
                       <label key={definition.key} className="block">
-                        <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                        <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
                           {definition.label}
                         </span>
                         <input
@@ -651,13 +651,13 @@ export function PageContextPanel({
                             }
                             void setTypedValue(definition.key, raw);
                           }}
-                          className="h-7 w-full rounded-md border border-border/60 bg-background px-1.5 text-[10px] outline-none focus:border-primary/40"
+                          className="h-8 w-full rounded-md border border-border/60 bg-background px-1.5 text-xs outline-none focus:border-primary/40"
                         />
                       </label>
                     );
                   })}
                   {!typedProperties.length ? (
-                    <p className="text-[9px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       This type has no fields yet — add some in Settings → Object types.
                     </p>
                   ) : null}
@@ -667,10 +667,10 @@ export function PageContextPanel({
 
             <section>
               <div className="flex items-center justify-between">
-                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Properties
                 </div>
-                <span className="text-[8px] text-muted-foreground">{propertyEntries.length}</span>
+                <span className="text-xs text-muted-foreground">{propertyEntries.length}</span>
               </div>
               <div className="mt-2 space-y-0.5">
                 {propertyEntries.map(([key, value]) => (
@@ -683,7 +683,7 @@ export function PageContextPanel({
                   />
                 ))}
                 {!propertyEntries.length ? (
-                  <p className="text-[9px] text-muted-foreground">No properties yet.</p>
+                  <p className="text-xs text-muted-foreground">No properties yet.</p>
                 ) : null}
               </div>
               <div className="mt-2 flex gap-1">
@@ -691,7 +691,7 @@ export function PageContextPanel({
                   value={propertyKey}
                   onChange={(event) => setPropertyKey(event.target.value)}
                   placeholder="Property"
-                  className="h-6 w-16 shrink-0 rounded border border-border bg-background px-1 text-[9px] outline-none focus:border-primary/40"
+                  className="h-7 w-16 shrink-0 rounded border border-border bg-background px-1 text-xs outline-none focus:border-primary/40"
                 />
                 <input
                   value={propertyValue}
@@ -700,11 +700,11 @@ export function PageContextPanel({
                     if (event.key === "Enter") void addProperty();
                   }}
                   placeholder="Value"
-                  className="h-6 min-w-0 flex-1 rounded border border-border bg-background px-1 text-[9px] outline-none focus:border-primary/40"
+                  className="h-7 min-w-0 flex-1 rounded border border-border bg-background px-1 text-xs outline-none focus:border-primary/40"
                 />
                 <Button
                   size="sm"
-                  className="h-6 rounded px-1.5 text-[8px]"
+                  className="h-7 rounded px-1.5 text-xs"
                   disabled={!propertyKey.trim()}
                   onClick={() => void addProperty()}
                 >
@@ -715,10 +715,10 @@ export function PageContextPanel({
 
             <section>
               <div className="flex items-center justify-between">
-                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Outline
                 </div>
-                <span className="text-[8px] text-muted-foreground">{outline.length} items</span>
+                <span className="text-xs text-muted-foreground">{outline.length} items</span>
               </div>
               <div className="mt-2 space-y-0.5">
                 {outline.length ? (
@@ -733,7 +733,7 @@ export function PageContextPanel({
                           }),
                         )
                       }
-                      className="block w-full truncate rounded px-1 py-0.5 text-left text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="block w-full truncate rounded px-1 py-0.5 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                       style={{ paddingLeft: `${(item.level - 1) * 8 + 4}px` }}
                       title="Jump to heading"
                     >
@@ -741,14 +741,14 @@ export function PageContextPanel({
                     </button>
                   ))
                 ) : (
-                  <p className="text-[9px] text-muted-foreground">Add headings to build an outline.</p>
+                  <p className="text-xs text-muted-foreground">Add headings to build an outline.</p>
                 )}
               </div>
             </section>
 
             <section>
               <div className="flex items-center justify-between">
-                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Tags
                 </div>
                 <Plus className="size-3 text-muted-foreground/50" />
@@ -766,7 +766,7 @@ export function PageContextPanel({
                       )
                     }
                     disabled={!db}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[8px] text-muted-foreground hover:border-destructive/30 hover:text-destructive"
+                    className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-destructive/30 hover:text-destructive"
                     title="Remove tag"
                   >
                     <TagIcon className="size-2" /> {tag.name}
@@ -774,7 +774,7 @@ export function PageContextPanel({
                   </button>
                 ))}
                 {!tags.length ? (
-                  <span className="text-[9px] text-muted-foreground">No tags yet.</span>
+                  <span className="text-xs text-muted-foreground">No tags yet.</span>
                 ) : null}
               </div>
               <div className="mt-2 flex gap-1">
@@ -785,12 +785,12 @@ export function PageContextPanel({
                     if (event.key === "Enter") void createAndAddTag();
                   }}
                   placeholder="New tag"
-                  className="h-7 rounded-md text-[10px]"
+                  className="h-8 rounded-md text-xs"
                 />
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 shrink-0 rounded-md px-2 text-[9px]"
+                  className="h-8 shrink-0 rounded-md px-2 text-xs"
                   onClick={() => void createAndAddTag()}
                 >
                   Add
@@ -806,7 +806,7 @@ export function PageContextPanel({
                         key={tag.id}
                         type="button"
                         onClick={() => void addTag(tag.id)}
-                        className="rounded-full border border-dashed border-border px-2 py-0.5 text-[8px] text-muted-foreground hover:bg-muted"
+                        className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
                       >
                         + {tag.name}
                       </button>
@@ -817,16 +817,16 @@ export function PageContextPanel({
 
             <section>
               <div className="flex items-center justify-between">
-                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Learning
                 </div>
-                <span className="text-[8px] text-muted-foreground">{cards.length} cards</span>
+                <span className="text-xs text-muted-foreground">{cards.length} cards</span>
               </div>
               <div className="mt-2 space-y-1">
                 {cards.slice(0, 3).map((card) => (
                   <div key={card.id} className="group flex items-start gap-1.5 rounded-md border border-border/60 bg-card/50 px-2 py-1.5">
                     <span className="mt-0.5">◒</span>
-                    <span className="line-clamp-2 min-w-0 flex-1 text-[9px] leading-snug">{card.front}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-xs leading-snug">{card.front}</span>
                     <button
                       type="button"
                       aria-label="Delete card"
@@ -841,7 +841,7 @@ export function PageContextPanel({
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2 h-7 w-full rounded-md text-[9px]"
+                className="mt-2 h-8 w-full rounded-md text-xs"
                 onClick={() => void generateCards()}
               >
                 <Brain className="size-3" /> Generate cards from this page
@@ -849,10 +849,10 @@ export function PageContextPanel({
             </section>
 
             <section className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
-              <div className="flex items-center gap-1.5 text-[9px] font-medium">
+              <div className="flex items-center gap-1.5 text-xs font-medium">
                 <Sparkles className="size-3 text-saffron" /> Ask about this page
               </div>
-              <p className="mt-1 text-[8.5px] leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Use the Ask button in the top bar to summarize, find connections, or explain this page.
               </p>
             </section>
@@ -863,10 +863,10 @@ export function PageContextPanel({
           <div className="space-y-5">
             <section>
               <div className="flex items-center justify-between">
-                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Backlinks
                 </div>
-                <span className="text-[8px] text-muted-foreground">{backlinks.length}</span>
+                <span className="text-xs text-muted-foreground">{backlinks.length}</span>
               </div>
               <div className="mt-2 space-y-1">
                 {backlinks.map((backlink) => (
@@ -876,13 +876,13 @@ export function PageContextPanel({
                     onClick={() => router.push(appRouteObject({ view: "page", id: backlink.id }))}
                     className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-card/50 px-2 py-1.5 text-left hover:bg-muted/50"
                   >
-                    <span className="text-[10px]">{backlink.icon ?? "◇"}</span>
-                    <span className="min-w-0 flex-1 truncate text-[10px]">{backlink.title}</span>
+                    <span className="text-xs">{backlink.icon ?? "◇"}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs">{backlink.title}</span>
                     <ArrowUpRight className="size-2.5 text-muted-foreground/50" />
                   </button>
                 ))}
                 {!backlinks.length ? (
-                  <p className="text-[9px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     No other page links here yet. Use [[ from another note.
                   </p>
                 ) : null}
@@ -890,10 +890,10 @@ export function PageContextPanel({
             </section>
             <section>
               <div className="flex items-center justify-between">
-                <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                <div className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Outgoing
                 </div>
-                <span className="text-[8px] text-muted-foreground">{outgoing.length}</span>
+                <span className="text-xs text-muted-foreground">{outgoing.length}</span>
               </div>
               <div className="mt-2 space-y-1">
                 {outgoing.map((link) => (
@@ -903,13 +903,13 @@ export function PageContextPanel({
                     onClick={() => router.push(appRouteObject({ view: "page", id: link.id }))}
                     className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-card/50 px-2 py-1.5 text-left hover:bg-muted/50"
                   >
-                    <span className="text-[10px]">{link.icon ?? "◇"}</span>
-                    <span className="min-w-0 flex-1 truncate text-[10px]">{link.title}</span>
+                    <span className="text-xs">{link.icon ?? "◇"}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs">{link.title}</span>
                     <ArrowUpRight className="size-2.5 text-muted-foreground/50" />
                   </button>
                 ))}
                 {!outgoing.length ? (
-                  <p className="text-[9px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     This page does not reference others yet.
                   </p>
                 ) : null}
@@ -918,7 +918,7 @@ export function PageContextPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 w-full rounded-md text-[9px]"
+              className="h-8 w-full rounded-md text-xs"
               onClick={() => router.push(appRouteObject({ view: "graph" }))}
             >
               Open in knowledge graph <ArrowUpRight className="size-3" />
@@ -929,7 +929,7 @@ export function PageContextPanel({
         {tab === "comments" ? (
           <div className="space-y-3">
             {focusBlockId ? (
-              <div className="flex items-center gap-1.5 rounded-md border border-saffron/30 bg-saffron/[0.06] px-2 py-1.5 text-[9px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 rounded-md border border-saffron/30 bg-saffron/[0.06] px-2 py-1.5 text-xs text-muted-foreground">
                 <CircleDot className="size-3 text-saffron" />
                 Anchored to a block
                 <button type="button" onClick={onClearBlock} className="ml-auto text-foreground">
@@ -944,7 +944,7 @@ export function PageContextPanel({
                   type="button"
                   onClick={() => setStatusFilter(value)}
                   className={cn(
-                    "rounded-full border px-1.5 py-0.5 text-[8px]",
+                    "rounded-full border px-1.5 py-0.5 text-xs",
                     statusFilter === value
                       ? "border-moss/40 bg-moss/10 text-moss"
                       : "border-border/60 text-muted-foreground hover:bg-muted",
@@ -958,7 +958,7 @@ export function PageContextPanel({
                 </button>
               ))}
               {stats.replies ? (
-                <span className="ml-auto text-[8px] text-muted-foreground">
+                <span className="ml-auto text-xs text-muted-foreground">
                   {stats.replies} repl{stats.replies === 1 ? "y" : "ies"}
                 </span>
               ) : null}
@@ -967,9 +967,9 @@ export function PageContextPanel({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search discussion…"
-              className="h-7 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
             />
-            <div className="flex flex-wrap items-center gap-3 text-[8px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <label className="flex items-center gap-1">
                 <input
                   type="checkbox"
@@ -998,7 +998,7 @@ export function PageContextPanel({
               {threadGroups.map((group) => (
                 <div key={group.blockId ?? "page"} className="space-y-2">
                   {grouped ? (
-                    <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <CircleDot className="size-2.5" />
                       {group.blockId
                         ? `${group.threads.length} on one block`
@@ -1007,7 +1007,7 @@ export function PageContextPanel({
                         <button
                           type="button"
                           onClick={() => jumpToBlock(group.blockId!)}
-                          className="rounded-full border border-saffron/30 px-1.5 py-0.5 text-[7px] text-saffron hover:bg-saffron/10"
+                          className="rounded-full border border-saffron/30 px-1.5 py-0.5 text-xs text-saffron hover:bg-saffron/10"
                         >
                           Jump
                         </button>
@@ -1020,14 +1020,14 @@ export function PageContextPanel({
               {!threads.length ? (
                 <div className="py-8 text-center">
                   <MessageSquare className="mx-auto size-5 text-muted-foreground/40" />
-                  <p className="mt-2 text-[10px] text-muted-foreground">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     {search || anchoredOnly || focusBlockId
                       ? "No discussions match these filters."
                       : statusFilter === "resolved"
                         ? "Nothing resolved yet."
                         : "No open discussions."}
                   </p>
-                  <p className="mt-1 text-[8px] text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Comments sync asynchronously with your team.
                   </p>
                 </div>
@@ -1036,7 +1036,7 @@ export function PageContextPanel({
                 <button
                   type="button"
                   onClick={() => setVisibleCount((current) => current + 20)}
-                  className="w-full rounded-md border border-border/60 py-1.5 text-[9px] text-muted-foreground hover:bg-muted"
+                  className="w-full rounded-md border border-border/60 py-1.5 text-xs text-muted-foreground hover:bg-muted"
                 >
                   Show 20 more
                 </button>
@@ -1053,10 +1053,10 @@ export function PageContextPanel({
                   }
                 }}
                 placeholder="Add a comment…"
-                className="min-h-16 rounded-lg text-[11px]"
+                className="min-h-16 rounded-lg text-xs"
               />
               <div className="mt-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[8px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Clock className="size-2.5" /> ⌘↵ to send
                   <DropdownMenu>
                     <DropdownMenuTrigger
@@ -1064,7 +1064,7 @@ export function PageContextPanel({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 rounded-md px-1.5 text-[8px] text-muted-foreground"
+                          className="h-7 rounded-md px-1.5 text-xs text-muted-foreground"
                         />
                       }
                     >
@@ -1076,14 +1076,14 @@ export function PageContextPanel({
                           key={member.userId}
                           onClick={() => insertMention(member.user.name)}
                         >
-                          <span className="grid size-4 shrink-0 place-items-center rounded-full bg-moss/20 text-[7px] font-semibold text-moss">
+                          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-moss/20 text-xs font-semibold text-moss">
                             {member.user.name.slice(0, 1)}
                           </span>
                           <span className="min-w-0 flex-1 truncate">{member.user.name}</span>
                         </DropdownMenuItem>
                       ))}
                       {!membersQuery.data?.length ? (
-                        <p className="px-2 py-3 text-center text-[9px] text-muted-foreground">
+                        <p className="px-2 py-3 text-center text-xs text-muted-foreground">
                           No teammates to mention yet.
                         </p>
                       ) : null}
@@ -1092,7 +1092,7 @@ export function PageContextPanel({
                 </span>
                 <Button
                   size="sm"
-                  className="h-7 rounded-md text-[9px]"
+                  className="h-8 rounded-md text-xs"
                   disabled={!commentText.trim()}
                   onClick={() => void addComment()}
                 >

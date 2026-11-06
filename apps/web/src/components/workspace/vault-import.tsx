@@ -222,14 +222,14 @@ export function VaultImportDialog({ open, onClose }: { open: boolean; onClose: (
       description="Obsidian vaults and Notion Markdown exports. Folders become notebooks and wiki links become real page links."
       footer={
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[9px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {progress ? `${progress.done}/${progress.total} · ${progress.label}` : `Up to ${MAX_FILES} files.`}
           </span>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 rounded-lg text-[11px]"
+              className="h-8 rounded-lg text-xs"
               disabled={busy}
               onClick={() => {
                 reset();
@@ -240,7 +240,7 @@ export function VaultImportDialog({ open, onClose }: { open: boolean; onClose: (
             </Button>
             <Button
               size="sm"
-              className="h-8 rounded-lg text-[11px]"
+              className="h-8 rounded-lg text-xs"
               disabled={busy || !summary.files}
               onClick={() => void run()}
             >
@@ -273,10 +273,10 @@ export function VaultImportDialog({ open, onClose }: { open: boolean; onClose: (
           className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-border bg-card/30 px-4 py-6 text-center transition-colors hover:border-primary/40"
         >
           <FolderUp className="size-4 text-muted-foreground" />
-          <span className="text-[11px] font-medium">
+          <span className="text-xs font-medium">
             {summary.files ? `${summary.files} Markdown files selected` : "Choose a vault folder"}
           </span>
-          <span className="text-[9px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {summary.files
               ? `${summary.folders} folders · ${files.length} files read`
               : "Pick the folder that holds your notes, not a single file."}
@@ -284,12 +284,12 @@ export function VaultImportDialog({ open, onClose }: { open: boolean; onClose: (
         </button>
 
         {error ? (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive">
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-xs leading-relaxed text-destructive">
             {error}
           </p>
         ) : null}
 
-        <p className="text-[9px] leading-relaxed text-muted-foreground">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           Frontmatter titles and aliases are read, <span className="font-mono">#tags</span> become workspace
           tags, and <span className="font-mono">[[wiki links]]</span> are matched by path, file name, or
           alias. Unmatched links stay as text so nothing is lost.

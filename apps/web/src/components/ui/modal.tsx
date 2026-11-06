@@ -99,9 +99,9 @@ export function Modal({
       >
         <div className="flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4">
           <div>
-            <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
+            <h2 className="text-base font-semibold tracking-[-0.01em]">{title}</h2>
             {description ? (
-              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{description}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
             ) : null}
           </div>
           <button
