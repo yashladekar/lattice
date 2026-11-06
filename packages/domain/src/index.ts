@@ -32,3 +32,4 @@ export * from "./object-types";
 export * from "./ocr";
 export * from "./markdown-doc";
 export * from "./local-vectors";
+export * from "./version-timeline";

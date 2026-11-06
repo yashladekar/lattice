@@ -55,8 +55,16 @@ node `createdAt` / `deletedAt` timestamps: nodes that did not exist yet are
 hidden, and nodes deleted by that date disappear. The slider moves in one-day
 steps; **Live** returns to the current graph.
 
-Link topology reflects the current graph between the nodes that existed at that
-time — inside-note edits are not replayed, so use versions for that.
+Links are replayed too, from note versions. While playback is on, the app asks
+the server for the workspace version timeline — the most recent 200 versions the
+member can read — and the server answers with each version's page-link ids, never
+its body. A note's links at time *t* are the links of its newest version at or
+before *t*, so a reference added in version 4 and removed in version 6 is visible
+only between those edits. Pages without a version in the window keep their live
+links rather than pretending none existed, and the playback bar captions the
+latest version at the scrub point (`v4 · Title`) or says `no saved versions`.
+Only `PAGE_LINK` edges are version-filtered; manual relations, canvas links, and
+AI suggestions still follow node timestamps.
 
 ## Learning path
 

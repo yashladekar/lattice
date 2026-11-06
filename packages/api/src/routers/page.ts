@@ -21,6 +21,7 @@ import {
   toJsonSafe,
 } from "../services/changes";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
+import { versionTimeline } from "../services/version-timeline";
 
 const pageIdInput = z.object({ pageId: z.string().min(1) });
 
@@ -289,6 +290,21 @@ export const pageRouter = {
         where: { pageId: input.pageId, workspaceId: context.workspaceId },
         orderBy: { version: "desc" },
         take: 50,
+      });
+    }),
+
+  versionTimeline: workspaceProcedure("VIEWER")
+    .input(
+      z
+        .object({ limit: z.number().int().min(1).max(500).default(200) })
+        .optional(),
+    )
+    .handler(async ({ context, input }) => {
+      return versionTimeline(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        role: context.role,
+        limit: input?.limit ?? 200,
       });
     }),
 

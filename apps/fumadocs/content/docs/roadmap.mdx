@@ -70,9 +70,12 @@ description: What this implementation covers and which subsystems are deliberate
 - It widens recall past exact tokens — a query for "habits" finds a note that says "habit" — while lexical scoring still decides between documents that share words.
 - Runs offline, in a worker, and on a phone with no download, and is honest about its limits: it is a lexical-vector index, not a neural model. Provider embeddings still power the server-side semantic index when configured.
 
-## Next: knowledge intelligence
+## Shipped: version playback
 
-- Temporal graph playback across note versions.
+- Graph playback now replays **links**, not just nodes: a new `page.versionTimeline` endpoint returns each readable version's page-link ids (version bodies are parsed server-side and never sent), and the graph filters `PAGE_LINK` edges by each note's newest version at or before the scrub point.
+- A reference added in version 4 and removed in version 6 appears only between those edits; pages without a version in the window keep their live links instead of pretending they had none.
+- The playback bar captions the latest version at the scrub point, or says `no saved versions` when the workspace has none.
+- The timeline is capped at the most recent 200 workspace versions and filtered by page access, so private notes stay out of another member's playback.
 
 ## Shipped: attachment OCR
 

@@ -5,11 +5,16 @@ import {
   RELATION_META,
   connectedComponents,
   degreeMap,
+  linkActiveAt,
   orphanNodes,
+  sortVersionTimeline,
+  versionEntryAt,
+  versionLinksAt,
   type KnowledgeEdge,
   type KnowledgeNode,
   type NodeKind,
   type RelationType,
+  type VersionTimelineEntry,
 } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Input } from "@notes-learning/ui/components/input";
@@ -48,6 +53,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -298,6 +304,41 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
     return { min: Math.min(...stamps), max: Math.max(Date.now(), ...stamps) };
   }, [graph.nodes]);
 
+  /**
+   * Version history drives link playback: a reference that existed only in the
+   * middle versions of a note should appear and disappear as the slider moves.
+   */
+  const versionTimeline = useQuery({
+    queryKey: ["graph-version-timeline", activeWorkspaceId],
+    queryFn: async () => client.page.versionTimeline({ limit: 200 }),
+    enabled: online && Boolean(activeWorkspaceId) && playbackAt !== null,
+  });
+  const versionEntries = useMemo<VersionTimelineEntry[]>(
+    () =>
+      sortVersionTimeline(
+        (versionTimeline.data ?? []).map((entry) => ({
+          pageId: entry.pageId,
+          version: entry.version,
+          title: entry.title,
+          createdAt: new Date(entry.createdAt).toISOString(),
+          links: entry.links,
+        })),
+      ),
+    [versionTimeline.data],
+  );
+  const playbackLinks = useMemo(
+    () => (playbackAt !== null && versionEntries.length ? versionLinksAt(versionEntries, playbackAt) : null),
+    [playbackAt, versionEntries],
+  );
+  const playbackCaption = useMemo(
+    () => (playbackAt !== null ? versionEntryAt(versionEntries, playbackAt) : null),
+    [playbackAt, versionEntries],
+  );
+  const nodePageId = useMemo(
+    () => new Map(graph.nodes.map((node) => [node.id, node.pageId ?? null])),
+    [graph.nodes],
+  );
+
   useEffect(() => {
     if (!selectedId) setFocusDepth(0);
   }, [selectedId]);
@@ -361,7 +402,14 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
       (edge) =>
         nodeSet.has(edge.sourceNodeId) &&
         nodeSet.has(edge.targetNodeId) &&
-        (relationFilter === "all" || edge.relationType === relationFilter),
+        (relationFilter === "all" || edge.relationType === relationFilter) &&
+        (playbackLinks === null ||
+          edge.origin !== "PAGE_LINK" ||
+          linkActiveAt(
+            playbackLinks,
+            nodePageId.get(edge.sourceNodeId) ?? "",
+            nodePageId.get(edge.targetNodeId) ?? "",
+          )),
     );
     if (normalized) {
       const matched = new Set(nodeSet);
@@ -392,6 +440,8 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
     pageById,
     canvasById,
     tagsByPage,
+    playbackLinks,
+    nodePageId,
   ]);
 
   useEffect(() => {
@@ -906,6 +956,13 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 day: "numeric",
                 year: "numeric",
               })}
+            </span>
+            <span className="w-28 shrink-0 truncate text-[8px] text-muted-foreground">
+              {versionTimeline.isFetching
+                ? "loading history…"
+                : playbackCaption
+                  ? `v${playbackCaption.version} · ${playbackCaption.title}`
+                  : "no saved versions"}
             </span>
             <button
               type="button"
