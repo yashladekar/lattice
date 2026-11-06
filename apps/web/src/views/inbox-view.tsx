@@ -626,7 +626,7 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             type="button"
             onClick={() => setStatus(tab.id)}
             className={cn(
-              "rounded-full px-2.5 py-1 text-xs transition-colors",
+              "h-7 rounded-full px-2.5 text-xs transition-colors",
               status === tab.id
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
