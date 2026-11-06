@@ -50,6 +50,12 @@ PDF captures can be extracted from the inbox. The API reads the stored file, ext
 
 When a PDF has no text layer, or for images, the browser does the OCR instead: the stored file is downloaded with the session cookie, pages are rasterized locally with `pdfjs-dist`, and text is recognized with `tesseract.js`. Nothing is uploaded for OCR and no provider is required — the trade-off is that the first run downloads the OCR engine and English model from jsDelivr unless `NEXT_PUBLIC_TESSERACT_CDN` points at a self-hosted mirror. Up to 15 pages are read per file, and the recognized text lands through the normal capture change log. Audio captures can additionally be transcribed by the server's provider when one is configured.
 
+## Plugins
+
+Plugins run in a worker with the ambient network, storage, and indexing APIs removed before their code loads. Every callable method maps to a capability in the domain (`PLUGIN_METHODS`), and the host answers a call only when the record granted that capability — the worker never decides what it may do.
+
+Manifest-declared **blocks** and **canvasTools** only describe where a plugin can be invoked. A block's node stores what the plugin returned, so the output is ordinary document content: it syncs, versions, and exports like any other block. Markdown output is converted through the same importer used for GitHub imports and then stripped of non-http/mailto/tel link and image targets (`stripUnsafeHrefs`). The passive run context (`ctx.input()`, `ctx.canvas()`, `ctx.tool()`) is data the host chooses to hand over — canvas data only when `graph:read` is granted — and never widens what the plugin can call.
+
 ## Retention
 
 Deletes are soft deletes. Each workspace can set a trash window (30/90/180/365 days, or keep forever) in Settings → General. A scheduled server job then permanently removes soft-deleted rows older than that window and appends tombstone changes, so clients converge on the same result. There is intentionally no manual purge button; an instant purge needs its own op semantic to stay consistent with local-first clients.

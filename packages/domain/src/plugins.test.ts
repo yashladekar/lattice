@@ -147,3 +147,62 @@ describe("method capability table", () => {
     expect(capabilityForMethod("hasOwnProperty")).toBeNull();
   });
 });
+
+describe("plugin tools", () => {
+  const toolsBase = {
+    id: "com.example.tools",
+    name: "Tools",
+    version: "1.0.0",
+    description: "Contributes blocks and canvas tools.",
+    permissions: ["page:read", "graph:read"],
+  };
+
+  it("accepts blocks and canvas tools", () => {
+    const result = validateManifest({
+      ...toolsBase,
+      blocks: [{ id: "summary", label: "Summary block", description: "Condenses the page." }],
+      canvasTools: [{ id: "spread", label: "Spread to canvas", layout: "mindmap" }],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.manifest?.blocks).toEqual([
+      { id: "summary", label: "Summary block", description: "Condenses the page." },
+    ]);
+    expect(result.manifest?.canvasTools).toEqual([
+      { id: "spread", label: "Spread to canvas", layout: "mindmap" },
+    ]);
+  });
+
+  it("omits tool lists that were not declared", () => {
+    const result = validateManifest(toolsBase);
+    expect(result.ok).toBe(true);
+    expect(result.manifest?.blocks).toBeUndefined();
+    expect(result.manifest?.canvasTools).toBeUndefined();
+  });
+
+  it("rejects bad tool ids, labels, and layouts", () => {
+    const result = validateManifest({
+      ...toolsBase,
+      blocks: [
+        { id: "Not Allowed", label: "X" },
+        { id: "ok", label: "" },
+      ],
+      canvasTools: [{ id: "spread", label: "Spread", layout: "grid" }],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(" ")).toContain("blocks.id must be lowercase");
+    expect(result.errors.join(" ")).toContain("blocks.label is required");
+    expect(result.errors.join(" ")).toContain("canvasTools.layout must be one of");
+  });
+
+  it("caps tool lists", () => {
+    const result = validateManifest({
+      ...toolsBase,
+      blocks: Array.from({ length: 12 }, (_, index) => ({
+        id: `tool-${index}`,
+        label: `Tool ${index}`,
+      })),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(" ")).toContain("capped at 8");
+  });
+});

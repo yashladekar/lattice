@@ -42,6 +42,7 @@ drop("navigator", { userAgent: "lattice-plugin", sendBeacon: undefined });
 
 const pending = new Map();
 let nextId = 1;
+let hostContext = { input: null, canvas: null, tool: null };
 
 function call(method, payload) {
   const id = nextId++;
@@ -60,6 +61,9 @@ const ctx = {
   askAi: function (prompt) { return call("askAi", prompt); },
   getItem: function (key) { return call("getItem", key); },
   setItem: function (key, value) { return call("setItem", { key: key, value: value }); },
+  input: function () { return hostContext.input; },
+  canvas: function () { return hostContext.canvas; },
+  tool: function () { return hostContext.tool; },
   log: function (message) { self.postMessage({ kind: "log", message: String(message) }); }
 };
 
@@ -73,6 +77,7 @@ self.addEventListener("message", function (event) {
     return;
   }
   if (data.kind === "run") {
+    if (data.context && typeof data.context === "object") hostContext = data.context;
     if (typeof run !== "function") {
       self.postMessage({ kind: "failed", error: "This plugin does not define run(ctx)." });
       return;
@@ -106,6 +111,12 @@ export interface PluginRunOptions {
   record: Pick<PluginRecord, "granted" | "enabled">;
   handlers: PluginHandlers;
   timeoutMs?: number;
+  /**
+   * Passive data the plugin reads through `ctx.input()` / `ctx.canvas()`.
+   * Capability checks still gate the callable API; this is only what the host
+   * chose to hand over for this run.
+   */
+  context?: { input?: string | null; canvas?: unknown; tool?: unknown };
 }
 
 /**
@@ -203,6 +214,6 @@ export function runPlugin(options: PluginRunOptions): Promise<PluginRunResult> {
       }
     };
 
-    worker.postMessage({ kind: "run" });
+    worker.postMessage({ kind: "run", context: options.context ?? null });
   });
 }

@@ -78,11 +78,18 @@ description: What this implementation covers and which subsystems are deliberate
 
 - Browser extension distribution.
 
+## Shipped: plugin blocks and canvas tools
+
+- A manifest can declare **blocks** (inserted into the editor from the page actions menu) and **canvasTools** (offered in the whiteboard's generate menu), each capped and validated like the rest of the manifest.
+- Blocks are real document nodes: input, output, error, and run time are stored in the node, so a block syncs, versions, and exports with the page. Output renders as plain text by default, or as sanitized Markdown when the block declares `output: "markdown"`.
+- Canvas tools return Markdown that the host lays out as a mind map, flowchart, or concept map — plugins shape content, the host owns rendering.
+- Passive run context (`ctx.input()`, `ctx.canvas()`, `ctx.tool()`) is data handed over by the host; capability checks still gate every callable API, and canvas data is only passed when `graph:read` is granted.
+
 ## Shipped: plugin runtime
 
 - Capability-checked worker isolation, with per-capability consent and revocation.
 - Ambient network and database access removed before plugin code loads.
-- A curated in-app directory of audited plugins: word count, TODO extraction, and related notes.
+- A curated in-app directory of audited plugins: word count, TODO extraction, related notes, and structure tools (an editor block plus a canvas tool).
 - Install from an HTTPS URL: the bundle is fetched, its manifest validated, and its requested capabilities shown for approval before anything installs.
 
 ## Shipped: automation rules

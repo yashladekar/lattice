@@ -79,6 +79,63 @@ export const DIRECTORY_PLUGINS: DirectoryPlugin[] = [
   return related.length ? related : "No related notes found.";
 }`,
   },
+  {
+    category: "research",
+    manifest: {
+      id: "com.lattice.directory.structure",
+      name: "Structure tools",
+      version: "1.0.0",
+      description: "Turns a page into an inspectable outline, as a block or as a canvas.",
+      permissions: ["page:read"],
+      blocks: [
+        {
+          id: "outline",
+          label: "Page outline",
+          description: "Lists the page's headings as a Markdown outline with word counts.",
+          output: "markdown",
+        },
+      ],
+      canvasTools: [
+        {
+          id: "spread",
+          label: "Spread headings",
+          description: "Lays the page's headings out as a new mind map.",
+          layout: "mindmap",
+        },
+      ],
+    },
+    source: `async function run(ctx) {
+  const page = await ctx.readPage();
+  if (!page) return "No page selected.";
+  const tool = ctx.tool();
+  const lines = page.markdown.split("\\n");
+  const headings = [];
+  for (let index = 0; index < lines.length; index++) {
+    const match = lines[index].match(/^(#{1,4})\\s+(.*)$/);
+    if (!match) continue;
+    const depth = match[1].length;
+    const title = match[2].trim();
+    let words = 0;
+    for (let cursor = index + 1; cursor < lines.length; cursor++) {
+      if (/^#{1,4}\\s+/.test(lines[cursor])) break;
+      words += lines[cursor].split(/\\s+/).filter(Boolean).length;
+    }
+    headings.push({ depth: depth, title: title, words: words });
+  }
+  if (!headings.length) return "This page has no headings yet.";
+  if (tool && tool.id === "outline") {
+    return headings
+      .map(function (heading) {
+        return "  ".repeat(heading.depth - 1) + "- " + heading.title + " (" + heading.words + " words)";
+      })
+      .join("\\n");
+  }
+  return "# " + page.title + "\\n\\n" +
+    headings
+      .map(function (heading) { return "#".repeat(heading.depth) + " " + heading.title; })
+      .join("\\n");
+}`,
+  },
 ];
 
 /** Every shipped directory entry must survive the same validation as remote ones. */

@@ -13,6 +13,7 @@ import {
   PageEmbedView,
   PageLinkView,
 } from "./node-views";
+import { PluginBlockView } from "./plugin-block-view";
 
 export const PageLink = Node.create({
   name: "pageLink",
@@ -418,6 +419,60 @@ export const Request = Node.create({
   },
 });
 
+export const PluginBlock = Node.create({
+  name: "pluginBlock",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      pluginId: { default: "" },
+      blockId: { default: "" },
+      pluginName: { default: "" },
+      label: { default: "Plugin block" },
+      input: { default: "" },
+      output: { default: "" },
+      error: { default: "" },
+      ranAt: { default: "" },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        tag: 'div[data-type="pluginBlock"]',
+        getAttrs: (element) =>
+          element instanceof HTMLElement
+            ? {
+                pluginId: element.getAttribute("data-plugin-id") ?? "",
+                blockId: element.getAttribute("data-block-id") ?? "",
+                pluginName: element.getAttribute("data-plugin-name") ?? "",
+                label: element.getAttribute("data-label") ?? "Plugin block",
+                output: element.textContent ?? "",
+              }
+            : false,
+      },
+    ];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "pluginBlock",
+        "data-plugin-id": node.attrs.pluginId,
+        "data-block-id": node.attrs.blockId,
+        "data-plugin-name": node.attrs.pluginName,
+        "data-label": node.attrs.label,
+        class: "plugin-block",
+      }),
+      node.attrs.output || node.attrs.label || "Plugin block",
+    ];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(PluginBlockView);
+  },
+});
+
 export const customEditorNodes = [
   PageLink,
   Callout,
@@ -427,4 +482,5 @@ export const customEditorNodes = [
   Database,
   Diagram,
   Request,
+  PluginBlock,
 ];

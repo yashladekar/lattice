@@ -93,6 +93,7 @@ export function createEditorExtensions({
         "bookmark",
         "diagram",
         "request",
+        "pluginBlock",
         "details",
         "table",
       ],

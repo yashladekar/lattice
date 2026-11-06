@@ -70,7 +70,27 @@ export interface PluginManifest {
   description: string;
   /** What the plugin asks for. The host grants an intersection of this. */
   permissions: Capability[];
+  /** Blocks the plugin contributes to the editor. */
+  blocks?: PluginToolDefinition[];
+  /** Tools the plugin contributes to canvas generation. */
+  canvasTools?: PluginCanvasTool[];
 }
+
+export interface PluginToolDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  /** How the host renders what the block returns. Defaults to plain text. */
+  output?: "text" | "markdown";
+}
+
+export interface PluginCanvasTool extends PluginToolDefinition {
+  /** How the host renders the markdown the tool returns. */
+  layout: "mindmap" | "flow" | "concept";
+}
+
+export const MAX_PLUGIN_TOOLS = 8;
+export const CANVAS_LAYOUTS = ["mindmap", "flow", "concept"] as const;
 
 export interface ManifestValidation {
   ok: boolean;
@@ -136,8 +156,82 @@ export function validateManifest(input: unknown): ManifestValidation {
     }
   }
 
+  const toolIdPattern = /^[a-z0-9][a-z0-9-]{0,40}$/;
+
+  function parseTools(value: unknown, field: string, layouts: boolean): PluginToolDefinition[] {
+    if (value === undefined || value === null) return [];
+    if (!Array.isArray(value)) {
+      errors.push(`${field} must be a list.`);
+      return [];
+    }
+    const tools: PluginToolDefinition[] = [];
+    const seen = new Set<string>();
+    for (const entry of value.slice(0, MAX_PLUGIN_TOOLS)) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        errors.push(`Every ${field} entry must be an object.`);
+        continue;
+      }
+      const record = entry as Record<string, unknown>;
+      const id = text(record.id, `${field}.id`, errors, 41);
+      if (id && !toolIdPattern.test(id)) {
+        errors.push(`${field}.id must be lowercase letters, numbers, and dashes.`);
+        continue;
+      }
+      if (!id || seen.has(id)) continue;
+      const label = text(record.label, `${field}.label`, errors, 60);
+      if (!label) continue;
+      seen.add(id);
+      const description =
+        typeof record.description === "string" && record.description.trim()
+          ? record.description.trim().slice(0, 160)
+          : undefined;
+      let layout: PluginCanvasTool["layout"] | undefined;
+      if (layouts) {
+        if (!(CANVAS_LAYOUTS as readonly unknown[]).includes(record.layout)) {
+          errors.push(`${field}.layout must be one of ${CANVAS_LAYOUTS.join(", ")}.`);
+          continue;
+        }
+        layout = record.layout as PluginCanvasTool["layout"];
+      }
+      let output: PluginToolDefinition["output"];
+      if (!layouts && record.output !== undefined) {
+        if (record.output !== "text" && record.output !== "markdown") {
+          errors.push(`${field}.output must be text or markdown.`);
+          continue;
+        }
+        output = record.output;
+      }
+      tools.push({
+        id,
+        label,
+        ...(description ? { description } : {}),
+        ...(layout ? { layout } : {}),
+        ...(output ? { output } : {}),
+      });
+    }
+    if (Array.isArray(value) && value.length > MAX_PLUGIN_TOOLS) {
+      errors.push(`${field} is capped at ${MAX_PLUGIN_TOOLS} entries.`);
+    }
+    return tools;
+  }
+
+  const blocks = parseTools(record.blocks, "blocks", false);
+  const canvasTools = parseTools(record.canvasTools, "canvasTools", true);
+
   if (errors.length) return { ok: false, errors };
-  return { ok: true, errors: [], manifest: { id, name, version, description, permissions } };
+  return {
+    ok: true,
+    errors: [],
+    manifest: {
+      id,
+      name,
+      version,
+      description,
+      permissions,
+      ...(blocks.length ? { blocks } : {}),
+      ...(canvasTools.length ? { canvasTools: canvasTools as PluginCanvasTool[] } : {}),
+    },
+  };
 }
 
 export interface PluginRecord {

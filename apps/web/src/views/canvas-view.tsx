@@ -9,8 +9,10 @@ import {
   createId,
   createMindMap,
   docFromText,
+  docToMarkdown,
   emptyCanvas,
   extractOutline,
+  extractPlainText,
   safeDoc,
   snap,
   type CanvasCanvasElement,
@@ -111,6 +113,8 @@ import { saveCanvasLocal, createCanvasLocal, createPageLocal, updateCanvasLocal 
 import { uploadFile } from "@/lib/upload";
 import { useCanvasCollaboration } from "@/lib/canvas-collab";
 import { appRouteObject } from "@/lib/navigation";
+import { markdownToDoc } from "@/lib/github-import";
+import { runPluginCommand, useInstalledPlugins } from "@/lib/plugins";
 import type { LocalCanvas } from "@/lib/local/types";
 import { client } from "@/utils/orpc";
 import { usePage, usePageDocument } from "@/hooks/use-local-data";
@@ -319,6 +323,17 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [nestedOpen, setNestedOpen] = useState(false);
   const [generateIntent, setGenerateIntent] = useState<null | "mindmap" | "flow" | "concept">(null);
+  const [pluginTool, setPluginTool] = useState<null | { pluginId: string; toolId: string }>(null);
+  const installedPlugins = useInstalledPlugins();
+  const canvasPluginTools = useMemo(
+    () =>
+      installedPlugins
+        .filter((plugin) => plugin.enabled)
+        .flatMap((plugin) =>
+          (plugin.manifest.canvasTools ?? []).map((tool) => ({ plugin, tool })),
+        ),
+    [installedPlugins],
+  );
   const [snapshotsOpen, setSnapshotsOpen] = useState(false);
   const [snapshots, setSnapshots] = useState<
     Array<{ id: string; version: number; title: string; note: string | null; createdAt: string }>
@@ -1234,12 +1249,80 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
 
   const generateFromPage = async (pageId: string) => {
     const intent = generateIntent;
+    const pluginRequest = pluginTool;
     setGenerateIntent(null);
-    if (!db || !user || !activeWorkspaceId || !intent) return;
+    setPluginTool(null);
+    if (!db || !user || !activeWorkspaceId) return;
+    if (!intent && !pluginRequest) return;
     const sourcePage = pagesById.get(pageId);
     const sourceDocument = await db.pageDocuments.get(pageId);
-    const outline = extractOutline(safeDoc(sourceDocument?.content));
     const baseTitle = sourcePage?.title ?? "Untitled";
+
+    if (pluginRequest) {
+      const plugin = installedPlugins.find(
+        (entry) => entry.manifest.id === pluginRequest.pluginId && entry.enabled,
+      );
+      const tool = plugin?.manifest.canvasTools?.find((entry) => entry.id === pluginRequest.toolId);
+      if (!plugin || !tool) {
+        toast.error("That plugin is no longer installed.");
+        return;
+      }
+      const outlineDoc = safeDoc(sourceDocument?.content);
+      const outcome = await runPluginCommand({
+        plugin,
+        tool: { id: tool.id, label: tool.label },
+        page: {
+          pageId,
+          title: baseTitle,
+          text: extractPlainText(outlineDoc),
+          markdown: docToMarkdown(outlineDoc),
+        },
+        canvas: {
+          title: baseTitle,
+          nodes: [
+            {
+              id: pageId,
+              title: baseTitle,
+              body: extractPlainText(outlineDoc).slice(0, 4000),
+            },
+          ],
+          edges: [],
+        },
+      });
+      if (!outcome.ok) {
+        toast.error(outcome.error ?? `${plugin.manifest.name} failed`);
+        return;
+      }
+      const markdown = typeof outcome.value === "string" ? outcome.value : "";
+      if (!markdown.trim()) {
+        toast.error(`${tool.label} returned no text to lay out.`);
+        return;
+      }
+      const derivedOutline = extractOutline(safeDoc(markdownToDoc(markdown)));
+      if (!derivedOutline.length) {
+        toast.error("The plugin's output had no headings or lists to lay out.");
+        return;
+      }
+      const data =
+        tool.layout === "flow"
+          ? createFlowFromOutline(baseTitle, derivedOutline)
+          : tool.layout === "concept"
+            ? createConceptMap(baseTitle, derivedOutline)
+            : createMindMap(baseTitle, derivedOutline);
+      const created = await createCanvasLocal(db, {
+        workspaceId: activeWorkspaceId,
+        userId: user.id,
+        title: `${baseTitle} — ${tool.label}`,
+        icon: "◈",
+        data,
+        notebookId: sourcePage?.notebookId ?? null,
+      });
+      toast.success(`Generated a canvas with ${plugin.manifest.name}`);
+      router.push(appRouteObject({ view: "canvas", id: created.id }));
+      return;
+    }
+
+    const outline = extractOutline(safeDoc(sourceDocument?.content));
     const data =
       intent === "mindmap"
         ? createMindMap(baseTitle, outline)
@@ -1779,6 +1862,20 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                     <DropdownMenuItem onClick={() => setGenerateIntent("concept")}>
                       Concept map from page outline
                     </DropdownMenuItem>
+                    {canvasPluginTools.length ? <DropdownMenuSeparator /> : null}
+                    {canvasPluginTools.map((entry) => (
+                      <DropdownMenuItem
+                        key={`${entry.plugin.manifest.id}:${entry.tool.id}`}
+                        onClick={() =>
+                          setPluginTool({
+                            pluginId: entry.plugin.manifest.id,
+                            toolId: entry.tool.id,
+                          })
+                        }
+                      >
+                        {entry.tool.label} · {entry.plugin.manifest.name}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuItem onClick={() => setLayersOpen(true)}>
@@ -2664,9 +2761,12 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       </Modal>
 
       <PagePickerDialog
-        open={Boolean(generateIntent)}
+        open={Boolean(generateIntent || pluginTool)}
         mode="link"
-        onClose={() => setGenerateIntent(null)}
+        onClose={() => {
+          setGenerateIntent(null);
+          setPluginTool(null);
+        }}
         onPick={(pageId) => void generateFromPage(pageId)}
       />
 

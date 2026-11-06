@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { docToMarkdown, extractPlainText, nodePlainText } from "./editor";
+import { docToMarkdown, extractPlainText, nodePlainText, stripUnsafeHrefs } from "./editor";
 import type { TipTapDoc, TipTapNode } from "./types";
 
 const request = (attrs: Record<string, unknown>): TipTapNode => ({
@@ -52,5 +52,55 @@ describe("request block", () => {
     };
     const markdown = docToMarkdown(doc);
     expect(markdown).toBe("```http\nGET https://api.test/health\n```");
+  });
+});
+
+describe("stripUnsafeHrefs", () => {
+  it("keeps http, mailto, and tel targets", () => {
+    const doc = stripUnsafeHrefs({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "ok", marks: [{ type: "link", attrs: { href: "https://example.com" } }] },
+          ],
+        },
+        { type: "image", attrs: { src: "http://example.com/a.png", alt: "x" } },
+      ],
+    });
+    const paragraph = doc.content[0] as { content: Array<{ marks: unknown[] }> };
+    expect(paragraph.content[0]?.marks).toHaveLength(1);
+    const image = doc.content[1] as { attrs: Record<string, unknown> };
+    expect(image.attrs.src).toBe("http://example.com/a.png");
+  });
+
+  it("drops javascript targets and other stray hrefs", () => {
+    const doc = stripUnsafeHrefs({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "bad",
+              marks: [
+                { type: "link", attrs: { href: "javascript:alert(1)" } },
+                { type: "bold" },
+              ],
+            },
+          ],
+        },
+        { type: "image", attrs: { src: "data:text/html;base64,AAAA" } },
+      ],
+    });
+    const paragraph = doc.content[0] as { content: Array<{ marks: Array<{ type: string }> }> };
+    expect(paragraph.content[0]?.marks.map((mark) => mark.type)).toEqual(["bold"]);
+    expect((doc.content[1] as { attrs: Record<string, unknown> }).attrs.src).toBeUndefined();
+  });
+
+  it("returns an empty doc for junk", () => {
+    expect(stripUnsafeHrefs("nope").content).toEqual([{ type: "paragraph" }]);
   });
 });

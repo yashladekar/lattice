@@ -25,18 +25,14 @@ import { markdownToDoc } from "@/lib/github-import";
 import { savePageContentLocal, createPageLocal } from "@/lib/local/repository";
 import { searchWorkspaceIndex } from "@/lib/local/search-local";
 import { runPlugin, type PluginHandlers, type PluginRunResult } from "@/lib/plugin-runtime";
+import {
+  loadPlugins,
+  readPluginData,
+  savePlugins,
+  writePluginData,
+  type StoredPlugin,
+} from "@/lib/plugins";
 import { client } from "@/utils/orpc";
-
-const STORAGE_KEY = "lattice.plugins";
-const DATA_PREFIX = "lattice.plugin.data.";
-
-export interface StoredPlugin {
-  manifest: PluginManifest;
-  granted: Capability[];
-  enabled: boolean;
-  source: string;
-  installedAt: string;
-}
 
 const SAMPLE = {
   manifest: {
@@ -65,31 +61,6 @@ const SAMPLE = {
 }`,
 };
 
-function load(): StoredPlugin[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? (parsed as StoredPlugin[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function save(plugins: StoredPlugin[]) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(plugins));
-}
-
-function readData(pluginId: string): Record<string, unknown> {
-  try {
-    const raw = window.localStorage.getItem(`${DATA_PREFIX}${pluginId}`);
-    return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
 export function PluginManager() {
   const { db, user, activeWorkspaceId } = useAppData();
   const pages = useWorkspacePages();
@@ -110,7 +81,7 @@ export function PluginManager() {
   const [result, setResult] = useState<{ pluginId: string; run: PluginRunResult } | null>(null);
 
   useEffect(() => {
-    setPlugins(load());
+    setPlugins(loadPlugins());
   }, []);
 
   useEffect(() => {
@@ -119,7 +90,7 @@ export function PluginManager() {
 
   const update = (next: StoredPlugin[]) => {
     setPlugins(next);
-    save(next);
+    savePlugins(next);
   };
 
   const install = () => {
@@ -305,12 +276,12 @@ export function PluginManager() {
         return response;
       },
       storage: async (payload, method) => {
-        const data = readData(pluginId);
+        const data = readPluginData(pluginId);
         if (method === "getItem") return data[String(payload)] ?? null;
         const { key, value } = (payload ?? {}) as { key?: string; value?: unknown };
         if (!key) throw new Error("setItem needs a key.");
         data[key] = value;
-        window.localStorage.setItem(`${DATA_PREFIX}${pluginId}`, JSON.stringify(data));
+        writePluginData(pluginId, data);
         return true;
       },
     }),
@@ -382,6 +353,19 @@ export function PluginManager() {
                 </div>
                 <div className="text-[9px] text-muted-foreground">{plugin.manifest.description}</div>
                 <div className="font-mono text-[8.5px] text-muted-foreground">{plugin.manifest.id}</div>
+                {plugin.manifest.blocks?.length || plugin.manifest.canvasTools?.length ? (
+                  <div className="mt-0.5 text-[8.5px] text-moss">
+                    {plugin.manifest.blocks?.length
+                      ? `${plugin.manifest.blocks.length} editor block${plugin.manifest.blocks.length === 1 ? "" : "s"}`
+                      : ""}
+                    {plugin.manifest.blocks?.length && plugin.manifest.canvasTools?.length
+                      ? " · "
+                      : ""}
+                    {plugin.manifest.canvasTools?.length
+                      ? `${plugin.manifest.canvasTools.length} canvas tool${plugin.manifest.canvasTools.length === 1 ? "" : "s"}`
+                      : ""}
+                  </div>
+                ) : null}
               </div>
               <Button
                 variant="outline"

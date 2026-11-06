@@ -456,3 +456,41 @@ export function safeDoc(value: unknown): TipTapDoc {
   }
   return emptyDoc();
 }
+
+const SAFE_HREF = /^(https?:|mailto:|tel:)/i;
+
+/**
+ * Removes link and image targets that a browser would execute or a viewer
+ * would not expect, for documents assembled from untrusted text such as
+ * plugin output or imported Markdown.
+ */
+export function stripUnsafeHrefs(value: unknown): TipTapDoc {
+  const doc = safeDoc(value);
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    const record = node as {
+      attrs?: Record<string, unknown>;
+      marks?: Array<{ type?: string; attrs?: Record<string, unknown> }>;
+      content?: unknown[];
+    };
+    if (record.attrs) {
+      for (const key of ["href", "src"]) {
+        const target = record.attrs[key];
+        if (typeof target === "string" && target && !SAFE_HREF.test(target)) {
+          delete record.attrs[key];
+        }
+      }
+    }
+    if (Array.isArray(record.marks)) {
+      record.marks = record.marks.filter((mark) => {
+        if (!mark || typeof mark !== "object") return false;
+        if (mark.type !== "link") return true;
+        const href = mark.attrs?.href;
+        return typeof href === "string" && SAFE_HREF.test(href);
+      });
+    }
+    if (Array.isArray(record.content)) for (const child of record.content) walk(child);
+  };
+  walk(doc);
+  return doc;
+}

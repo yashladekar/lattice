@@ -11,6 +11,7 @@ import {
   safeDoc,
   type CanvasDocument,
   type OutlineItem,
+  type PluginToolDefinition,
   type TipTapDoc,
 } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
@@ -35,6 +36,7 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import { generateJSON } from "@tiptap/html";
 import {
   Bold,
+  Blocks,
   Check,
   Clock3,
   Code2,
@@ -102,11 +104,13 @@ import {
   upsertEdgeLocal,
 } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
+import { useInstalledPlugins, type StoredPlugin } from "@/lib/plugins";
 import { client } from "@/utils/orpc";
 
 import { EditorMenu } from "./editor-menu";
 import { CanvasPlanPreview } from "./canvas-plan-preview";
 import { createEditorExtensions } from "./extensions";
+import { EditorPageContext } from "./editor-page-context";
 import type { EditorMenuItem, EditorMenuKind, EditorMenuState } from "./menu-types";
 import { PagePickerDialog } from "./page-picker";
 import { createSlashItems } from "./slash-items";
@@ -171,6 +175,8 @@ export function PageEditor({
   const [suggestText, setSuggestText] = useState("");
   const [suggestNote, setSuggestNote] = useState("");
   const [suggestBusy, setSuggestBusy] = useState(false);
+  const [pluginPickerOpen, setPluginPickerOpen] = useState(false);
+  const installedPlugins = useInstalledPlugins();
   const [versions, setVersions] = useState<Array<{ id: string; version: number; title: string; createdAt: string; note: string | null }>>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [remoteUpdate, setRemoteUpdate] = useState(false);
@@ -863,6 +869,38 @@ export function PageEditor({
 
   const isFavorite = Boolean(page?.properties?.favorite);
 
+  const pluginBlockChoices = useMemo(() => {
+    if (!pluginPickerOpen) return [];
+    return installedPlugins
+      .filter((plugin) => plugin.enabled)
+      .flatMap((plugin) =>
+        (plugin.manifest.blocks ?? []).map((tool) => ({ plugin, tool })),
+      );
+  }, [installedPlugins, pluginPickerOpen]);
+
+  const insertPluginBlock = (choice: { plugin: StoredPlugin; tool: PluginToolDefinition }) => {
+    if (!editor) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "pluginBlock",
+        attrs: {
+          pluginId: choice.plugin.manifest.id,
+          blockId: choice.tool.id,
+          pluginName: choice.plugin.manifest.name,
+          label: choice.tool.label,
+          input: "",
+          output: "",
+          error: "",
+          ranAt: "",
+        },
+      })
+      .run();
+    setPluginPickerOpen(false);
+    toast.success(`${choice.tool.label} block inserted`);
+  };
+
   const openSuggestion = () => {
     const content =
       editor && !editor.isDestroyed ? editor.getJSON() : (document?.content ?? null);
@@ -1225,6 +1263,9 @@ export function PageEditor({
               <DropdownMenuItem onClick={openSuggestion}>
                 <GitPullRequest className="size-3.5" /> Suggest an edit
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPluginPickerOpen(true)}>
+                <Blocks className="size-3.5" /> Insert plugin block
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={toggleMarkdown}>
                 <Code2 className="size-3.5" /> {markdownMode ? "Close Markdown mode" : "Markdown mode"}
@@ -1487,7 +1528,9 @@ export function PageEditor({
             </>
           ) : null}
           <div className="min-h-[45vh]" onClick={() => editor?.chain().focus().run()}>
-            {editor ? <EditorContent editor={editor} /> : null}
+            <EditorPageContext.Provider value={{ pageId, title }}>
+              {editor ? <EditorContent editor={editor} /> : null}
+            </EditorPageContext.Provider>
           </div>
         </div>
       )}
@@ -1528,6 +1571,43 @@ export function PageEditor({
           for (const file of files) void uploadImageFile(file);
         }}
       />
+
+      <Modal
+        open={pluginPickerOpen}
+        onClose={() => setPluginPickerOpen(false)}
+        title="Insert plugin block"
+        description="Blocks come from plugins installed on this device. Running one executes it in a sandboxed worker with only the capabilities you granted."
+        className="max-w-lg"
+      >
+        <div className="space-y-1">
+          {pluginBlockChoices.length ? (
+            pluginBlockChoices.map((choice) => (
+              <button
+                key={`${choice.plugin.manifest.id}:${choice.tool.id}`}
+                type="button"
+                onClick={() => insertPluginBlock(choice)}
+                className="w-full rounded-lg border border-border/60 bg-background/40 px-2.5 py-2 text-left hover:bg-muted/40"
+              >
+                <span className="block text-[10px] font-medium">{choice.tool.label}</span>
+                <span className="block text-[8.5px] text-muted-foreground">
+                  {choice.plugin.manifest.name}
+                  {choice.tool.output === "markdown" ? " · renders Markdown" : ""}
+                </span>
+                {choice.tool.description ? (
+                  <span className="mt-0.5 block text-[8.5px] leading-relaxed text-muted-foreground">
+                    {choice.tool.description}
+                  </span>
+                ) : null}
+              </button>
+            ))
+          ) : (
+            <p className="py-4 text-center text-[9px] text-muted-foreground">
+              No plugin blocks installed. Install a plugin with a{" "}
+              <span className="font-mono">blocks</span> entry in Settings → Plugins.
+            </p>
+          )}
+        </div>
+      </Modal>
 
       <Modal
         open={suggestOpen}
