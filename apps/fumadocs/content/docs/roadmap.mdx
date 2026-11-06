@@ -74,9 +74,12 @@ description: What this implementation covers and which subsystems are deliberate
 - Picking a PDF tries the server's text-layer extraction first and falls back to OCR automatically; image captures get an **OCR text** action.
 - Recognition is offline-capable apart from the engine download, capped at 15 pages, and the result is appended to the capture as an "OCR text" section through the normal change log.
 
-## Next: capture and ingestion
+## Shipped: browser extension
 
-- Browser extension distribution.
+- MV3 extension (`extensions/lattice-clip`) that sends the current page, link, or selection to quick capture, with the Lattice URL stored in `chrome.storage.sync`.
+- `node build.mjs` validates the manifest against store limits (name/description length, version shape, icon sizes and PNG magic bytes, popup assets, permission allow-list) and packages `dist/unpacked/` plus a deterministic zip with a recorded `sha256`.
+- Listing copy, permission justifications, data-usage answers, a privacy policy, screenshot list, and a release checklist ship next to the code, so a store submission is copy-paste rather than a rewrite.
+- Store upload and review are the remaining manual step; the package itself is reproducible and verifiable.
 
 ## Shipped: plugin blocks and canvas tools
 

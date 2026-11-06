@@ -11,6 +11,8 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "pnpm --filter @notes-learning/domain test",
+    "extension:build": "node extensions/lattice-clip/build.mjs",
+    "extension:check": "node extensions/lattice-clip/build.mjs --check",
     "dev:native": "turbo run dev -F native --",
     "dev:web": "turbo run dev -F web --",
     "dev:server": "turbo run dev -F server --",

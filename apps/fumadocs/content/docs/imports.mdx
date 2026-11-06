@@ -92,6 +92,19 @@ of Markdown files that the importer can read back:
   Obsidian, Notion, or another Markdown tool and returns as linked pages.
 - Attachments are not bundled; images keep their served URLs.
 
+## Browser extension
+
+`extensions/lattice-clip` is a Manifest V3 extension that puts the page in front of you into the knowledge inbox. Click the toolbar icon to capture a title, URL, and note, or right-click a page, link, or selection and choose **Save page to Lattice**. It opens quick capture with those fields pre-filled — nothing is sent to the developer, and the extension has no host permissions.
+
+Set the Lattice URL once in the popup; it is remembered with `chrome.storage.sync`. For self-hosted instances that is whatever origin you serve (`http://localhost:3101` by default).
+
+```bash
+node extensions/lattice-clip/build.mjs           # validate, stage, and package
+node extensions/lattice-clip/build.mjs --check   # validation only
+```
+
+The build refuses to package a manifest that a store would reject: over-long name or description, a version outside the allowed shape, missing or non-PNG icons, popup assets that did not ship, or permissions beyond the reviewed allow-list. It writes `dist/unpacked/` for **Load unpacked**, a zip with fixed timestamps (same inputs, same `sha256`), and a build report for release notes. `STORE_LISTING.md` and `PRIVACY.md` in the same directory carry the listing copy, justifications, and disclosures the store asks for.
+
 ## Markdown
 
 Individual pages export as Markdown from the page actions menu, and Markdown
