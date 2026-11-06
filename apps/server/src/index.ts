@@ -6,6 +6,7 @@ import { appRouter } from "@notes-learning/api/routers/index";
 import { hashToken } from "@notes-learning/api/authz";
 import { purgeExpiredTrash } from "@notes-learning/api/services/purge";
 import { pushSync } from "@notes-learning/api/services/sync";
+import { deliverWebhookBatch } from "@notes-learning/api/services/webhooks";
 import { type EmailIngestPayload, captureFromEmail } from "@notes-learning/domain";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -284,3 +285,23 @@ const runRetentionPurge = async () => {
 };
 setTimeout(() => void runRetentionPurge(), 60_000).unref();
 setInterval(() => void runRetentionPurge(), PURGE_INTERVAL_MS).unref();
+
+let webhookRunning = false;
+const runWebhookDeliveries = async () => {
+  if (webhookRunning) return;
+  webhookRunning = true;
+  try {
+    const result = await deliverWebhookBatch(db);
+    if (result.delivered || result.failed || result.skipped) {
+      console.log(
+        `Webhooks: ${result.delivered} delivered, ${result.failed} failed, ${result.skipped} skipped`,
+      );
+    }
+  } catch (error) {
+    console.error("Webhook delivery failed", error);
+  } finally {
+    webhookRunning = false;
+  }
+};
+setTimeout(() => void runWebhookDeliveries(), 10_000).unref();
+setInterval(() => void runWebhookDeliveries(), 15_000).unref();

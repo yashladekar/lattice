@@ -5,6 +5,7 @@ import {
   dedupeChanges,
   extractPageLinks,
   safeDoc,
+  webhookEventForChange,
   type PendingSyncChange,
   type SyncEntity,
 } from "@notes-learning/domain";
@@ -57,7 +58,58 @@ export async function appendChanges(
     })),
   });
 
+  await enqueueWebhookDeliveries(tx, workspaceId, actorId, finalChanges);
+
   return updated.syncVersion;
+}
+
+/**
+ * Queues webhook deliveries in the same transaction as the change log, so an
+ * event is never lost if the process restarts. Delivery itself happens in the
+ * server's scheduler, not here.
+ */
+async function enqueueWebhookDeliveries(
+  tx: TransactionClient,
+  workspaceId: string,
+  actorId: string | null,
+  changes: PendingChange[],
+): Promise<void> {
+  const endpoint = await tx.webhookEndpoint.findUnique({
+    where: { workspaceId },
+    select: { id: true, enabled: true, events: true },
+  });
+  if (!endpoint || !endpoint.enabled) return;
+  const subscribed = Array.isArray(endpoint.events)
+    ? new Set(endpoint.events.filter((event): event is string => typeof event === "string"))
+    : new Set<string>();
+  if (!subscribed.size) return;
+
+  const occurredAt = new Date().toISOString();
+  const deliveries: Prisma.WebhookDeliveryCreateManyInput[] = [];
+  for (const change of changes) {
+    const event = webhookEventForChange(change.entity, change.op);
+    if (!event || !subscribed.has(event)) continue;
+    const serialized = JSON.stringify(change.data);
+    deliveries.push({
+      id: `whd_${randomUUID()}`,
+      workspaceId,
+      endpointId: endpoint.id,
+      event,
+      payload: {
+        event,
+        workspaceId,
+        entity: change.entity,
+        entityId: change.entityId,
+        op: change.op,
+        actorId,
+        occurredAt,
+        ...(serialized.length <= 20_000 ? { data: change.data } : {}),
+      } as Prisma.InputJsonValue,
+    });
+  }
+  if (deliveries.length) {
+    await tx.webhookDelivery.createMany({ data: deliveries });
+  }
 }
 
 export async function ensurePageNode(

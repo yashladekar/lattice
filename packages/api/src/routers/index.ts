@@ -17,6 +17,7 @@ import { shareRouter } from "./share";
 import { syncRouter } from "./sync";
 import { attachmentRouter, templateRouter } from "./template";
 import { workspaceRouter } from "./workspace";
+import { webhookRouter } from "./webhook";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
@@ -46,6 +47,7 @@ export const appRouter = {
   template: templateRouter,
   attachment: attachmentRouter,
   console: consoleRouter,
+  webhook: webhookRouter,
 };
 
 export type AppRouter = typeof appRouter;

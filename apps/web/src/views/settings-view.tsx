@@ -28,6 +28,7 @@ import {
   Sparkles,
   Trash2,
   Users,
+  Webhook,
   WifiOff,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -42,6 +43,7 @@ import { VaultImportDialog } from "@/components/workspace/vault-import";
 import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
 import { PluginManager } from "@/components/workspace/plugin-manager";
 import { DuplicateReviewPanel } from "@/components/workspace/duplicate-review";
+import { WebhookManager } from "@/components/workspace/webhook-manager";
 import { authClient } from "@/lib/auth-client";
 import { getApiBaseUrl } from "@/lib/config";
 import { downloadBytes, downloadTextFile } from "@/lib/download";
@@ -60,6 +62,7 @@ type SettingsTab =
   | "members"
   | "sync"
   | "ai"
+  | "webhooks"
   | "devices"
   | "audit"
   | "query"
@@ -72,6 +75,7 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "members", label: "Members", icon: Users },
   { id: "sync", label: "Sync & backup", icon: Cloud },
   { id: "ai", label: "Intelligence", icon: Brain },
+  { id: "webhooks", label: "Automations", icon: Webhook },
   { id: "devices", label: "Devices", icon: Monitor },
   { id: "audit", label: "Audit log", icon: Shield },
   { id: "query", label: "Query", icon: Database },
@@ -946,6 +950,8 @@ export function SettingsView() {
             </SettingsCard>
           </section>
         ) : null}
+
+        {tab === "webhooks" ? <WebhookManager /> : null}
 
         {tab === "devices" ? (
           <section className="space-y-4">

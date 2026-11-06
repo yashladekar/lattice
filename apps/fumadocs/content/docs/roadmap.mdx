@@ -17,6 +17,7 @@ description: What this implementation covers and which subsystems are deliberate
 - Dashboard widgets with reorder and visibility controls, command palette, tabs with a split pane, keyboard-first navigation, search, timeline, trash, and a dismissible first-run checklist.
 - Share links for pages, canvases, notebooks, and graphs; public read-only surfaces.
 - Comments with a mention picker, notifications, presence heartbeats, audit log, devices with revocation.
+- Signed webhook deliveries for page, canvas, capture, and comment events, queued from the change log with retries and a test action.
 - Web, PWA shell with an update prompt, Tauri packaging config with OS-browser link handling, Expo companion with a persisted offline query cache, self-host Docker with a persistent uploads volume.
 - Fumadocs product/architecture documentation.
 
@@ -79,7 +80,7 @@ description: What this implementation covers and which subsystems are deliberate
 
 - Custom blocks and custom canvas tools from plugins.
 - Custom object types and property schemas.
-- Automation triggers and webhooks.
+- Automation rules on top of the webhook event stream (conditions, filters, destinations).
 
 ## Explicit non-goals for this release
 

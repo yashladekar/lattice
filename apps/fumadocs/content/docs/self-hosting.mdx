@@ -84,6 +84,30 @@ Content-Type: application/json
 
 `text` wins over `html`, which is reduced to plain text. Each delivery becomes an `EMAIL` capture in the inbox through the normal sync change log, so every device receives it. Tokens are stored as SHA-256 hashes, can be rotated or revoked, and the endpoint is limited to 30 requests per minute per IP.
 
+## Webhooks
+
+**Settings → Automations** configures one HTTPS endpoint per workspace for content events:
+
+| Event | Fires when |
+| --- | --- |
+| `page.updated` | A page is saved or restored |
+| `page.deleted` | A page is trashed or purged |
+| `canvas.updated` / `canvas.deleted` | A whiteboard changes state |
+| `capture.updated` | A capture is added or organized |
+| `comment.updated` | A comment is added or resolved |
+
+Deliveries are queued in the same transaction as the change log, then POSTed by the server with:
+
+```text
+x-lattice-event: page.updated
+x-lattice-delivery: whd_…
+x-lattice-signature: sha256=<hex HMAC-SHA256 of the raw body>
+```
+
+The signing secret is shown in the settings panel and can be rotated. Failures retry with backoff (1, 5, 15, 60, 240 minutes) up to five attempts; disabled endpoints and non-HTTPS or private-address URLs are cancelled. Test deliveries use `webhook.test`.
+
+Targets must be public HTTPS hosts. Literal private IPs, localhost, and `.local` names are refused before delivery; DNS-based SSRF checks are left to your deployment's egress policy.
+
 ## Polar
 
 Polar is opt-in: `POLAR_ENABLED=true` plus a valid access token. Leave it off if you do not need billing; expired billing credentials cannot block signup.

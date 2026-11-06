@@ -94,6 +94,45 @@ model Device {
   @@map("device")
 }
 
+/// One webhook endpoint per workspace. The secret is server-only and is used
+/// to HMAC-sign every delivery.
+model WebhookEndpoint {
+  id             String    @id
+  workspaceId    String    @unique
+  url            String
+  secret         String
+  events         Json      @default("[]")
+  enabled        Boolean   @default(true)
+  createdById    String
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  lastDeliveryAt DateTime? @db.Timestamptz(3)
+  lastStatus     Int?
+
+  @@index([workspaceId])
+  @@map("webhook_endpoint")
+}
+
+/// Queued webhook delivery, written inside the same transaction as the change
+/// log so an event cannot be lost if the process restarts.
+model WebhookDelivery {
+  id            String    @id
+  workspaceId   String
+  endpointId    String
+  event         String
+  payload       Json
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  lastError     String?
+  nextAttemptAt DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  deliveredAt   DateTime? @db.Timestamptz(3)
+
+  @@index([status, nextAttemptAt])
+  @@index([workspaceId, createdAt])
+  @@map("webhook_delivery")
+}
+
 /// Persisted Yjs document for a collaborative resource, so a live session
 /// survives its room and a peer that disconnects mid-edit does not take the
 /// edit with it.
