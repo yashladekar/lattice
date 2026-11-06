@@ -117,16 +117,6 @@ export function parseWebhookFilters(value: unknown): WebhookFilters {
   };
 }
 
-export function hasWebhookFilters(filters: WebhookFilters): boolean {
-  return Boolean(
-    filters.titleContains ||
-      filters.notebookIds.length ||
-      filters.pageTypes.length ||
-      filters.operations.length ||
-      filters.actorIds.length,
-  );
-}
-
 /**
  * Evaluates one queued change against a destination's conditions. A condition
  * on a field the event does not carry excludes the change rather than passing

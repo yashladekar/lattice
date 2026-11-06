@@ -15,30 +15,12 @@ export interface VersionTimelineEntry {
   links: string[];
 }
 
-export interface VersionTimelineBounds {
-  min: number;
-  max: number;
-}
-
 /** Oldest first, so the caller can apply events in order. */
 export function sortVersionTimeline(entries: VersionTimelineEntry[]): VersionTimelineEntry[] {
   return [...entries].sort((left, right) => {
     const delta = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
     return delta !== 0 ? delta : left.version - right.version;
   });
-}
-
-export function versionTimelineBounds(entries: VersionTimelineEntry[]): VersionTimelineBounds | null {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  for (const entry of entries) {
-    const time = new Date(entry.createdAt).getTime();
-    if (!Number.isFinite(time)) continue;
-    if (time < min) min = time;
-    if (time > max) max = time;
-  }
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
-  return { min, max };
 }
 
 /**

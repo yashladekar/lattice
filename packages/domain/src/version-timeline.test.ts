@@ -5,7 +5,6 @@ import {
   sortVersionTimeline,
   versionEntryAt,
   versionLinksAt,
-  versionTimelineBounds,
 } from "./version-timeline";
 
 const at = (day: number) => new Date(Date.UTC(2024, 0, day)).toISOString();
@@ -21,7 +20,7 @@ const entries = [
 const time = (day: number) => new Date(Date.UTC(2024, 0, day)).getTime();
 
 describe("version timeline", () => {
-  it("sorts oldest first and resolves bounds", () => {
+  it("sorts oldest first", () => {
     const sorted = sortVersionTimeline([...entries].reverse());
     expect(sorted.map((entry) => `${entry.pageId}${entry.version}`)).toEqual([
       "a1",
@@ -30,8 +29,6 @@ describe("version timeline", () => {
       "a3",
       "a4",
     ]);
-    expect(versionTimelineBounds(entries)).toEqual({ min: time(1), max: time(12) });
-    expect(versionTimelineBounds([])).toBeNull();
   });
 
   it("uses the version that was current at a point in time", () => {
@@ -67,7 +64,6 @@ describe("version timeline", () => {
 
   it("handles unparseable timestamps without throwing", () => {
     const broken = [{ pageId: "x", version: 1, createdAt: "nope", title: "X", links: ["y"] }];
-    expect(versionTimelineBounds(broken)).toBeNull();
     expect(versionLinksAt(broken, time(5)).size).toBe(0);
     expect(versionEntryAt(broken, time(5))).toBeNull();
   });

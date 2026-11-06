@@ -437,9 +437,11 @@ export const captureRouter = {
         throw new ORPCError("BAD_GATEWAY", { message: "This PDF could not be parsed." });
       }
       if (!text) {
+        // The web app matches on "no selectable text" and falls back to
+        // in-browser OCR, so the wording here is part of that contract.
         throw new ORPCError("BAD_REQUEST", {
           message:
-            "This PDF has no selectable text. Scanned pages need OCR, which is not enabled.",
+            "This PDF has no selectable text. Scanned pages can be read with OCR in the browser.",
         });
       }
       const content = appendSection(capture.content, "Extracted text", text);

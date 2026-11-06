@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLocalVectorIndex,
-  localVectorNeighbors,
   localVectorSearch,
   localVectorTokens,
   stemLocalWord,
@@ -73,15 +72,15 @@ describe("local vectors", () => {
     expect(localVectorSearch(first, "habits")).toEqual(localVectorSearch(second, "habits"));
   });
 
-  it("ranks neighbors of a document", () => {
+  it("keeps scores bounded and skips documents without text", () => {
     const index = buildLocalVectorIndex([
       { id: "one", text: "flashcards and spaced repetition for memory" },
       { id: "two", text: "spaced repetition schedules flashcards" },
-      { id: "three", text: "sourdough needs a warm proof and patience" },
+      { id: "empty", text: "   \n  " },
     ]);
-    const neighbors = localVectorNeighbors(index, "one", 2);
-    expect(neighbors[0]?.id).toBe("two");
-    expect(neighbors.map((hit) => hit.id)).not.toContain("three");
-    expect(localVectorNeighbors(index, "missing")).toEqual([]);
+    const hits = localVectorSearch(index, "spaced repetition flashcards", 3);
+    expect(hits).toHaveLength(2);
+    expect(hits.every((hit) => hit.score > 0 && hit.score <= 1)).toBe(true);
+    expect(hits.map((hit) => hit.id)).not.toContain("empty");
   });
 });

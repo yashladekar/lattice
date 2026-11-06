@@ -244,22 +244,3 @@ export function localVectorSearch(
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }
-
-/** Documents closest to one indexed document, for "related notes" style lists. */
-export function localVectorNeighbors(
-  index: LocalVectorIndex,
-  id: string,
-  limit = 6,
-  minimumScore = 0.08,
-): LocalVectorHit[] {
-  const target = index.vectors.get(id);
-  if (!target) return [];
-  const hits: LocalVectorHit[] = [];
-  for (const [otherId, vector] of index.vectors) {
-    if (otherId === id) continue;
-    const score = dot(target, vector);
-    if (score < minimumScore) continue;
-    hits.push({ id: otherId, score: Math.round(score * 1000) / 1000 });
-  }
-  return hits.sort((a, b) => b.score - a.score).slice(0, limit);
-}

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_WEBHOOK_FILTERS,
-  hasWebhookFilters,
   isSafeWebhookUrl,
   isWebhookEvent,
   parseWebhookFilters,
@@ -67,13 +66,11 @@ describe("webhook filters", () => {
     expect(filters.pageTypes).toEqual(["DOCUMENT", "CANVAS"]);
     expect(filters.operations).toEqual(["UPSERT"]);
     expect(filters.actorIds).toHaveLength(25);
-    expect(hasWebhookFilters(filters)).toBe(true);
   });
 
   it("treats junk as no conditions", () => {
     expect(parseWebhookFilters(null)).toEqual(EMPTY_WEBHOOK_FILTERS);
     expect(parseWebhookFilters("nope")).toEqual(EMPTY_WEBHOOK_FILTERS);
-    expect(hasWebhookFilters(EMPTY_WEBHOOK_FILTERS)).toBe(false);
   });
 
   it("matches everything when no conditions are set", () => {
