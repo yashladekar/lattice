@@ -28,6 +28,7 @@ interface AppDataValue {
   sessionPending: boolean;
   booting: boolean;
   bootError: string | null;
+  dismissBootError: () => void;
   online: boolean;
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
@@ -302,9 +303,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     await engineRef.current?.retry();
   }, []);
 
+  const dismissBootError = useCallback(() => setBootError(null), []);
+
   const refreshWorkspace = useCallback(async (workspaceId: string) => {
-    await engineRef.current?.bootstrapWorkspace(workspaceId);
-    await engineRef.current?.sync();
+    try {
+      await engineRef.current?.bootstrapWorkspace(workspaceId);
+      await engineRef.current?.sync();
+      setBootError(null);
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Could not load that workspace.");
+    }
   }, []);
 
   const resolveConflict = useCallback(
@@ -323,6 +331,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       sessionPending: isPending,
       booting,
       bootError,
+      dismissBootError,
       online,
       workspaces,
       activeWorkspace,
@@ -342,6 +351,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       isPending,
       booting,
       bootError,
+      dismissBootError,
       online,
       workspaces,
       activeWorkspace,

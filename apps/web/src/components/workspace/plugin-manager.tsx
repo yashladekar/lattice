@@ -23,6 +23,7 @@ import { useAppData } from "@/components/app-data-provider";
 import { useWorkspacePages, useWorkspaceSearchIndex } from "@/hooks/use-local-data";
 import { markdownToDoc } from "@/lib/github-import";
 import { savePageContentLocal, createPageLocal } from "@/lib/local/repository";
+import { humanizeError } from "@/lib/errors";
 import { searchWorkspaceIndex } from "@/lib/local/search-local";
 import { runPlugin, type PluginHandlers, type PluginRunResult } from "@/lib/plugin-runtime";
 import {
@@ -175,7 +176,7 @@ export function PluginManager() {
         url: url.toString(),
       });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not fetch the plugin.");
+      setError(humanizeError(reason, "Could not fetch the plugin.").message);
     } finally {
       setRemoteBusy(false);
     }

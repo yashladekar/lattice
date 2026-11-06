@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
 import { useWorkspaceNotebooks } from "@/hooks/use-local-data";
+import { humanizeError } from "@/lib/errors";
 import { appRouteObject } from "@/lib/navigation";
 import { createNotebookLocal, createPageLocal } from "@/lib/local/repository";
 import {
@@ -108,7 +109,7 @@ export function GithubImportDialog({
       if (firstPageId) router.push(appRouteObject({ view: "page", id: firstPageId }));
     } catch (reason) {
       if (reason instanceof DOMException && reason.name === "AbortError") return;
-      setError(reason instanceof Error ? reason.message : "Import failed.");
+      setError(humanizeError(reason, "Import failed.").message);
     } finally {
       setBusy(false);
       setProgress(null);

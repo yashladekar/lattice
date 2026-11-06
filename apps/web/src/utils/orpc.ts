@@ -5,13 +5,14 @@ import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { environmentManager, QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { humanizeError } from "@/lib/errors";
 import { getApiBaseUrl } from "@/lib/config";
 
 export function createQueryClient() {
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error, query) => {
-        toast.error(`Error: ${error.message}`, {
+        toast.error(humanizeError(error).message, {
           action: {
             label: "retry",
             onClick: () => {

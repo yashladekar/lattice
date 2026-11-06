@@ -2,6 +2,8 @@
 
 import { diagramSummary, diagramTypeOf } from "@notes-learning/domain";
 import { cn } from "@notes-learning/ui/lib/utils";
+
+import { humanizeError } from "@/lib/errors";
 import { useTheme } from "next-themes";
 import { useEffect, useId, useMemo, useState } from "react";
 
@@ -108,7 +110,7 @@ export function MermaidDiagram({
       .catch((reason: unknown) => {
         if (cancelled) return;
         const message =
-          reason instanceof Error ? reason.message : "This diagram could not be rendered.";
+          humanizeError(reason, "This diagram could not be rendered.").message;
         setSvg(null);
         setError(message.split("\n").slice(0, 3).join(" "));
         setStatus("error");

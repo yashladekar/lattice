@@ -6,6 +6,7 @@ import { Database, Loader2, Play, TableProperties } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAppData } from "@/components/app-data-provider";
+import { humanizeError } from "@/lib/errors";
 import { client } from "@/utils/orpc";
 
 interface ConsoleView {
@@ -68,7 +69,7 @@ export function SqlConsolePanel() {
         setResult(null);
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Query failed.");
+      setError(humanizeError(reason, "That query did not run.").message);
       setResult(null);
     } finally {
       setRunning(false);

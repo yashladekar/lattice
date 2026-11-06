@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
+import { humanizeError } from "@/lib/errors";
 import { parseRepoInput } from "@/lib/github-import";
 import { planSync, pullRow, pushRow, type GitSyncRow, type GitTarget } from "@/lib/git-sync";
 import {
@@ -113,7 +114,7 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
     try {
       setRows(await planSync(db, activeWorkspaceId, target));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not read the repository.");
+      setError(humanizeError(reason, "Could not read the repository.").message);
     } finally {
       setBusy(false);
     }
@@ -135,7 +136,7 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
       const fresh = await planSync(db, activeWorkspaceId ?? "", target);
       setRows(fresh);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "That file did not sync.");
+      setError(humanizeError(reason, "That file did not sync.").message);
     } finally {
       setWorking(null);
     }
@@ -169,7 +170,7 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
       setRows(await planSync(db, activeWorkspaceId ?? "", target));
       toast.success(`Pushed ${pushed}, pulled ${pulled}.`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Sync stopped partway.");
+      setError(humanizeError(reason, "Sync stopped partway.").message);
       try {
         setRows(await planSync(db, activeWorkspaceId ?? "", target));
       } catch {

@@ -1,12 +1,13 @@
 "use client";
 
 import { Button } from "@notes-learning/ui/components/button";
-import { AlertTriangle, LogOut, Plus, RefreshCw, WifiOff } from "lucide-react";
+import { AlertTriangle, LogOut, Plus, RefreshCw, WifiOff, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAppData } from "@/components/app-data-provider";
 import { LatticeLogo } from "@/components/brand/logo";
 import { authClient } from "@/lib/auth-client";
+import { copyErrorDetail, humanizeError } from "@/lib/errors";
 
 export function WorkspaceEmptyState() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export function WorkspaceEmptyState() {
         {bootError ? (
           <div className="mt-5 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-left text-xs text-destructive">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-            <span>{bootError}</span>
+            <span className="min-w-0 flex-1">{humanizeError(bootError).message}</span>
           </div>
         ) : null}
         <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
@@ -66,18 +67,39 @@ export function WorkspaceEmptyState() {
 }
 
 export function BootErrorBanner() {
-  const { bootError, retrySync } = useAppData();
+  const { bootError, dismissBootError, retrySync } = useAppData();
   if (!bootError) return null;
+  const { message, detail } = humanizeError(bootError);
   return (
-    <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
-      <AlertTriangle className="size-3" />
-      <span className="flex-1 truncate">{bootError}</span>
+    <div
+      role="status"
+      className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+    >
+      <AlertTriangle className="size-3.5 shrink-0" />
+      <span className="min-w-0 flex-1">{message}</span>
+      {detail ? (
+        <button
+          type="button"
+          onClick={() => void copyErrorDetail(detail)}
+          className="shrink-0 rounded px-1 underline underline-offset-2"
+        >
+          Copy details
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => void retrySync()}
-        className="inline-flex items-center gap-1 underline underline-offset-2"
+        className="inline-flex shrink-0 items-center gap-1 rounded px-1 underline underline-offset-2"
       >
-        <RefreshCw className="size-2.5" /> retry
+        <RefreshCw className="size-3" /> Retry
+      </button>
+      <button
+        type="button"
+        aria-label="Dismiss sync error"
+        onClick={dismissBootError}
+        className="grid size-6 shrink-0 place-items-center rounded hover:bg-destructive/10 tap-target"
+      >
+        <X className="size-3.5" />
       </button>
     </div>
   );
