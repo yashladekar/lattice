@@ -475,6 +475,9 @@ importers:
       '@notes-learning/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@notes-learning/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@orpc/openapi':
         specifier: 'catalog:'
         version: 1.16.1(ws@8.22.1)

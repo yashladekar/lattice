@@ -10,7 +10,7 @@ description: What this implementation covers and which subsystems are deliberate
 - Block editor with slash menu, mentions, page links, embeds, synced blocks, database block, Mermaid diagrams, page properties, block actions (duplicate, turn into, delete, copy block link), favorites, comments, versions, Markdown mode, and focus mode.
 - Infinite whiteboard with shapes, notes, freehand, interactive connectors, linked notes, nested canvases, layers, group resize, node-to-page conversion, outline generators (mind map, flowchart, concept map), snapshots, templates, presentation, and export.
 - Derived knowledge graph with typed edges, canvas-link edges, filters including recency and cluster coloring, local neighborhood view, a minimap, temporal playback, orphan detection, manual relations, natural-language graph questions answered locally, and dashed AI suggestions recorded with AI provenance on accept.
-- Universal capture inbox, quick capture, URL preview, tag and related-note suggestions with explicit approval, and capture-to-page.
+- Universal capture inbox, quick capture, URL preview, tag and related-note suggestions with explicit approval, capture-to-page, and email ingestion through an inbound webhook.
 - Workspace JSON export/import, per-page Markdown, GitHub Markdown import with two-way Git sync (including an optional schedule), an Obsidian-style Markdown vault export for round-trips, and Obsidian and Notion vault import.
 - Learning decks, generated and manual cards, SM-2 review, quizzes, mastery, paths, gaps, and opt-in due-card reminders while the app is open.
 - Optional AI with citations and local fallback: summarize, explain, compare, examples, connections, cards, mind map, outdated pages, and gaps.
@@ -63,7 +63,6 @@ description: What this implementation covers and which subsystems are deliberate
 
 ## Next: capture and ingestion
 
-- Email ingestion.
 - Audio transcription / speech-to-text.
 - Browser extension distribution.
 - PDF text extraction and attachment OCR.
@@ -72,11 +71,11 @@ description: What this implementation covers and which subsystems are deliberate
 
 - Capability-checked worker isolation, with per-capability consent and revocation.
 - Ambient network and database access removed before plugin code loads.
+- A curated in-app directory of audited plugins: word count, TODO extraction, and related notes.
 - Install from an HTTPS URL: the bundle is fetched, its manifest validated, and its requested capabilities shown for approval before anything installs.
 
 ## Next: platform ecosystem
 
-- A curated plugin directory; remote install from a URL ships today.
 - Custom blocks and custom canvas tools from plugins.
 - Custom object types and property schemas.
 - Automation triggers and webhooks.

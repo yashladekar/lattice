@@ -3,7 +3,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { appRouter } from "@notes-learning/api/routers/index";
+import { hashToken } from "@notes-learning/api/authz";
 import { purgeExpiredTrash } from "@notes-learning/api/services/purge";
+import { pushSync } from "@notes-learning/api/services/sync";
+import { type EmailIngestPayload, captureFromEmail } from "@notes-learning/domain";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -25,10 +28,17 @@ app.set("trust proxy", 1);
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 app.use((req, res, next) => {
   const now = Date.now();
+  const ingestRequest = req.path.startsWith("/ingest");
   const shareRequest =
     req.path.startsWith("/rpc/share/public") || req.path.startsWith("/rpc/share/preview");
-  const scope = req.path.startsWith("/api/auth") ? "auth" : shareRequest ? "share" : "api";
-  const limit = scope === "auth" ? 60 : scope === "share" ? 90 : 600;
+  const scope = req.path.startsWith("/api/auth")
+    ? "auth"
+    : ingestRequest
+      ? "ingest"
+      : shareRequest
+        ? "share"
+        : "api";
+  const limit = scope === "auth" ? 60 : scope === "ingest" ? 30 : scope === "share" ? 90 : 600;
   const key = `${req.ip ?? "unknown"}:${scope}`;
   const bucket = rateBuckets.get(key);
   if (!bucket || bucket.resetAt < now) {
@@ -109,6 +119,62 @@ app.post(
 );
 
 app.all("/api/auth{/*path}", toNodeHandler(auth));
+
+app.post("/ingest/email", express.json({ limit: "1mb" }), async (req, res) => {
+  const token = String(req.headers["x-lattice-ingest-token"] ?? req.query.token ?? "").trim();
+  if (!token) {
+    res.status(401).json({ error: "Missing x-lattice-ingest-token header" });
+    return;
+  }
+  const ingest = await db.workspaceIngestToken.findUnique({
+    where: { tokenHash: hashToken(token) },
+  });
+  if (!ingest || ingest.revokedAt) {
+    res.status(401).json({ error: "Unknown or revoked ingest token" });
+    return;
+  }
+  const workspace = await db.workspace.findFirst({
+    where: { id: ingest.workspaceId, deletedAt: null },
+    select: { id: true, ownerId: true },
+  });
+  if (!workspace) {
+    res.status(404).json({ error: "Workspace not found" });
+    return;
+  }
+  const draft = captureFromEmail((req.body ?? {}) as EmailIngestPayload);
+  if (!draft) {
+    res.status(400).json({ error: "Nothing to capture: send subject, text, or html" });
+    return;
+  }
+  const captureId = randomUUID();
+  try {
+    await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `email-ingest-${captureId}`,
+          entity: "capture",
+          entityId: captureId,
+          op: "UPSERT",
+          payload: {
+            type: "EMAIL",
+            title: draft.title,
+            content: draft.content,
+            source: draft.source,
+            status: "INBOX",
+            metadata: draft.metadata,
+          },
+        },
+      ],
+    });
+  } catch (error) {
+    console.error("Email ingestion failed", error);
+    res.status(500).json({ error: "Could not store the capture" });
+    return;
+  }
+  res.status(202).json({ ok: true, captureId });
+});
 
 const nativeAppUrl = "notes-learning://";
 const allowedNativeProtocols = new Set(["exp:", new URL(nativeAppUrl).protocol]);

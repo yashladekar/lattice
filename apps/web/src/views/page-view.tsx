@@ -91,12 +91,23 @@ export function PageView({
         />
       </div>
       {rightPanelOpen ? (
-        <PageContextPanel
-          page={page}
-          outline={outline}
-          focusBlockId={focusBlockId}
-          onClearBlock={() => setFocusBlockId(null)}
-        />
+        <div className="fixed inset-0 z-40 flex justify-end bg-foreground/20 backdrop-blur-[1px] xl:static xl:z-auto xl:bg-transparent xl:backdrop-blur-none">
+          <button
+            type="button"
+            onClick={onToggleRightPanel}
+            aria-label="Close page context"
+            className="absolute inset-0 xl:hidden"
+          />
+          <div className="relative h-full">
+            <PageContextPanel
+              page={page}
+              outline={outline}
+              focusBlockId={focusBlockId}
+              onClearBlock={() => setFocusBlockId(null)}
+              onClose={onToggleRightPanel}
+            />
+          </div>
+        </div>
       ) : compact ? null : (
         <button
           type="button"

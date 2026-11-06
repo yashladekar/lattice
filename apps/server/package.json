@@ -15,6 +15,7 @@
     "@notes-learning/api": "workspace:*",
     "@notes-learning/auth": "workspace:*",
     "@notes-learning/db": "workspace:*",
+    "@notes-learning/domain": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",

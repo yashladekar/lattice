@@ -43,6 +43,7 @@ import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
 import { PluginManager } from "@/components/workspace/plugin-manager";
 import { DuplicateReviewPanel } from "@/components/workspace/duplicate-review";
 import { authClient } from "@/lib/auth-client";
+import { getApiBaseUrl } from "@/lib/config";
 import { downloadBytes, downloadTextFile } from "@/lib/download";
 import {
   exportWorkspaceLocal,
@@ -144,6 +145,12 @@ export function SettingsView() {
     queryFn: async () => client.device.list(),
     enabled: online && Boolean(user),
   });
+  const ingestToken = useQuery({
+    queryKey: ["workspace-ingest-token", activeWorkspaceId],
+    queryFn: async () => client.workspace.ingestToken(),
+    enabled: online && Boolean(activeWorkspaceId),
+  });
+  const [newIngestToken, setNewIngestToken] = useState<string | null>(null);
 
   const saveGeneral = async () => {
     if (!db || !activeWorkspaceId) return;
@@ -180,6 +187,43 @@ export function SettingsView() {
     toast.success(
       days === 0 ? "Trash is kept forever" : `Trash older than ${days} days will be purged`,
     );
+  };
+
+  const createIngestToken = async () => {
+    try {
+      const result = await client.workspace.createIngestToken();
+      setNewIngestToken(result.token);
+      await ingestToken.refetch();
+      toast.success("Ingest token created — copy it now, it is shown once.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create the ingest token");
+    }
+  };
+
+  const revokeIngestToken = async () => {
+    try {
+      await client.workspace.revokeIngestToken();
+      setNewIngestToken(null);
+      await ingestToken.refetch();
+      toast.success("Ingest token revoked");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not revoke the ingest token");
+    }
+  };
+
+  const copyIngestSetup = async () => {
+    if (!newIngestToken) return;
+    const setup = [
+      `Endpoint: ${getApiBaseUrl()}/ingest/email`,
+      `Header: x-lattice-ingest-token: ${newIngestToken}`,
+      'Body: {"subject":"…","text":"…","from":"…"}',
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(setup);
+      toast.success("Webhook setup copied");
+    } catch {
+      toast.error("Could not copy the setup");
+    }
   };
 
   const invite = async () => {
@@ -423,6 +467,91 @@ export function SettingsView() {
                 dropped rows locally would disagree with the server and resurrect content on the
                 next pull.
               </p>
+            </SettingsCard>
+
+            <SettingsCard
+              title="Email capture"
+              description="Point an email provider's inbound webhook at Lattice and forwarded mail lands in the inbox."
+            >
+              {!online ? (
+                <OfflineNotice />
+              ) : ingestToken.isLoading ? (
+                <LoadingRow />
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <span
+                      className={cn(
+                        "status-dot",
+                        ingestToken.data?.active ? "bg-moss" : "bg-saffron",
+                      )}
+                    />
+                    {ingestToken.data?.active
+                      ? `Token active since ${new Date(ingestToken.data.createdAt ?? "").toLocaleDateString()}`
+                      : "No ingest token yet"}
+                  </div>
+
+                  {newIngestToken ? (
+                    <div className="rounded-lg border border-saffron/30 bg-saffron/[0.05] p-2.5">
+                      <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                        Endpoint
+                      </div>
+                      <code className="mt-0.5 block break-all font-mono text-[9px]">
+                        {getApiBaseUrl()}/ingest/email
+                      </code>
+                      <div className="mt-1.5 text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                        Header
+                      </div>
+                      <code className="mt-0.5 block break-all font-mono text-[9px]">
+                        x-lattice-ingest-token: {newIngestToken}
+                      </code>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 rounded-md text-[9px]"
+                          onClick={() => void copyIngestSetup()}
+                        >
+                          Copy setup
+                        </Button>
+                        <span className="text-[8px] text-muted-foreground">
+                          Shown once. Rotate the token if you lose it.
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px]"
+                      disabled={!["OWNER", "ADMIN"].includes(role ?? "")}
+                      onClick={() => void createIngestToken()}
+                    >
+                      {ingestToken.data?.active ? "Rotate token" : "Generate token"}
+                    </Button>
+                    {ingestToken.data?.active ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-md text-[9px] text-destructive"
+                        disabled={!["OWNER", "ADMIN"].includes(role ?? "")}
+                        onClick={() => void revokeIngestToken()}
+                      >
+                        Revoke
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  <p className="text-[8px] leading-relaxed text-muted-foreground">
+                    The provider POSTs JSON with any of <span className="font-mono">subject</span>,{" "}
+                    <span className="font-mono">text</span>, <span className="font-mono">html</span>,{" "}
+                    <span className="font-mono">from</span>, and{" "}
+                    <span className="font-mono">to</span>. Each email becomes an EMAIL capture in the
+                    inbox, and the token is stored only as a hash.
+                  </p>
+                </div>
+              )}
             </SettingsCard>
 
             <SettingsCard title="Workspaces" description="Switch or create another context.">

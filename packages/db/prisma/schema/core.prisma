@@ -20,6 +20,18 @@ model Workspace {
   @@map("workspace")
 }
 
+model WorkspaceIngestToken {
+  id          String    @id
+  workspaceId String    @unique
+  tokenHash   String    @unique
+  createdById String
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  revokedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@map("workspace_ingest_token")
+}
+
 model WorkspaceMember {
   id          String   @id
   workspaceId String

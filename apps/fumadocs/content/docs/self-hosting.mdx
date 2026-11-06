@@ -70,6 +70,20 @@ IndexedDB is not a backup. Browsers can evict non-persistent origins. Grant pers
 
 Add `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` to the API environment. Keep the provider key server-side. Without it, Ask Lattice runs local retrieval.
 
+## Email capture
+
+Each workspace can generate an ingest token in **Settings → General → Email capture**. Point an email provider's inbound webhook at the API:
+
+```text
+POST <API>/ingest/email
+x-lattice-ingest-token: <token>
+Content-Type: application/json
+
+{"subject":"…","text":"…","html":"…","from":"…","to":"…"}
+```
+
+`text` wins over `html`, which is reduced to plain text. Each delivery becomes an `EMAIL` capture in the inbox through the normal sync change log, so every device receives it. Tokens are stored as SHA-256 hashes, can be rotated or revoked, and the endpoint is limited to 30 requests per minute per IP.
+
 ## Polar
 
 Polar is opt-in: `POLAR_ENABLED=true` plus a valid access token. Leave it off if you do not need billing; expired billing credentials cannot block signup.

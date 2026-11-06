@@ -747,6 +747,59 @@ export const workspaceRouter = {
       return { ok: true };
     }),
 
+  ingestToken: workspaceProcedure("VIEWER").handler(async ({ context }) => {
+    const row = await context.db.workspaceIngestToken.findUnique({
+      where: { workspaceId: context.workspaceId },
+      select: { createdAt: true, revokedAt: true },
+    });
+    return {
+      active: Boolean(row && !row.revokedAt),
+      createdAt: row?.createdAt.toISOString() ?? null,
+    };
+  }),
+
+  createIngestToken: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const { token, tokenHash } = createToken();
+    await context.db.workspaceIngestToken.upsert({
+      where: { workspaceId: context.workspaceId },
+      create: {
+        id: createId(),
+        workspaceId: context.workspaceId,
+        tokenHash,
+        createdById: context.userId,
+      },
+      update: {
+        tokenHash,
+        createdById: context.userId,
+        createdAt: new Date(),
+        revokedAt: null,
+      },
+    });
+    await writeAudit(context.db, {
+      workspaceId: context.workspaceId,
+      actorId: context.userId,
+      action: "workspace.ingest_token_created",
+      resourceType: "workspace",
+      resourceId: context.workspaceId,
+    });
+    return { token };
+  }),
+
+  revokeIngestToken: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    await context.db.workspaceIngestToken.updateMany({
+      where: { workspaceId: context.workspaceId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await writeAudit(context.db, {
+      workspaceId: context.workspaceId,
+      actorId: context.userId,
+      action: "workspace.ingest_token_revoked",
+      resourceType: "workspace",
+      resourceId: context.workspaceId,
+    });
+    return { ok: true };
+  }),
+
   audit: workspaceProcedure("ADMIN").handler(async ({ context }) => {
     return context.db.auditLog.findMany({
       where: { workspaceId: context.workspaceId },

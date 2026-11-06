@@ -22,3 +22,5 @@ export * from "./audit-export";
 export * from "./retention";
 export * from "./graph-query";
 export * from "./vault-export";
+export * from "./email-ingest";
+export * from "./plugin-directory";

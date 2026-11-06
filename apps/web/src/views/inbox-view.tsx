@@ -12,6 +12,7 @@ import {
   FileText,
   Inbox,
   Link2,
+  Mail,
   Plus,
   Sparkles,
   Tag,
@@ -46,6 +47,15 @@ const STATUS_TABS = [
   { id: "ORGANIZED" as const, label: "Organized" },
   { id: "ARCHIVED" as const, label: "Archived" },
 ];
+
+const TYPE_FILTERS = [
+  { id: "all", label: "All types", types: [] as string[] },
+  { id: "notes", label: "Notes", types: ["NOTE", "TEXT"] },
+  { id: "links", label: "Links", types: ["BOOKMARK", "CLIP", "YOUTUBE", "EMAIL"] },
+  { id: "files", label: "Files", types: ["FILE", "PDF", "IMAGE", "AUDIO", "VIDEO"] },
+] as const;
+
+type TypeFilter = (typeof TYPE_FILTERS)[number]["id"];
 
 function CaptureCard({
   capture,
@@ -151,7 +161,13 @@ function CaptureCard({
     <article className="rounded-xl border border-border/60 bg-card/40 p-3 transition-colors hover:border-border">
       <div className="flex items-start gap-2.5">
         <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-border/60 bg-background text-[11px] text-saffron">
-          {capture.type === "BOOKMARK" ? <Link2 className="size-3.5" /> : <FileText className="size-3.5" />}
+          {capture.type === "BOOKMARK" ? (
+            <Link2 className="size-3.5" />
+          ) : capture.type === "EMAIL" ? (
+            <Mail className="size-3.5" />
+          ) : (
+            <FileText className="size-3.5" />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -177,6 +193,9 @@ function CaptureCard({
               {capture.url.replace(/^https?:\/\//, "").slice(0, 60)}
               <ArrowUpRight className="size-2.5" />
             </a>
+          ) : null}
+          {capture.type === "EMAIL" && capture.source ? (
+            <p className="mt-1 truncate text-[8px] text-muted-foreground">From {capture.source}</p>
           ) : null}
           {capture.status === "INBOX" && (tags.length || related.length) ? (
             <div className="mt-2 space-y-1.5">
@@ -312,7 +331,15 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
   const router = useRouter();
   const { db, user, activeWorkspaceId } = useAppData();
   const [status, setStatus] = useState<"INBOX" | "ORGANIZED" | "ARCHIVED">("INBOX");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const captures = useCaptures(status);
+  const visibleCaptures =
+    typeFilter === "all"
+      ? captures
+      : captures.filter((capture) => {
+          const filter = TYPE_FILTERS.find((entry) => entry.id === typeFilter);
+          return filter ? (filter.types as readonly string[]).includes(capture.type) : true;
+        });
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -391,12 +418,26 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             {tab.label}
           </button>
         ))}
-        <span className="ml-auto text-[9px] text-muted-foreground">{captures.length} items</span>
+        <span className="ml-auto flex items-center gap-2 text-[9px] text-muted-foreground">
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
+            aria-label="Filter by capture type"
+            className="h-6 rounded-full border border-border bg-background px-2 text-[9px]"
+          >
+            {TYPE_FILTERS.map((filter) => (
+              <option key={filter.id} value={filter.id}>
+                {filter.label}
+              </option>
+            ))}
+          </select>
+          {visibleCaptures.length} items
+        </span>
       </div>
 
       <div className="mt-3 space-y-2">
-        {captures.length ? (
-          captures.map((capture) => (
+        {visibleCaptures.length ? (
+          visibleCaptures.map((capture) => (
             <CaptureCard
               key={capture.id}
               capture={capture}

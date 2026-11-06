@@ -140,11 +140,13 @@ export function PageContextPanel({
   outline,
   focusBlockId,
   onClearBlock,
+  onClose,
 }: {
   page: LocalPage;
   outline: OutlineItem[];
   focusBlockId: string | null;
   onClearBlock: () => void;
+  onClose?: () => void;
 }) {
   const router = useRouter();
   const { db, user, activeWorkspaceId } = useAppData();
@@ -286,6 +288,16 @@ export function PageContextPanel({
             ) : null}
           </button>
         ))}
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close page context"
+            className="ml-auto grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        ) : null}
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3">

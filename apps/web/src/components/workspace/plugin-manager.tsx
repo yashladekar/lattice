@@ -3,17 +3,19 @@
 import {
   CAPABILITIES,
   CAPABILITY_INFO,
+  DIRECTORY_PLUGINS,
   describeRecord,
   docToMarkdown,
   highestRisk,
   initialGrant,
   validateManifest,
   type Capability,
+  type DirectoryPlugin,
   type PluginManifest,
 } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
-import { Boxes, Download, Loader2, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { Boxes, Check, Download, Loader2, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -223,6 +225,19 @@ export function PluginManager() {
     setPendingRemote(null);
     setRemoteUrl("");
     toast.success(`${manifest.name} installed from ${new URL(url).host}.`);
+  };
+
+  const installDirectoryPlugin = (entry: DirectoryPlugin) => {
+    const next = plugins.filter((plugin) => plugin.manifest.id !== entry.manifest.id);
+    next.push({
+      manifest: entry.manifest,
+      granted: initialGrant(entry.manifest),
+      enabled: true,
+      source: entry.source,
+      installedAt: new Date().toISOString(),
+    });
+    update(next);
+    toast.success(`${entry.manifest.name} installed.`);
   };
 
   const makeHandlers = useCallback(
@@ -476,6 +491,65 @@ export function PluginManager() {
           </div>
         );
       })}
+
+      <div className="rounded-xl border border-border/70 bg-card/35 p-4">
+        <h3 className="text-[11px] font-medium">Directory</h3>
+        <p className="mt-1 text-[9px] text-muted-foreground">
+          Small, audited plugins that ship with Lattice. They run in the same sandbox and ask for the
+          same consent as anything from a URL.
+        </p>
+        <div className="mt-2 space-y-2">
+          {DIRECTORY_PLUGINS.map((entry) => {
+            const installed = plugins.some(
+              (plugin) => plugin.manifest.id === entry.manifest.id,
+            );
+            return (
+              <div
+                key={entry.manifest.id}
+                className="rounded-lg border border-border/60 bg-background/40 p-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-medium">
+                      {entry.manifest.name}{" "}
+                      <span className="font-mono text-[8px] text-muted-foreground">
+                        v{entry.manifest.version}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[9px] leading-relaxed text-muted-foreground">
+                      {entry.manifest.description}
+                    </p>
+                    <p className="mt-1 text-[8px] text-muted-foreground">
+                      {describeRecord({
+                        manifest: entry.manifest,
+                        granted: initialGrant(entry.manifest),
+                        enabled: true,
+                      })}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={installed ? "outline" : "default"}
+                    className="h-7 shrink-0 rounded-md text-[9px]"
+                    disabled={installed}
+                    onClick={() => installDirectoryPlugin(entry)}
+                  >
+                    {installed ? (
+                      <>
+                        <Check className="size-3" /> Installed
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="size-3" /> Install
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="rounded-xl border border-border/70 bg-card/35 p-4">
         <h3 className="text-[11px] font-medium">Install</h3>
