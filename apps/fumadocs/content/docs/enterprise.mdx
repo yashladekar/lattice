@@ -61,11 +61,47 @@ place so a mistaken removal does not quietly downgrade someone.
   two members can share one if the IdP sends it.
 - No bulk operations (`/Bulk`), sorting, or ETags. The discovery document says so.
 
-## Next: SSO
+## Shipped: SSO (OIDC)
 
-OIDC/SAML sign-in so provisioned accounts authenticate through the identity
-provider instead of a password. Today, SCIM provisions membership and roles, and
-password or existing auth methods remain how people actually sign in.
+**Settings → Members → Single sign-on (OIDC)** stores one connection per
+workspace. Register this redirect URI at the identity provider:
+
+```text
+https://your-lattice.example/api/auth/sso/callback
+```
+
+Then save the issuer URL, client id, client secret, and the email domains that
+should route to this workspace. Authorization Code + PKCE with a nonce, an
+issuer/audience/`nonce`-checked ID token, and a JWKS from the issuer's discovery
+document. Only `https` issuers are accepted, except `localhost` so a provider can
+be run locally.
+
+Sign-in happens at `/api/auth/sso/start?workspace=<slug>&redirect=/app`:
+
+1. The login page asks for a work email, resolves its domain to a workspace
+   (`sso.discover` — it returns only a slug), and starts the flow.
+2. The callback exchanges the code server-side, so the client secret never
+   reaches a browser, and verifies the ID token.
+3. The identity must be an **active, provisioned member** of that workspace;
+   otherwise the browser lands on the login page with
+   `?sso_error=not_provisioned`. Provisioning is SCIM's or an invite's job.
+4. The session is created through better-auth's own adapter, so expiry,
+   revocation, and the device list behave exactly like a password sign-in.
+5. The redirect back is resolved against an allow-list; `//evil.example.com`
+   falls back to `/app`.
+
+Details worth knowing:
+
+- **Unverified email is refused.** `email_verified` must be true in the ID token
+  or userinfo; a provider that does not assert it cannot sign anyone in.
+- **The client secret is encrypted at rest** with AES-256-GCM under a key
+  derived from the deployment secret, so a database dump alone cannot be used
+  at the provider.
+- **SAML is not implemented.** OIDC covers Okta, Entra ID, Google, Auth0, and
+  Keycloak; a SAML-only IdP needs a SAML library and an XML-signature review.
+- The flow is verified end-to-end against a local test provider
+  (`apps/server/src/fake-idp.ts`): start → authorize → callback → session, plus
+  the unknown-workspace, replayed-state, redirect, and unprovisioned guards.
 
 ## Next: legal hold and export on demand
 

@@ -36,6 +36,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
     "@types/ws": "^8.18.2",
+    "jose": "^6.2.15",
     "tsdown": "^0.23.0",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3"

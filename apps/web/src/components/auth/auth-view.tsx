@@ -3,14 +3,16 @@
 import { Button } from "@notes-learning/ui/components/button";
 import { Input } from "@notes-learning/ui/components/input";
 import { Label } from "@notes-learning/ui/components/label";
-import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Lock, Shield } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Eye, EyeOff, Loader2, Lock, Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ssoErrorDetail } from "@notes-learning/domain";
 
 import { LatticeLogo, LatticeMark } from "@/components/brand/logo";
 import { authClient } from "@/lib/auth-client";
+import { getApiBaseUrl } from "@/lib/config";
 import { client } from "@/utils/orpc";
 
 export function AuthView() {
@@ -26,6 +28,8 @@ export function AuthView() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [ssoBusy, setSsoBusy] = useState(false);
+  const [ssoError, setSsoError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,8 +38,37 @@ export function AuthView() {
   }, [searchParams]);
 
   useEffect(() => {
+    const code = searchParams.get("sso_error");
+    if (code) setSsoError(ssoErrorDetail(code));
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!isPending && session?.user) router.replace("/app");
   }, [isPending, router, session]);
+
+  const startSso = async () => {
+    setSsoError(null);
+    if (!email.includes("@")) {
+      setSsoError("Enter the work email your workspace knows you by.");
+      return;
+    }
+    setSsoBusy(true);
+    try {
+      const result = await client.sso.discover({ email: email.trim() });
+      if (!result.workspaceSlug) {
+        setSsoError("No single sign-on connection covers that email domain.");
+        return;
+      }
+      const target = new URL(`${getApiBaseUrl()}/api/auth/sso/start`);
+      target.searchParams.set("workspace", result.workspaceSlug);
+      target.searchParams.set("redirect", "/app");
+      window.location.assign(target.toString());
+    } catch (caught) {
+      setSsoError(caught instanceof Error ? caught.message : "Could not start single sign-on.");
+    } finally {
+      setSsoBusy(false);
+    }
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -238,6 +271,36 @@ export function AuthView() {
                 )}
               </Button>
             </form>
+
+            {mode === "signin" ? (
+              <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-3">
+                <div className="text-[10px] font-medium text-foreground">Single sign-on</div>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  If your workspace uses an identity provider, enter your work email and continue
+                  there.
+                </p>
+                {ssoError ? (
+                  <div className="mt-2 rounded-md border border-destructive/25 bg-destructive/5 px-2 py-1.5 text-[10px] text-destructive">
+                    {ssoError}
+                  </div>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={ssoBusy}
+                  className="mt-2 h-9 w-full rounded-lg text-[11px]"
+                  onClick={() => void startSso()}
+                >
+                  {ssoBusy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Building2 className="size-3.5" /> Continue with SSO
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : null}
 
             <div className="mt-5 text-center text-[11px] text-muted-foreground">
               {mode === "signup" ? "Already have a workspace?" : "New to Lattice?"}{" "}

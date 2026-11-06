@@ -61,9 +61,15 @@ description: What this implementation covers and which subsystems are deliberate
 - Group membership assigns roles (`admin`, `editor`/`member`, `viewer`); ownership is never granted over SCIM, and the owner cannot be deprovisioned.
 - Provisioned changes flow through the change log and audit log, so they reach devices and the audit trail like in-app changes.
 
+## Shipped: SSO
+
+- Per-workspace OIDC connection with Authorization Code + PKCE, nonce, discovery, and JWKS-verified ID tokens; the client secret is stored encrypted with a deployment-derived key.
+- Email-domain discovery on the login page, a nonce-checked callback that creates a real better-auth session, and an allow-listed redirect back to the app.
+- Sign-in requires an active, provisioned membership; unverified emails are refused. Verified end-to-end against a local test provider, including the replayed-state, unknown-workspace, open-redirect, and unprovisioned guards.
+- SAML is not implemented; OIDC covers the common providers.
+
 ## Next: enterprise
 
-- SSO (OIDC/SAML) so provisioned accounts authenticate through the identity provider.
 - Legal hold scoped to a workspace, notebook, or page, with a server-generated export bundle.
 - BYOK for AI: workspace-owned provider credentials, encrypted at rest and masked on read.
 

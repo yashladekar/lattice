@@ -168,6 +168,11 @@ export function SettingsView() {
     queryFn: async () => client.workspace.scimTokens(),
     enabled: online && Boolean(activeWorkspaceId),
   });
+  const ssoConnection = useQuery({
+    queryKey: ["workspace-sso", activeWorkspaceId],
+    queryFn: async () => client.workspace.ssoConnection(),
+    enabled: online && Boolean(activeWorkspaceId),
+  });
   const embeddingStatus = useQuery({
     queryKey: ["ai-embeddings", activeWorkspaceId],
     queryFn: async () => client.ai.embeddingStatus(),
@@ -176,6 +181,11 @@ export function SettingsView() {
   const [newIngestToken, setNewIngestToken] = useState<string | null>(null);
   const [scimName, setScimName] = useState("Identity provider");
   const [newScimToken, setNewScimToken] = useState<string | null>(null);
+  const [ssoIssuer, setSsoIssuer] = useState("");
+  const [ssoClientId, setSsoClientId] = useState("");
+  const [ssoSecret, setSsoSecret] = useState("");
+  const [ssoDomains, setSsoDomains] = useState("");
+  const [ssoEnabled, setSsoEnabled] = useState(true);
   const [pendingRetention, setPendingRetention] = useState<number | null>(null);
   const [pendingMember, setPendingMember] = useState<{ id: string; name: string } | null>(null);
   const [indexing, setIndexing] = useState(false);
@@ -275,6 +285,46 @@ export function SettingsView() {
       toast.success("SCIM token revoked");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not revoke the SCIM token");
+    }
+  };
+
+  useEffect(() => {
+    const connection = ssoConnection.data;
+    if (!connection) return;
+    setSsoIssuer(connection.issuer);
+    setSsoClientId(connection.clientId);
+    setSsoDomains(connection.domains.join(", "));
+    setSsoEnabled(connection.enabled);
+    setSsoSecret("");
+  }, [ssoConnection.data]);
+
+  const saveSso = async () => {
+    try {
+      await client.workspace.saveSsoConnection({
+        issuer: ssoIssuer,
+        clientId: ssoClientId,
+        ...(ssoSecret.trim() ? { clientSecret: ssoSecret.trim() } : {}),
+        domains: ssoDomains
+          .split(",")
+          .map((domain) => domain.trim())
+          .filter(Boolean),
+        enabled: ssoEnabled,
+      });
+      setSsoSecret("");
+      await ssoConnection.refetch();
+      toast.success("Single sign-on saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the SSO connection");
+    }
+  };
+
+  const removeSso = async () => {
+    try {
+      await client.workspace.removeSsoConnection();
+      await ssoConnection.refetch();
+      toast.success("Single sign-on removed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not remove the SSO connection");
     }
   };
 
@@ -927,6 +977,105 @@ export function SettingsView() {
                     Create SCIM token
                   </Button>
                 </div>
+              </SettingsCard>
+            ) : null}
+
+            {["OWNER", "ADMIN"].includes(role ?? "") ? (
+              <SettingsCard
+                title="Single sign-on (OIDC)"
+                description="Sign in through the workspace's identity provider. Register the redirect URI below at the provider, then save its issuer and client credentials."
+              >
+                <div className="rounded-lg border border-border/60 bg-background/50 p-2.5">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                    Redirect URI
+                  </div>
+                  <code className="mt-0.5 block break-all font-mono text-[9px]">
+                    {getApiBaseUrl()}/api/auth/sso/callback
+                  </code>
+                  <div className="mt-1.5 text-[8px] text-muted-foreground">
+                    {ssoConnection.data?.configured
+                      ? `Configured${ssoConnection.data.enabled ? "" : " · disabled"} · ${ssoConnection.data.domains.join(", ") || "no domains"}`
+                      : "Not configured"}
+                  </div>
+                </div>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <label className="block sm:col-span-2">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Issuer URL
+                    </span>
+                    <Input
+                      value={ssoIssuer}
+                      onChange={(event) => setSsoIssuer(event.target.value)}
+                      placeholder="https://login.example.com"
+                      spellCheck={false}
+                      className="h-8 rounded-md font-mono text-[10px]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Client ID
+                    </span>
+                    <Input
+                      value={ssoClientId}
+                      onChange={(event) => setSsoClientId(event.target.value)}
+                      spellCheck={false}
+                      className="h-8 rounded-md font-mono text-[10px]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Client secret
+                    </span>
+                    <Input
+                      value={ssoSecret}
+                      onChange={(event) => setSsoSecret(event.target.value)}
+                      type="password"
+                      placeholder={ssoConnection.data?.configured ? "Leave blank to keep" : ""}
+                      className="h-8 rounded-md text-[10px]"
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Email domains
+                    </span>
+                    <Input
+                      value={ssoDomains}
+                      onChange={(event) => setSsoDomains(event.target.value)}
+                      placeholder="example.com, example.org"
+                      className="h-8 rounded-md text-[10px]"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-[9.5px]">
+                    <input
+                      type="checkbox"
+                      checked={ssoEnabled}
+                      onChange={(event) => setSsoEnabled(event.target.checked)}
+                      className="size-3 accent-[var(--moss)]"
+                    />
+                    Enabled
+                  </label>
+                  <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => void saveSso()}>
+                    Save connection
+                  </Button>
+                  {ssoConnection.data?.configured ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg text-[10px] text-destructive"
+                      onClick={() => void removeSso()}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="mt-1.5 text-[8.5px] leading-relaxed text-muted-foreground">
+                  Sign-in requires an active, provisioned membership; SCIM or an invite creates one.
+                  The client secret is encrypted with the deployment secret before it is stored.
+                </p>
               </SettingsCard>
             ) : null}
           </section>

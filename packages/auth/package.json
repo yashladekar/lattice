@@ -12,9 +12,11 @@
   "dependencies": {
     "@better-auth/expo": "catalog:",
     "@notes-learning/db": "workspace:*",
+    "@notes-learning/domain": "workspace:*",
     "@polar-sh/better-auth": "catalog:",
     "@polar-sh/sdk": "catalog:",
     "better-auth": "catalog:",
+    "jose": "^6.2.15",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -1,0 +1,33 @@
+/// Per-workspace OIDC connection. The client secret is stored encrypted with a
+/// key derived from the deployment secret, so a database dump alone cannot be
+/// used to impersonate the workspace at the identity provider.
+model SsoConnection {
+  id           String   @id
+  workspaceId  String   @unique
+  issuer       String
+  clientId     String
+  clientSecret String
+  /// Email domains that route sign-in to this workspace, lowercased.
+  domains      Json     @default("[]")
+  enabled      Boolean  @default(true)
+  createdById  String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("sso_connection")
+}
+
+/// One in-flight authorization request. Single use, short lived, and bound to
+/// the PKCE verifier and OIDC nonce that produced it.
+model SsoLoginState {
+  id          String   @id
+  workspaceId String
+  verifier    String
+  nonce       String
+  redirect    String
+  expiresAt   DateTime @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("sso_login_state")
+}

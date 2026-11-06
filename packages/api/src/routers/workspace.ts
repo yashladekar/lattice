@@ -6,12 +6,16 @@ import {
   slugify,
   createId,
   inviteMemberInput,
+  normalizeIssuer,
+  parseSsoDomains,
   updateMemberInput,
   createWorkspaceInput,
   ensureWorkspaceInput,
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
+
+import { discoverOidc, encryptSsoSecret } from "@notes-learning/auth";
 
 import { createToken, hashToken, requireMembership, writeAudit } from "../authz";
 import { protectedProcedure, workspaceProcedure } from "../index";
@@ -873,6 +877,122 @@ export const workspaceRouter = {
       });
       return { ok: true };
     }),
+
+  ssoConnection: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const connection = await context.db.ssoConnection.findUnique({
+      where: { workspaceId: context.workspaceId },
+      select: {
+        issuer: true,
+        clientId: true,
+        domains: true,
+        enabled: true,
+        updatedAt: true,
+      },
+    });
+    if (!connection) {
+      return {
+        configured: false,
+        issuer: "",
+        clientId: "",
+        domains: [] as string[],
+        enabled: false,
+        updatedAt: null,
+      };
+    }
+    return {
+      configured: true,
+      issuer: connection.issuer,
+      clientId: connection.clientId,
+      domains: parseSsoDomains(connection.domains),
+      enabled: connection.enabled,
+      updatedAt: connection.updatedAt.toISOString(),
+    };
+  }),
+
+  saveSsoConnection: workspaceProcedure("ADMIN")
+    .input(
+      z.object({
+        issuer: z.string().trim().min(1).max(500),
+        clientId: z.string().trim().min(1).max(200),
+        clientSecret: z.string().trim().max(500).optional(),
+        domains: z.array(z.string().max(200)).max(20).default([]),
+        enabled: z.boolean().default(true),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const issuer = normalizeIssuer(input.issuer);
+      if (!issuer) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Use the issuer's https URL, without a path query or credentials.",
+        });
+      }
+      let discovery;
+      try {
+        discovery = await discoverOidc(issuer);
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: error instanceof Error ? error.message : "Discovery failed for that issuer.",
+        });
+      }
+      const existing = await context.db.ssoConnection.findUnique({
+        where: { workspaceId: context.workspaceId },
+      });
+      if (!existing && !input.clientSecret) {
+        throw new ORPCError("BAD_REQUEST", { message: "A client secret is required." });
+      }
+      const secret = input.clientSecret
+        ? encryptSsoSecret(input.clientSecret, context.sso!.secret)
+        : existing!.clientSecret;
+      const connection = await context.db.ssoConnection.upsert({
+        where: { workspaceId: context.workspaceId },
+        create: {
+          id: createId(),
+          workspaceId: context.workspaceId,
+          issuer,
+          clientId: input.clientId,
+          clientSecret: secret,
+          domains: parseSsoDomains(input.domains),
+          enabled: input.enabled,
+          createdById: context.userId,
+        },
+        update: {
+          issuer,
+          clientId: input.clientId,
+          clientSecret: secret,
+          domains: parseSsoDomains(input.domains),
+          enabled: input.enabled,
+        },
+      });
+      await writeAudit(context.db, {
+        workspaceId: context.workspaceId,
+        actorId: context.userId,
+        action: "workspace.sso_configured",
+        resourceType: "sso_connection",
+        resourceId: connection.id,
+        metadata: { issuer, clientId: connection.clientId, domains: input.domains.length },
+      });
+      return {
+        issuer: connection.issuer,
+        authorizationEndpoint: discovery.authorization_endpoint,
+      };
+    }),
+
+  removeSsoConnection: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const connection = await context.db.ssoConnection.findUnique({
+      where: { workspaceId: context.workspaceId },
+      select: { id: true },
+    });
+    if (!connection) return { ok: true };
+    await context.db.ssoConnection.delete({ where: { id: connection.id } });
+    await writeAudit(context.db, {
+      workspaceId: context.workspaceId,
+      actorId: context.userId,
+      action: "workspace.sso_removed",
+      resourceType: "sso_connection",
+      resourceId: connection.id,
+    });
+    return { ok: true };
+  }),
 
   audit: workspaceProcedure("ADMIN").handler(async ({ context }) => {
     return context.db.auditLog.findMany({

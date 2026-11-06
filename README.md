@@ -21,7 +21,7 @@ The repository/package names remain `notes-learning` from the original scaffold;
 - **Collaboration** — comments with a mention picker, status/search/block filters and block grouping for long discussions, suggested-edit review, notifications, presence heartbeat, async multi-device sync, public read-only sharing, page/notebook visibility controls, device list with revocation.
 - **Platforms** — web/PWA (with an update prompt), Tauri desktop config that opens external links in the OS browser, Expo companion for capture, browse, search, review, and Markdown page editing with an offline query cache.
 - **Plugins** — capability-checked worker isolation with per-capability consent, a curated local directory, HTTPS install with manifest validation, and manifest-declared editor blocks and canvas tools whose output is stored in the document.
-- **Enterprise controls** — SCIM 2.0 provisioning for Users and Groups with workspace bearer tokens and audit trail, plus audit CSV export, device revocation, and workspace retention settings.
+- **Enterprise controls** — SCIM 2.0 provisioning for Users and Groups with workspace bearer tokens, OIDC single sign-on per workspace, audit CSV export, device revocation, and workspace retention settings.
 - **Self-hosting** — Docker Compose, runtime web config, hashed share/invite/ingest/SCIM tokens, rate limiting, authenticated uploads, workspace-chosen trash retention with a scheduled server purge, and HMAC-signed webhook deliveries to up to five filtered automation destinations.
 
 ## Stack

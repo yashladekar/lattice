@@ -14,6 +14,7 @@ import { pageRouter } from "./page";
 import { presenceRouter } from "./presence";
 import { searchRouter } from "./search";
 import { shareRouter } from "./share";
+import { ssoRouter } from "./sso";
 import { syncRouter } from "./sync";
 import { attachmentRouter, templateRouter } from "./template";
 import { workspaceRouter } from "./workspace";
@@ -38,6 +39,7 @@ export const appRouter = {
   learning: learningRouter,
   comment: commentRouter,
   share: shareRouter,
+  sso: ssoRouter,
   search: searchRouter,
   ai: aiRouter,
   sync: syncRouter,

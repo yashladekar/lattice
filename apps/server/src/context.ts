@@ -7,7 +7,7 @@ import type { Request } from "express";
 
 import { auth, db } from "./services";
 import { isCollaborating, invalidateCollabState, resetCollabState } from "./collaboration";
-import { aiConfig, uploadRoot } from "./env.server";
+import { ENV, aiConfig, uploadRoot } from "./env.server";
 
 interface CreateContextOptions {
   req: Request;
@@ -56,6 +56,7 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     ai: aiConfig,
     headers,
     uploads: { read: readUpload },
+    sso: { secret: ENV.BETTER_AUTH_SECRET },
     collab: {
       isActive: (_workspaceId: string, pageId: string, userId: string) =>
         isCollaborating(pageId, userId),
