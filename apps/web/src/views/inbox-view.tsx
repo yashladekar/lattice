@@ -1,6 +1,6 @@
 "use client";
 
-import { formatRelative, isAudioFilename, relatedDocuments, safeDoc, suggestTagNames } from "@notes-learning/domain";
+import { formatRelative, isAudioFilename, relatedDocuments, safeDoc, suggestTagNames, appendSection } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
@@ -16,6 +16,7 @@ import {
   Mail,
   Mic,
   Plus,
+  ScanText,
   Sparkles,
   Tag,
   Trash2,
@@ -43,6 +44,7 @@ import {
   updateCaptureLocal,
 } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
+import { recognizeImageText, recognizePdfText } from "@/lib/ocr";
 import type { LocalCapture } from "@/lib/local/types";
 import { getApiBaseUrl } from "@/lib/config";
 import { uploadFile } from "@/lib/upload";
@@ -83,6 +85,7 @@ function CaptureCard({
   const [busy, setBusy] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [ocrStage, setOcrStage] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedLinks, setSelectedLinks] = useState<string[]>([]);
@@ -130,9 +133,53 @@ function CaptureCard({
     }
   };
 
+  const runOcr = async (mode: "pdf" | "image") => {
+    const sourceUrl = capture.url;
+    if (!db || !sourceUrl) return;
+    setExtracting(true);
+    setOcrStage("preparing");
+    try {
+      const response = await fetch(mediaUrl(sourceUrl), { credentials: "include" });
+      if (!response.ok) throw new Error("The file could not be downloaded for OCR.");
+      const blob = await response.blob();
+      const progress = (update: { stage: string; page?: number; pages?: number }) =>
+        setOcrStage(
+          update.page && update.pages
+            ? `page ${update.page}/${update.pages} · ${update.stage}`
+            : update.stage,
+        );
+      const result =
+        mode === "pdf"
+          ? await recognizePdfText(blob, progress)
+          : { text: await recognizeImageText(blob, progress), pages: 1, ocrPages: 1 };
+      if (!result.text) {
+        toast.error("No text was recognized in this file.");
+        return;
+      }
+      await updateCaptureLocal(db, capture.id, {
+        content: appendSection(capture.content, "OCR text", result.text),
+        metadata: {
+          ...(typeof capture.metadata === "object" && capture.metadata ? capture.metadata : {}),
+          ocr: {
+            pages: result.pages,
+            ocrPages: result.ocrPages,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+      toast.success(`OCR added ${result.text.length.toLocaleString()} characters`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "OCR could not read this file");
+    } finally {
+      setExtracting(false);
+      setOcrStage(null);
+    }
+  };
+
   const extractPdf = async () => {
     if (!online) {
-      toast.error("PDF extraction needs a connection to the sync server.");
+      toast.message("Offline — reading the PDF in this browser instead.");
+      await runOcr("pdf");
       return;
     }
     setExtracting(true);
@@ -141,11 +188,18 @@ function CaptureCard({
       await client.capture.extractText({ captureId: capture.id });
       await retrySync();
       toast.success("PDF text extracted");
+      return;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not extract the PDF text");
+      const message = error instanceof Error ? error.message : "";
+      if (!/no selectable text/i.test(message)) {
+        toast.error(message || "Could not extract the PDF text");
+        return;
+      }
     } finally {
       setExtracting(false);
     }
+    toast.message("No text layer found — running OCR in this browser…");
+    await runOcr("pdf");
   };
 
   const makePage = async () => {
@@ -364,9 +418,9 @@ function CaptureCard({
             variant="ghost"
             size="sm"
             className="h-6 rounded-md text-[8px] text-muted-foreground"
-            disabled={extracting || !online}
+            disabled={extracting}
             onClick={() => void extractPdf()}
-            title={online ? "Extract selectable text from the PDF" : "Needs a sync server"}
+            title="Read the text layer, or run OCR in this browser for scanned pages"
           >
             {extracting ? (
               <Loader2 className="size-2.5 animate-spin" />
@@ -375,6 +429,26 @@ function CaptureCard({
             )}{" "}
             Extract text
           </Button>
+        ) : null}
+        {capture.type === "IMAGE" && capture.url ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            disabled={extracting}
+            onClick={() => void runOcr("image")}
+            title="Read the text in this image with in-browser OCR"
+          >
+            {extracting ? (
+              <Loader2 className="size-2.5 animate-spin" />
+            ) : (
+              <ScanText className="size-2.5" />
+            )}{" "}
+            OCR text
+          </Button>
+        ) : null}
+        {ocrStage && extracting ? (
+          <span className="text-[8px] text-muted-foreground">OCR · {ocrStage}</span>
         ) : null}
         {capture.status === "ARCHIVED" ? (
           <Button
@@ -432,8 +506,9 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
     if (!db || !user || !activeWorkspaceId) return;
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     const isAudio = file.type.startsWith("audio/") || isAudioFilename(file.name);
-    if (!isAudio && !isPdf) {
-      toast.error("Choose an audio file or a PDF.");
+    const isImage = file.type.startsWith("image/");
+    if (!isAudio && !isPdf && !isImage) {
+      toast.error("Choose an audio file, a PDF, or an image.");
       return;
     }
     try {
@@ -441,17 +516,23 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
       await createCaptureLocal(db, {
         workspaceId: activeWorkspaceId,
         userId: user.id,
-        type: isAudio ? "AUDIO" : "PDF",
+        type: isAudio ? "AUDIO" : isPdf ? "PDF" : "IMAGE",
         title: file.name.slice(0, 120),
         content: "",
         url: uploaded.url,
-        source: isAudio ? "audio upload" : "pdf upload",
+        source: isAudio ? "audio upload" : isPdf ? "pdf upload" : "image upload",
         metadata: {
           mime: file.type || (isPdf ? "application/pdf" : ""),
           size: file.size,
         },
       });
-      toast.success(isAudio ? "Audio added to the inbox" : "PDF added to the inbox");
+      toast.success(
+        isAudio
+          ? "Audio added to the inbox"
+          : isPdf
+            ? "PDF added to the inbox"
+            : "Image added to the inbox — use OCR text to read it",
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not upload the file");
     }
@@ -508,7 +589,7 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
       <input
         ref={uploadInputRef}
         type="file"
-        accept="audio/*,application/pdf"
+        accept="audio/*,application/pdf,image/*"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];

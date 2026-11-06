@@ -68,10 +68,15 @@ description: What this implementation covers and which subsystems are deliberate
 - Semantic search without a provider (local embeddings).
 - Temporal graph playback across note versions.
 
+## Shipped: attachment OCR
+
+- Images and scanned PDFs are read in the browser with `tesseract.js`; PDF pages with a text layer are used directly and only the rest are rasterized with `pdfjs-dist`.
+- Picking a PDF tries the server's text-layer extraction first and falls back to OCR automatically; image captures get an **OCR text** action.
+- Recognition is offline-capable apart from the engine download, capped at 15 pages, and the result is appended to the capture as an "OCR text" section through the normal change log.
+
 ## Next: capture and ingestion
 
 - Browser extension distribution.
-- Attachment OCR for scanned PDFs and images.
 
 ## Shipped: plugin runtime
 

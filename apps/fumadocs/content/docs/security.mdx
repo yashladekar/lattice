@@ -44,9 +44,11 @@ Express applies a per-IP budget to RPC and auth endpoints, with a stricter budge
 
 `POST /uploads` requires a valid session, accepts one raw file body up to 25 MB, writes to a server-owned directory with a generated filename, and serves only the file URL. Files are not executed.
 
-### PDF text extraction
+### PDF text extraction and OCR
 
-PDF captures can be extracted from the inbox. The API reads the stored file, extracts selectable text with PDF.js (`unpdf`), and appends it to the capture through the sync change log. Files above 25 MB are refused. Scanned pages produce no text; OCR is not enabled.
+PDF captures can be extracted from the inbox. The API reads the stored file, extracts selectable text with PDF.js (`unpdf`), and appends it to the capture through the sync change log. Files above 25 MB are refused.
+
+When a PDF has no text layer, or for images, the browser does the OCR instead: the stored file is downloaded with the session cookie, pages are rasterized locally with `pdfjs-dist`, and text is recognized with `tesseract.js`. Nothing is uploaded for OCR and no provider is required — the trade-off is that the first run downloads the OCR engine and English model from jsDelivr unless `NEXT_PUBLIC_TESSERACT_CDN` points at a self-hosted mirror. Up to 15 pages are read per file, and the recognized text lands through the normal capture change log. Audio captures can additionally be transcribed by the server's provider when one is configured.
 
 ## Retention
 
