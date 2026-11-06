@@ -46,6 +46,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useBacklinks,
   useOutgoingLinks,
@@ -234,6 +235,8 @@ export function PageContextPanel({
     toast.success("Comment added");
   };
 
+  const [replyTo, setReplyTo] = useState<{ threadId: string; authorName: string } | null>(null);
+
   const insertMention = (name: string) => {
     setCommentText((current) => {
       const separator = current && !current.endsWith(" ") ? " " : "";
@@ -403,18 +406,7 @@ export function PageContextPanel({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (!db || !user || !activeWorkspaceId) return;
-                  const reply = window.prompt("Reply");
-                  if (!reply?.trim()) return;
-                  void createCommentLocal(db, {
-                    workspaceId: activeWorkspaceId,
-                    userId: user.id,
-                    pageId: page.id,
-                    parentId: thread.id,
-                    body: reply.trim(),
-                  });
-                }}
+                onClick={() => setReplyTo({ threadId: thread.id, authorName: authorName(thread.authorId) })}
                 className="hover:text-foreground"
               >
                 Reply
@@ -1103,6 +1095,25 @@ export function PageContextPanel({
           </div>
         ) : null}
       </div>
+      <PromptDialog
+        open={Boolean(replyTo)}
+        title="Reply to the discussion"
+        description={replyTo ? `Replying to ${replyTo.authorName}.` : undefined}
+        label="Reply"
+        placeholder="Write a reply…"
+        confirmLabel="Reply"
+        onClose={() => setReplyTo(null)}
+        onSubmit={(value) => {
+          if (!db || !user || !activeWorkspaceId || !replyTo) return;
+          void createCommentLocal(db, {
+            workspaceId: activeWorkspaceId,
+            userId: user.id,
+            pageId: page.id,
+            parentId: replyTo.threadId,
+            body: value,
+          });
+        }}
+      />
     </aside>
   );
 }

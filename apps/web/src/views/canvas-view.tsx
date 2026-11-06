@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@notes-learning/ui/components/dropdown-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@notes-learning/ui/lib/utils";
 import {
@@ -135,6 +136,18 @@ type Tool =
   | "connector"
   | "frame"
   | "page";
+
+function validateImageUrl(value: string): string | null {
+  if (!value) return "Paste a link to the image.";
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? null
+      : "Use an http or https link.";
+  } catch {
+    return "Use a full link, starting with https://";
+  }
+}
 
 const STICKY_COLORS: StickyColor[] = ["saffron", "moss", "sky", "lilac", "rose", "slate", "paper"];
 
@@ -1490,10 +1503,23 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     setSelectedIds([element.id]);
   };
 
-  const insertImageFromUrl = () => {
-    const src = window.prompt("Image URL");
-    if (!src) return;
-    addImageElement(src);
+  const [imagePromptOpen, setImagePromptOpen] = useState(false);
+
+  const insertImageFromUrl = async (src: string) => {
+    // Wait for the file to load, so the element takes the image's shape and the
+    // confirmation is not claiming something that failed.
+    const size = await new Promise<{ width: number; height: number }>((resolve) => {
+      const probe = new window.Image();
+      probe.onload = () =>
+        resolve({ width: probe.naturalWidth || 320, height: probe.naturalHeight || 220 });
+      probe.onerror = () => resolve({ width: 320, height: 220 });
+      probe.src = src;
+    });
+    const scale = Math.min(1, 420 / Math.max(1, size.width));
+    addImageElement(src, undefined, {
+      width: Math.max(80, Math.round(size.width * scale)),
+      height: Math.max(60, Math.round(size.height * scale)),
+    });
     toast.success("Image added");
   };
 
@@ -1890,7 +1916,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 <DropdownMenuItem onClick={() => void openSnapshots()}>
                   <History className="size-3.5" /> Snapshots
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={insertImageFromUrl}>
+                <DropdownMenuItem onClick={() => setImagePromptOpen(true)}>
                   <ImageIcon className="size-3.5" /> Image from URL
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -2798,6 +2824,17 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         onPick={(pageId) => void generateFromPage(pageId)}
       />
 
+      <PromptDialog
+        open={imagePromptOpen}
+        title="Add an image"
+        description="The file stays where it is; the canvas holds the link."
+        label="Image URL"
+        placeholder="https://example.com/photo.jpg"
+        confirmLabel="Add image"
+        validate={validateImageUrl}
+        onClose={() => setImagePromptOpen(false)}
+        onSubmit={(value) => void insertImageFromUrl(value)}
+      />
       <ConfirmDialog
         open={Boolean(pendingTemplate)}
         title="Replace this canvas?"

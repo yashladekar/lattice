@@ -30,13 +30,45 @@ import { DEFAULT_DIAGRAM_SOURCE } from "@notes-learning/domain";
 
 import type { EditorMenuItem } from "./menu-types";
 
+export type InsertKind = "equation" | "image" | "bookmark" | "youtube";
+
 export interface SlashActions {
   requestPage: (mode: "link" | "embed" | "live", editor: Editor, range: Range) => void;
+  requestInsert: (kind: InsertKind, editor: Editor, range: Range) => void;
   uploadImage: () => void;
 }
 
 function chain(editor: Editor, range: Range) {
   return editor.chain().focus().deleteRange(range);
+}
+
+/** Runs the insert once the dialog has a value. */
+export function insertFromPrompt(
+  kind: InsertKind,
+  value: string,
+  editor: Editor,
+  range: Range | null,
+): void {
+  const target = range ? chain(editor, range) : editor.chain().focus();
+  if (kind === "equation") {
+    target.insertContent({ type: "blockMath", attrs: { latex: value } }).run();
+    return;
+  }
+  if (kind === "image") {
+    target.setImage({ src: value }).run();
+    return;
+  }
+  if (kind === "youtube") {
+    target.insertContent({ type: "youtube", attrs: { src: value } }).run();
+    return;
+  }
+  let title = value;
+  try {
+    title = new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    // Keep whatever was typed; the link itself still resolves.
+  }
+  target.insertContent({ type: "bookmark", attrs: { url: value, title, description: "" } }).run();
 }
 
 export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
@@ -215,13 +247,7 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
       group: "Rich blocks",
       keywords: "math latex formula",
       icon: <Sigma className="size-3.5" />,
-      select: (editor, range) => {
-        const latex = window.prompt("LaTeX equation", "E = mc^2");
-        if (!latex) return;
-        chain(editor, range)
-          .insertContent({ type: "blockMath", attrs: { latex } })
-          .run();
-      },
+      select: (editor, range) => actions.requestInsert("equation", editor, range),
     },
     {
       id: "image",
@@ -229,11 +255,7 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
       description: "Embed an image from a URL",
       group: "Media",
       icon: <ImageIcon className="size-3.5" />,
-      select: (editor, range) => {
-        const src = window.prompt("Image URL");
-        if (!src) return;
-        chain(editor, range).setImage({ src }).run();
-      },
+      select: (editor, range) => actions.requestInsert("image", editor, range),
     },
     {
       id: "image-upload",
@@ -254,22 +276,7 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
       group: "Media",
       keywords: "link url web",
       icon: <Bookmark className="size-3.5" />,
-      select: (editor, range) => {
-        const url = window.prompt("Bookmark URL");
-        if (!url) return;
-        let title = url;
-        try {
-          title = new URL(url).hostname.replace(/^www\./, "");
-        } catch {
-          // Keep the raw URL.
-        }
-        chain(editor, range)
-          .insertContent({
-            type: "bookmark",
-            attrs: { url, title, description: "" },
-          })
-          .run();
-      },
+      select: (editor, range) => actions.requestInsert("bookmark", editor, range),
     },
     {
       id: "youtube",
@@ -277,13 +284,7 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
       description: "Embed a video",
       group: "Media",
       icon: <Video className="size-3.5" />,
-      select: (editor, range) => {
-        const src = window.prompt("YouTube URL");
-        if (!src) return;
-        chain(editor, range)
-          .insertContent({ type: "youtube", attrs: { src } })
-          .run();
-      },
+      select: (editor, range) => actions.requestInsert("youtube", editor, range),
     },
     {
       id: "page-link",

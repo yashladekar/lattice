@@ -85,6 +85,7 @@ import * as Y from "yjs";
 
 import { useAppData } from "@/components/app-data-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
 import { Modal } from "@/components/ui/modal";
 import { usePage, usePageDocument, useWorkspacePages } from "@/hooks/use-local-data";
 import { CollabProvider, collaborationUrl, type CollabPeer, type CollabStatus } from "@/lib/collab";
@@ -115,7 +116,58 @@ import { createEditorExtensions } from "./extensions";
 import { EditorPageContext } from "./editor-page-context";
 import type { EditorMenuItem, EditorMenuKind, EditorMenuState } from "./menu-types";
 import { PagePickerDialog } from "./page-picker";
-import { createSlashItems } from "./slash-items";
+import { createSlashItems, insertFromPrompt, type InsertKind } from "./slash-items";
+
+const INSERT_COPY = {
+  equation: {
+    title: "Insert an equation",
+    description: "The LaTeX renders as a math block.",
+    label: "LaTeX",
+    placeholder: "E = mc^2",
+    confirmLabel: "Insert",
+  },
+  image: {
+    title: "Insert an image",
+    description: "The file stays where it is; the page holds the link.",
+    label: "Image URL",
+    placeholder: "https://example.com/diagram.png",
+    confirmLabel: "Insert",
+  },
+  bookmark: {
+    title: "Add a bookmark",
+    description: "Shows the link as a card with its host as the title.",
+    label: "Link",
+    placeholder: "https://example.com/article",
+    confirmLabel: "Add bookmark",
+  },
+  youtube: {
+    title: "Embed a video",
+    description: "Plays inline, without tracking cookies.",
+    label: "Video URL",
+    placeholder: "https://youtube.com/watch?v=…",
+    confirmLabel: "Embed",
+  },
+  link: {
+    title: "Add a link",
+    description: "Wraps the selected text.",
+    label: "Destination",
+    placeholder: "https://example.com",
+    confirmLabel: "Add link",
+  },
+} as const;
+
+function validateInsert(kind: InsertKind | "link", value: string): string | null {
+  if (!value) return kind === "equation" ? "Enter the LaTeX to render." : "Paste a link to insert.";
+  if (kind === "equation") return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? null
+      : "Use an http or https link.";
+  } catch {
+    return "Use a full link, starting with https://";
+  }
+}
 
 const PAGE_ICONS = ["✦", "◇", "◈", "◫", "◒", "⌘", "⌁", "▦", "◎", "☀", "☾", "❖", "✎", "♧", "⌂", "♢"];
 
@@ -215,6 +267,11 @@ export function PageEditor({
   );
   const [collabStatus, setCollabStatus] = useState<CollabStatus>("disconnected");
   const [collabPeers, setCollabPeers] = useState<CollabPeer[]>([]);
+  const [insertRequest, setInsertRequest] = useState<{
+    kind: InsertKind | "link";
+    editor: Editor;
+    range: Range | null;
+  } | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadImageRef = useRef<((file: File, at?: number) => void) | null>(null);
@@ -323,6 +380,7 @@ export function PageEditor({
       if (kind === "slash") {
         return createSlashItems({
           requestPage,
+          requestInsert: (kind, editor, range) => setInsertRequest({ kind, editor, range }),
           uploadImage: () => fileInputRef.current?.click(),
         }).filter((item) => {
           if (!normalized) return true;
@@ -1576,6 +1634,7 @@ export function PageEditor({
               <BubbleMenu editor={editor}>
                 <EditorBubbleToolbar
                   editor={editor}
+                  onLink={() => setInsertRequest({ kind: "link", editor, range: null })}
                   onComment={() => {
                     const blockId = currentBlockId(editor);
                     onCommentBlock(blockId ?? "");
@@ -1629,6 +1688,30 @@ export function PageEditor({
         }}
       />
 
+      {insertRequest ? (
+        <PromptDialog
+          open
+          title={INSERT_COPY[insertRequest.kind].title}
+          description={INSERT_COPY[insertRequest.kind].description}
+          label={INSERT_COPY[insertRequest.kind].label}
+          placeholder={INSERT_COPY[insertRequest.kind].placeholder}
+          confirmLabel={INSERT_COPY[insertRequest.kind].confirmLabel}
+          validate={(value) => validateInsert(insertRequest.kind, value)}
+          onClose={() => setInsertRequest(null)}
+          onSubmit={(value) => {
+            if (insertRequest.kind === "link") {
+              insertRequest.editor
+                .chain()
+                .focus()
+                .extendMarkRange("link")
+                .setLink({ href: value })
+                .run();
+              return;
+            }
+            insertFromPrompt(insertRequest.kind, value, insertRequest.editor, insertRequest.range);
+          }}
+        />
+      ) : null}
       <ConfirmDialog
         open={confirmTrash}
         title="Move this page to trash?"
@@ -1874,9 +1957,11 @@ function EditorCharacterCount({ editor }: { editor: Editor }) {
 function EditorBubbleToolbar({
   editor,
   onComment,
+  onLink,
 }: {
   editor: Editor;
   onComment: () => void;
+  onLink: () => void;
 }) {
   const state = useEditorState({
     editor,
@@ -1941,11 +2026,7 @@ function EditorBubbleToolbar({
       </BubbleButton>
       <span className="mx-0.5 h-4 w-px bg-border" />
       <BubbleButton
-        onClick={() => {
-          const href = window.prompt("Link URL");
-          if (!href) return;
-          editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
-        }}
+        onClick={onLink}
         title="Link"
       >
         <Link2 className="size-3.5" />
