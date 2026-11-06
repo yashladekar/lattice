@@ -35,3 +35,4 @@ export * from "./local-vectors";
 export * from "./version-timeline";
 export * from "./comment-threads";
 export * from "./document-writes";
+export * from "./scim";

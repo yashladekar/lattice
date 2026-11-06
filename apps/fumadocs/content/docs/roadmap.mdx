@@ -54,12 +54,18 @@ description: What this implementation covers and which subsystems are deliberate
 - A server-side job runs on a schedule: soft-deleted rows past the window are permanently removed, in dependency order, and tombstone changes are appended to the change log so every device reflects the purge.
 - This is deliberately the shape that works. Immediate manual purge is still not a button: a client that dropped rows locally would disagree with the server and resurrect content on the next pull, so that needs its own op semantic and apply path.
 
+## Shipped: SCIM provisioning
+
+- SCIM 2.0 Users and Groups under `/scim/v2`, authenticated with workspace bearer tokens (hashed, shown once, independently revocable, five active per workspace).
+- Create, update, deactivate, and deprovision members, with filter matching on `userName`/`externalId`/`displayName`, PATCH support, and `409 uniqueness` on repeats.
+- Group membership assigns roles (`admin`, `editor`/`member`, `viewer`); ownership is never granted over SCIM, and the owner cannot be deprovisioned.
+- Provisioned changes flow through the change log and audit log, so they reach devices and the audit trail like in-app changes.
+
 ## Next: enterprise
 
-- SSO and SCIM.
-- End-to-end encryption with key custody and recovery.
-- Legal hold, export on demand.
-- Organization-managed storage regions and BYOK.
+- SSO (OIDC/SAML) so provisioned accounts authenticate through the identity provider.
+- Legal hold scoped to a workspace, notebook, or page, with a server-generated export bundle.
+- BYOK for AI: workspace-owned provider credentials, encrypted at rest and masked on read.
 
 ## Shipped: duplicate review
 

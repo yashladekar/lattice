@@ -1612,6 +1612,9 @@ async function applyMember(
     data: {
       role: allowedString(payload.role, ROLES, existing.role as "MEMBER"),
       status: allowedString(payload.status, ["ACTIVE", "INVITED", "SUSPENDED"] as const, existing.status as "ACTIVE"),
+      externalId: hasOwn(payload, "externalId")
+        ? (nullableString(payload.externalId) ?? null)
+        : existing.externalId,
     },
   });
   changes.push({ entity: "member", entityId: updated.id, op: "UPSERT", data: toJsonSafe(updated) });

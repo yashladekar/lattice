@@ -1,0 +1,101 @@
+---
+title: Enterprise
+description: SCIM provisioning, SSO, legal hold, BYOK, and where end-to-end encryption stands.
+---
+
+Lattice runs inside your own deployment, so workspace data lives on infrastructure
+you control. This page covers the controls an organization needs on top of that,
+and it is deliberately honest about what is shipped, what is next, and what is
+not attempted.
+
+## Shipped: SCIM 2.0 provisioning
+
+**Settings → Members → Provisioning (SCIM)** issues bearer tokens and shows the
+base URL to give an identity provider:
+
+```text
+https://your-lattice.example/scim/v2
+Authorization: Bearer scim_…
+```
+
+Each token is bound to one workspace, stored as a SHA-256 hash, shown once, and
+revocable independently — issue one per IdP so revoking one does not disturb the
+other. At most five active tokens per workspace.
+
+### Endpoints
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| `GET` | `/ServiceProviderConfig` | Advertises PATCH and filter support. |
+| `GET` | `/Schemas`, `/ResourceTypes` | Discovery for the admin console. |
+| `GET` | `/Users` | Filter with `userName eq "…"`, `externalId eq "…"`, or `displayName eq "…"`; `startIndex` / `count` (max 100). |
+| `GET` | `/Users/:id` | |
+| `POST` | `/Users` | Creates the account if the email is new, then the membership. `409` with `scimType: uniqueness` if already provisioned. |
+| `PUT` | `/Users/:id` | Replaces email, display name, `active`, `externalId`, and role. |
+| `PATCH` | `/Users/:id` | Supports `replace active`, `name`, `externalId`, and `roles`. |
+| `DELETE` | `/Users/:id` | Soft-deletes the membership (`SUSPENDED`) and logs the deprovision. |
+| `GET`/`POST` | `/Groups` | Group membership assigns the group's role. |
+| `GET`/`PATCH`/`DELETE` | `/Groups/:id` | `add`/`remove` member operations via the standard `members` path. |
+
+Every read is scoped to the token's workspace, and every write goes through the
+change log and the audit log, so provisioned changes reach every device and show
+up in **Settings → Audit log**.
+
+### Role mapping
+
+- `roles[].value` or group names containing `admin` → `ADMIN`
+- `editor`, `member`, or `write` → `EDITOR`
+- `viewer`, `read`, or `guest` → `VIEWER`
+- Anything mentioning `owner` is rejected: ownership is transferred in the app.
+
+Group names carry the role (`lattice-admins`, `design-viewers`); a custom
+`urn:lattice:scim:1.0:Group` attribute `{ "role": "viewer" }` wins when present.
+Adding a member to a group applies the role; removing them leaves the role in
+place so a mistaken removal does not quietly downgrade someone.
+
+### What it does not do
+
+- No passwords are accepted. Provisioned accounts sign in through whatever
+  method the deployment offers (SSO once it ships, or a password reset).
+- No `externalId` uniqueness constraint beyond `(workspace, externalId)` lookups;
+  two members can share one if the IdP sends it.
+- No bulk operations (`/Bulk`), sorting, or ETags. The discovery document says so.
+
+## Next: SSO
+
+OIDC/SAML sign-in so provisioned accounts authenticate through the identity
+provider instead of a password. Today, SCIM provisions membership and roles, and
+password or existing auth methods remain how people actually sign in.
+
+## Next: legal hold and export on demand
+
+A hold that blocks the retention purge for a workspace, notebook, or page, plus a
+server-generated export bundle that a legal request can be satisfied with. The
+retention scheduler already exists; this adds a guard it must respect and an
+audited export path.
+
+## Next: BYOK for AI
+
+Workspace-owned provider credentials, encrypted at rest with a server key and
+masked on read, so an organization can point Lattice at its own AI account
+without editing deployment env vars.
+
+## Not attempted: end-to-end encryption
+
+E2EE is a redesign, not a feature switch: it would move page bodies out of
+server reach, which collides with server-side search, embeddings, AI retrieval,
+share links, and the webhook stream. Doing it credibly means client-held keys,
+per-member key envelopes, rotation and recovery, and deciding explicitly which
+features go dark when keys are present. Lattice does not claim it, and the
+[security page](/docs/security) says the same.
+
+## Deployment controls
+
+- One database and upload directory per deployment; workspace data is
+  workspace-scoped in every query.
+- Hashed share, invite, ingest, and SCIM tokens; per-IP rate limits with separate
+  buckets for auth, ingest, SCIM, share, and the API.
+- Audit log with CSV export, device list with revocation, workspace-chosen trash
+  retention, and a scheduled purge.
+- AI is optional and configured per deployment; user input never becomes an
+  outbound endpoint.

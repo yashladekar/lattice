@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import type { Database, TransactionClient } from "@notes-learning/db";
 import {
@@ -799,6 +799,80 @@ export const workspaceRouter = {
     });
     return { ok: true };
   }),
+
+  scimTokens: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const tokens = await context.db.scimToken.findMany({
+      where: { workspaceId: context.workspaceId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        lastUsedAt: true,
+        revokedAt: true,
+      },
+    });
+    return tokens.map((token) => ({
+      ...token,
+      createdAt: token.createdAt.toISOString(),
+      lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
+      revokedAt: token.revokedAt?.toISOString() ?? null,
+    }));
+  }),
+
+  createScimToken: workspaceProcedure("ADMIN")
+    .input(z.object({ name: z.string().trim().min(1).max(60) }))
+    .handler(async ({ context, input }) => {
+      const active = await context.db.scimToken.count({
+        where: { workspaceId: context.workspaceId, revokedAt: null },
+      });
+      if (active >= 5) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Revoke a SCIM token before creating another (at most five active).",
+        });
+      }
+      const token = `scim_${randomBytes(24).toString("base64url")}`;
+      const created = await context.db.scimToken.create({
+        data: {
+          id: createId(),
+          workspaceId: context.workspaceId,
+          name: input.name,
+          tokenHash: hashToken(token),
+          createdById: context.userId,
+        },
+      });
+      await writeAudit(context.db, {
+        workspaceId: context.workspaceId,
+        actorId: context.userId,
+        action: "workspace.scim_token_created",
+        resourceType: "scim_token",
+        resourceId: created.id,
+        metadata: { name: created.name },
+      });
+      return { id: created.id, token };
+    }),
+
+  revokeScimToken: workspaceProcedure("ADMIN")
+    .input(z.object({ id: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      const token = await context.db.scimToken.findFirst({
+        where: { id: input.id, workspaceId: context.workspaceId, revokedAt: null },
+        select: { id: true },
+      });
+      if (!token) throw new ORPCError("NOT_FOUND", { message: "Token not found" });
+      await context.db.scimToken.update({
+        where: { id: token.id },
+        data: { revokedAt: new Date() },
+      });
+      await writeAudit(context.db, {
+        workspaceId: context.workspaceId,
+        actorId: context.userId,
+        action: "workspace.scim_token_revoked",
+        resourceType: "scim_token",
+        resourceId: token.id,
+      });
+      return { ok: true };
+    }),
 
   audit: workspaceProcedure("ADMIN").handler(async ({ context }) => {
     return context.db.auditLog.findMany({

@@ -19,6 +19,7 @@ import express from "express";
 
 import { createContext } from "./context";
 import { attachCollaboration } from "./collaboration";
+import { scimRouter } from "./scim";
 import { desktopOrigins, ENV, uploadRoot } from "./env.server";
 import { auth, db } from "./services";
 
@@ -30,16 +31,28 @@ const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 app.use((req, res, next) => {
   const now = Date.now();
   const ingestRequest = req.path.startsWith("/ingest");
+  const scimRequest = req.path.startsWith("/scim");
   const shareRequest =
     req.path.startsWith("/rpc/share/public") || req.path.startsWith("/rpc/share/preview");
   const scope = req.path.startsWith("/api/auth")
     ? "auth"
     : ingestRequest
       ? "ingest"
-      : shareRequest
-        ? "share"
-        : "api";
-  const limit = scope === "auth" ? 60 : scope === "ingest" ? 30 : scope === "share" ? 90 : 600;
+      : scimRequest
+        ? "scim"
+        : shareRequest
+          ? "share"
+          : "api";
+  const limit =
+    scope === "auth"
+      ? 60
+      : scope === "ingest"
+        ? 30
+        : scope === "scim"
+          ? 240
+          : scope === "share"
+            ? 90
+            : 600;
   const key = `${req.ip ?? "unknown"}:${scope}`;
   const bucket = rateBuckets.get(key);
   if (!bucket || bucket.resetAt < now) {
@@ -57,7 +70,7 @@ app.use((req, res, next) => {
 app.use(
   cors({
     origin: [ENV.CORS_ORIGIN, ...desktopOrigins, "http://localhost:3001", "http://localhost:8081"],
-    methods: ["GET", "POST", "PUT", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-file-name", "x-workspace-id"],
     exposedHeaders: ["x-file-name"],
     credentials: true,
@@ -119,6 +132,8 @@ app.post(
 );
 
 app.all("/api/auth{/*path}", toNodeHandler(auth));
+
+app.use("/scim/v2", scimRouter);
 
 app.post("/ingest/email", express.json({ limit: "1mb" }), async (req, res) => {
   const token = String(req.headers["x-lattice-ingest-token"] ?? req.query.token ?? "").trim();

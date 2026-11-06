@@ -38,14 +38,60 @@ model WorkspaceMember {
   userId      String
   role        String   @default("MEMBER")
   status      String   @default("ACTIVE")
+  /// Identity provider's stable id for this person, used by SCIM to match
+  /// records across email changes.
+  externalId  String?
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
   deletedAt   DateTime? @db.Timestamptz(3)
 
   @@unique([workspaceId, userId])
   @@index([userId])
+  @@index([workspaceId, externalId])
   @@index([workspaceId, updatedAt])
   @@map("workspace_member")
+}
+
+/// Bearer token an identity provider uses to provision members through SCIM.
+/// Only the hash is stored, like invite and ingest tokens.
+model ScimToken {
+  id          String    @id
+  workspaceId String
+  name        String
+  tokenHash   String    @unique
+  createdById String
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  lastUsedAt  DateTime? @db.Timestamptz(3)
+  revokedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId, createdAt])
+  @@map("scim_token")
+}
+
+/// A provider-managed group. Its `role` is applied to members when they are
+/// added, so group membership drives workspace access.
+model ScimGroup {
+  id          String   @id
+  workspaceId String
+  displayName String
+  role        String   @default("EDITOR")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([workspaceId, displayName])
+  @@index([workspaceId, updatedAt])
+  @@map("scim_group")
+}
+
+model ScimGroupMember {
+  id       String @id
+  groupId  String
+  memberId String
+
+  @@unique([groupId, memberId])
+  @@index([memberId])
+  @@map("scim_group_member")
 }
 
 model WorkspaceInvite {

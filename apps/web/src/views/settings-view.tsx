@@ -1,6 +1,6 @@
 "use client";
 
-import { auditExportFilename, auditLogToCsv, createId, exportVaultMarkdown, RETENTION_OPTIONS, type Role } from "@notes-learning/domain";
+import { auditExportFilename, auditLogToCsv, createId, exportVaultMarkdown, formatRelative, RETENTION_OPTIONS, type Role } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Input } from "@notes-learning/ui/components/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -163,12 +163,19 @@ export function SettingsView() {
     queryFn: async () => client.workspace.ingestToken(),
     enabled: online && Boolean(activeWorkspaceId),
   });
+  const scimTokens = useQuery({
+    queryKey: ["workspace-scim-tokens", activeWorkspaceId],
+    queryFn: async () => client.workspace.scimTokens(),
+    enabled: online && Boolean(activeWorkspaceId),
+  });
   const embeddingStatus = useQuery({
     queryKey: ["ai-embeddings", activeWorkspaceId],
     queryFn: async () => client.ai.embeddingStatus(),
     enabled: online && Boolean(activeWorkspaceId),
   });
   const [newIngestToken, setNewIngestToken] = useState<string | null>(null);
+  const [scimName, setScimName] = useState("Identity provider");
+  const [newScimToken, setNewScimToken] = useState<string | null>(null);
   const [pendingRetention, setPendingRetention] = useState<number | null>(null);
   const [pendingMember, setPendingMember] = useState<{ id: string; name: string } | null>(null);
   const [indexing, setIndexing] = useState(false);
@@ -245,6 +252,29 @@ export function SettingsView() {
       toast.success("Webhook setup copied");
     } catch {
       toast.error("Could not copy the setup");
+    }
+  };
+
+  const createScimToken = async () => {
+    if (!scimName.trim()) return;
+    try {
+      const result = await client.workspace.createScimToken({ name: scimName.trim() });
+      setNewScimToken(result.token);
+      await scimTokens.refetch();
+      toast.success("SCIM token created — copy it now, it is shown once.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create the SCIM token");
+    }
+  };
+
+  const revokeScimToken = async (id: string) => {
+    try {
+      await client.workspace.revokeScimToken({ id });
+      setNewScimToken(null);
+      await scimTokens.refetch();
+      toast.success("SCIM token revoked");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not revoke the SCIM token");
     }
   };
 
@@ -806,6 +836,97 @@ export function SettingsView() {
                     </div>
                   </div>
                 ) : null}
+              </SettingsCard>
+            ) : null}
+
+            {["OWNER", "ADMIN"].includes(role ?? "") ? (
+              <SettingsCard
+                title="Provisioning (SCIM)"
+                description="Point an identity provider at this endpoint to create, update, and deprovision members automatically. Group names map to roles: admin, editor/member, viewer; ownership is never granted."
+              >
+                <div className="rounded-lg border border-border/60 bg-background/50 p-2.5">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                    SCIM base URL
+                  </div>
+                  <code className="mt-0.5 block break-all font-mono text-[9px]">
+                    {getApiBaseUrl()}/scim/v2
+                  </code>
+                  <div className="mt-1.5 text-[8px] text-muted-foreground">
+                    Bearer token authentication · Users and Groups · PATCH supported
+                  </div>
+                </div>
+
+                {newScimToken ? (
+                  <div className="mt-2 rounded-lg border border-saffron/30 bg-saffron/[0.05] p-2.5">
+                    <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Token (shown once)
+                    </div>
+                    <code className="mt-0.5 block break-all font-mono text-[9px]">{newScimToken}</code>
+                    <div className="mt-1.5 flex gap-2">
+                      <Button
+                        size="sm"
+                        className="h-6 rounded-md text-[8px]"
+                        onClick={() => void navigator.clipboard.writeText(newScimToken)}
+                      >
+                        Copy token
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 rounded-md text-[8px]"
+                        onClick={() => setNewScimToken(null)}
+                      >
+                        Done
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-2 space-y-1">
+                  {(scimTokens.data ?? []).length ? (
+                    (scimTokens.data ?? []).map((token) => (
+                      <div
+                        key={token.id}
+                        className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-[9px]"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{token.name}</span>
+                        <span className="text-muted-foreground">
+                          {token.revokedAt
+                            ? "revoked"
+                            : token.lastUsedAt
+                              ? `used ${formatRelative(token.lastUsedAt)}`
+                              : "never used"}
+                        </span>
+                        {token.revokedAt ? null : (
+                          <button
+                            type="button"
+                            aria-label={`Revoke ${token.name}`}
+                            onClick={() => void revokeScimToken(token.id)}
+                            className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="size-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[9px] text-muted-foreground">
+                      No tokens yet. Create one per identity provider so revocation stays scoped.
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Input
+                    value={scimName}
+                    onChange={(event) => setScimName(event.target.value)}
+                    placeholder="Okta, Entra ID…"
+                    className="h-8 min-w-40 flex-1 rounded-md text-[10px]"
+                  />
+                  <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => void createScimToken()}>
+                    Create SCIM token
+                  </Button>
+                </div>
               </SettingsCard>
             ) : null}
           </section>

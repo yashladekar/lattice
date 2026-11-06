@@ -101,6 +101,8 @@ export interface WorkspaceMember extends BaseEntity {
   userId: string;
   role: Role;
   status: MemberStatus;
+  /** Identity provider's stable id for this person, set by SCIM. */
+  externalId?: string | null;
 }
 
 export interface WorkspaceMemberSummary extends WorkspaceMember {
