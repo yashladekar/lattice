@@ -20,6 +20,31 @@ model Comment {
   @@map("comment")
 }
 
+/// A proposed replacement body for a page, reviewed explicitly rather than
+/// written straight into the document.
+model SuggestedEdit {
+  id           String    @id
+  workspaceId  String
+  pageId       String
+  authorId     String
+  baseRev      Int       @default(0)
+  title        String
+  content      Json
+  note         String?
+  status       String    @default("PENDING")
+  reviewedById String?
+  reviewedAt   DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt    DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId, status, updatedAt])
+  @@index([pageId, status])
+  @@map("suggested_edit")
+}
+
+/// A proposed replacement body for a page, reviewed explicitly rather than
+/// written straight into the document.
 model ShareLink {
   id           String    @id
   workspaceId  String

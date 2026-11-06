@@ -16,6 +16,7 @@ import type {
   LocalPageDocument,
   LocalPageTag,
   LocalReviewLog,
+  LocalSuggestedEdit,
   LocalTag,
   LocalTemplate,
   LocalWorkspace,
@@ -40,6 +41,7 @@ export class LatticeDB extends Dexie {
   flashcards!: Table<LocalFlashcard, string>;
   reviewLogs!: Table<LocalReviewLog, string>;
   comments!: Table<LocalComment, string>;
+  suggestedEdits!: Table<LocalSuggestedEdit, string>;
   attachments!: Table<LocalAttachment, string>;
   conflicts!: Table<LocalConflict, string>;
   outbox!: Table<OutboxItem, string>;
@@ -69,6 +71,9 @@ export class LatticeDB extends Dexie {
       conflicts: "id, workspaceId, entityId, createdAt",
       outbox: "id, workspaceId, entity, entityId, createdAt",
       meta: "key",
+    });
+    this.version(2).stores({
+      suggestedEdits: "id, workspaceId, pageId, status, updatedAt",
     });
   }
 }

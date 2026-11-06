@@ -423,6 +423,22 @@ export interface Comment extends BaseEntity {
   resolvedAt: IsoDate | null;
 }
 
+export const SUGGESTION_STATUSES = ["PENDING", "ACCEPTED", "REJECTED"] as const;
+export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
+
+export interface SuggestedEdit extends BaseEntity {
+  workspaceId: string;
+  pageId: string;
+  authorId: string;
+  baseRev: number;
+  title: string;
+  content: TipTapDoc;
+  note: string | null;
+  status: SuggestionStatus;
+  reviewedById: string | null;
+  reviewedAt: IsoDate | null;
+}
+
 export interface CommentThread extends Comment {
   author: {
     id: string;
@@ -573,6 +589,7 @@ export const SYNC_ENTITIES = [
   "flashcard",
   "comment",
   "attachment",
+  "suggestedEdit",
 ] as const;
 export type SyncEntity = (typeof SYNC_ENTITIES)[number];
 

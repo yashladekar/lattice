@@ -11,8 +11,10 @@ import {
   decodeCursor,
   extractPlainText,
   hasRole,
+  isSuggestionStatus,
   safeDoc,
   type Role,
+  type SuggestionStatus,
   type SyncConflictPayload,
   type SyncCursor,
   type SyncEntity,
@@ -171,7 +173,7 @@ function allowedString<T extends readonly string[]>(
 
 async function assertNoCrossWorkspace(
   tx: TransactionClient,
-  model: "page" | "canvas" | "notebook" | "knowledgeNode" | "knowledgeEdge" | "tag" | "capture" | "template" | "deck" | "flashcard" | "comment" | "attachment" | "pageTag",
+  model: "page" | "canvas" | "notebook" | "knowledgeNode" | "knowledgeEdge" | "tag" | "capture" | "template" | "deck" | "flashcard" | "comment" | "suggestedEdit" | "attachment" | "pageTag",
   id: string,
   workspaceId: string,
 ): Promise<void> {
@@ -199,7 +201,9 @@ async function assertNoCrossWorkspace(
                         ? await tx.flashcard.findUnique({ where: { id }, select: { workspaceId: true } })
                         : model === "comment"
                           ? await tx.comment.findUnique({ where: { id }, select: { workspaceId: true } })
-                          : model === "attachment"
+                          : model === "suggestedEdit"
+                            ? await tx.suggestedEdit.findUnique({ where: { id }, select: { workspaceId: true } })
+                            : model === "attachment"
                             ? await tx.attachment.findUnique({ where: { id }, select: { workspaceId: true } })
                             : await tx.pageTag.findUnique({
                                 where: { id },
@@ -1346,6 +1350,112 @@ async function applyComment(
   return { accepted: { entity: "comment", entityId: comment.id, updatedAt: comment.updatedAt } };
 }
 
+async function applySuggestedEdit(
+  ctx: ApplyContext,
+  op: SyncOpInput,
+  changes: PendingChange[],
+): Promise<ApplyResult> {
+  const { tx, workspaceId, userId, role } = ctx;
+  if (!hasRole(role, "VIEWER")) throw new ORPCError("FORBIDDEN");
+  const payload = op.payload;
+  const existing = await tx.suggestedEdit.findUnique({ where: { id: op.entityId } });
+  await assertNoCrossWorkspace(tx, "suggestedEdit", op.entityId, workspaceId);
+  if (existing && existing.workspaceId !== workspaceId) throw new ORPCError("CONFLICT");
+
+  if (op.op === "DELETE" || payload.deletedAt) {
+    if (!existing) return {};
+    if (existing.authorId !== userId && !hasRole(role, "EDITOR")) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "Only the author or an editor can withdraw a suggestion.",
+      });
+    }
+    const deleted = await tx.suggestedEdit.update({
+      where: { id: existing.id },
+      data: { deletedAt: new Date() },
+    });
+    changes.push({
+      entity: "suggestedEdit",
+      entityId: deleted.id,
+      op: "DELETE",
+      data: toJsonSafe(deleted),
+    });
+    return {
+      accepted: {
+        entity: "suggestedEdit",
+        entityId: deleted.id,
+        updatedAt: deleted.updatedAt,
+      },
+    };
+  }
+
+  const pageId = stringValue(payload.pageId) ?? existing?.pageId;
+  if (!pageId) throw new ORPCError("BAD_REQUEST", { message: "A suggestion needs a page." });
+  const page = await tx.page.findFirst({
+    where: { id: pageId, workspaceId, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      createdById: true,
+      visibility: true,
+      workspaceId: true,
+    },
+  });
+  if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
+  await assertPageReadAccess(tx, page, userId, role);
+
+  const status = isSuggestionStatus(payload.status)
+    ? payload.status
+    : ((existing?.status as SuggestionStatus | undefined) ?? "PENDING");
+  if (!existing && status !== "PENDING") {
+    throw new ORPCError("BAD_REQUEST", { message: "A new suggestion starts pending." });
+  }
+  if (existing && status !== existing.status && !hasRole(role, "EDITOR")) {
+    throw new ORPCError("FORBIDDEN", { message: "Only editors can review suggestions." });
+  }
+
+  const content = recordValue(payload.content) ?? existing?.content;
+  if (!content) throw new ORPCError("BAD_REQUEST", { message: "A suggestion needs content." });
+  const baseRev = numberValue(payload.baseRev) ?? existing?.baseRev ?? 0;
+  const title = (stringValue(payload.title) ?? existing?.title ?? page.title).slice(0, 200);
+  const note = hasOwn(payload, "note")
+    ? (nullableString(payload.note) ?? null)
+    : (existing?.note ?? null);
+  const statusChanged = status !== (existing?.status ?? "PENDING");
+
+  const data = {
+    pageId,
+    baseRev: Math.max(0, Math.round(baseRev)),
+    title,
+    content: content as Prisma.InputJsonValue,
+    note,
+    status,
+    ...(statusChanged && status !== "PENDING"
+      ? { reviewedById: userId, reviewedAt: new Date() }
+      : {}),
+    ...(status === "PENDING" ? { reviewedById: null, reviewedAt: null } : {}),
+    deletedAt: null,
+  };
+  const suggestion = existing
+    ? await tx.suggestedEdit.update({ where: { id: existing.id }, data })
+    : await tx.suggestedEdit.create({
+        data: { id: op.entityId, workspaceId, authorId: userId, ...data },
+      });
+
+  changes.push({
+    entity: "suggestedEdit",
+    entityId: suggestion.id,
+    op: "UPSERT",
+    data: toJsonSafe(suggestion),
+  });
+  return {
+    accepted: {
+      entity: "suggestedEdit",
+      entityId: suggestion.id,
+      updatedAt: suggestion.updatedAt,
+    },
+  };
+}
+
 async function applyAttachment(
   ctx: ApplyContext,
   op: SyncOpInput,
@@ -1488,6 +1598,8 @@ async function applyOp(
       return applyFlashcard(ctx, op, changes);
     case "comment":
       return applyComment(ctx, op, changes);
+    case "suggestedEdit":
+      return applySuggestedEdit(ctx, op, changes);
     case "attachment":
       return applyAttachment(ctx, op, changes);
     case "member":
@@ -1594,7 +1706,9 @@ export async function pushSync(
     invalidateCollab?: (pageId: string) => void;
   },
 ): Promise<SyncPushResponse> {
-  const membership = await requireMembership(db, input.userId, input.workspaceId, "EDITOR");
+  // The gateway allows viewers through because comments and suggested edits are
+  // viewer-level writes; every entity apply enforces its own required role.
+  const membership = await requireMembership(db, input.userId, input.workspaceId, "VIEWER");
   const staleCollab: string[] = [];
   const response = await db.$transaction(
     async (tx) => {
@@ -1752,6 +1866,7 @@ export async function syncSnapshot(
     flashcards,
     comments,
     attachments,
+    suggestedEdits,
   ] = await Promise.all([
     db.workspaceMember.findMany({
       where: { workspaceId: input.workspaceId, deletedAt: null },
@@ -1774,6 +1889,9 @@ export async function syncSnapshot(
     db.flashcard.findMany({ where: { workspaceId: input.workspaceId, deletedAt: null } }),
     db.comment.findMany({ where: { workspaceId: input.workspaceId, deletedAt: null } }),
     db.attachment.findMany({ where: { workspaceId: input.workspaceId, deletedAt: null } }),
+    db.suggestedEdit.findMany({
+      where: { workspaceId: input.workspaceId, deletedAt: null },
+    }),
   ]);
 
   const allowed = await getAccessiblePageIds(db, input.workspaceId, input.userId, membership.role);
@@ -1806,6 +1924,9 @@ export async function syncSnapshot(
   const visibleFlashcards = allowed
     ? flashcards.filter((flashcard) => !flashcard.pageId || visiblePageIds.has(flashcard.pageId))
     : flashcards;
+  const visibleSuggestedEdits = allowed
+    ? suggestedEdits.filter((edit) => visiblePageIds.has(edit.pageId))
+    : suggestedEdits;
 
   return toJsonSafe({
     version: workspace.syncVersion,
@@ -1826,6 +1947,7 @@ export async function syncSnapshot(
     flashcards: visibleFlashcards,
     comments: visibleComments,
     attachments: visibleAttachments,
+    suggestedEdits: visibleSuggestedEdits,
   });
 }
 

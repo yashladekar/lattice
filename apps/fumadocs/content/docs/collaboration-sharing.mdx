@@ -45,6 +45,20 @@ Admins create an invite for an email and role. The invite stores a SHA-256 token
   (never the commenter), and notifications appear in the topbar bell.
 - Comments sync through the same change log; presence is online-only and ephemeral.
 
+## Suggested edits
+
+Editors of a workspace can still prefer review over direct writes:
+
+- **Page actions → Suggest an edit** opens the current body as Markdown plus a
+  note. Submitting stores a `PENDING` suggestion instead of touching the page.
+- Suggestions sync like any record. **Settings → Reviews** shows the queue with
+  the author, note, and a read-only preview. Editors can accept or reject.
+- Accepting writes the proposed body through the normal document save (a
+  revision-aware op); the reviewer is warned when the page changed after the
+  suggestion was written. Rejecting leaves the page untouched.
+- Viewers can propose but not review; the proposal itself requires page read
+  access and review requires an editing role, enforced server-side.
+
 ## Sharing
 
 Share links are created for a page, canvas, notebook, or graph.

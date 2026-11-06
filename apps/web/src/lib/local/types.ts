@@ -12,6 +12,7 @@ import type {
   PageDocument,
   PageTag,
   ReviewLog,
+  SuggestedEdit,
   SyncEntity,
   Tag,
   Template,
@@ -76,6 +77,7 @@ export type LocalTemplate = Template;
 export type LocalDeck = Deck;
 export type LocalFlashcard = Flashcard;
 export type LocalComment = Comment;
+export type LocalSuggestedEdit = SuggestedEdit;
 export type LocalAttachment = Attachment;
 export type LocalReviewLog = ReviewLog;
 
@@ -98,4 +100,5 @@ export interface LocalSnapshotPayload {
   flashcards: Flashcard[];
   comments: Comment[];
   attachments: Attachment[];
+  suggestedEdits: SuggestedEdit[];
 }

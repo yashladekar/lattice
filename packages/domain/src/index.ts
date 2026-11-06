@@ -27,3 +27,4 @@ export * from "./plugin-directory";
 export * from "./embeddings";
 export * from "./webhooks";
 export * from "./transcription";
+export * from "./suggestions";

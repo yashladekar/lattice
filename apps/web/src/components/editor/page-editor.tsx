@@ -43,6 +43,7 @@ import {
   FileText,
   Focus,
   GitBranch,
+  GitPullRequest,
   GripVertical,
   Heading1,
   Highlighter,
@@ -90,6 +91,7 @@ import {
   createCanvasLocal,
   createFlashcardLocal,
   createPageLocal,
+  createSuggestedEditLocal,
   createTemplateFromPageLocal,
   deletePageLocal,
   duplicatePageLocal,
@@ -165,6 +167,10 @@ export function PageEditor({
   const [aiBusy, setAiBusy] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestText, setSuggestText] = useState("");
+  const [suggestNote, setSuggestNote] = useState("");
+  const [suggestBusy, setSuggestBusy] = useState(false);
   const [versions, setVersions] = useState<Array<{ id: string; version: number; title: string; createdAt: string; note: string | null }>>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [remoteUpdate, setRemoteUpdate] = useState(false);
@@ -857,6 +863,42 @@ export function PageEditor({
 
   const isFavorite = Boolean(page?.properties?.favorite);
 
+  const openSuggestion = () => {
+    const content =
+      editor && !editor.isDestroyed ? editor.getJSON() : (document?.content ?? null);
+    setSuggestText(docToMarkdown(safeDoc(content)));
+    setSuggestNote("");
+    setSuggestOpen(true);
+  };
+
+  const submitSuggestion = async () => {
+    if (!db || !user || !document || !page) return;
+    if (!suggestText.trim()) {
+      toast.error("The suggestion is empty.");
+      return;
+    }
+    setSuggestBusy(true);
+    try {
+      const html = marked.parse(suggestText, { async: false }) as string;
+      const content = generateJSON(html, extensions) as TipTapDoc;
+      await createSuggestedEditLocal(db, {
+        workspaceId: document.workspaceId,
+        userId: user.id,
+        pageId,
+        title: title || page.title || "Untitled",
+        content,
+        note: suggestNote,
+        baseRev: document.rev,
+      });
+      setSuggestOpen(false);
+      toast.success("Suggestion sent for review");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the suggestion");
+    } finally {
+      setSuggestBusy(false);
+    }
+  };
+
   const toggleFavorite = async () => {
     if (!db || !page) return;
     await updatePageLocal(db, {
@@ -1180,6 +1222,9 @@ export function PageEditor({
               <DropdownMenuItem onClick={() => setTemplateOpen(true)}>
                 <LayoutTemplate className="size-3.5" /> Save as template
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={openSuggestion}>
+                <GitPullRequest className="size-3.5" /> Suggest an edit
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={toggleMarkdown}>
                 <Code2 className="size-3.5" /> {markdownMode ? "Close Markdown mode" : "Markdown mode"}
@@ -1483,6 +1528,55 @@ export function PageEditor({
           for (const file of files) void uploadImageFile(file);
         }}
       />
+
+      <Modal
+        open={suggestOpen}
+        onClose={() => setSuggestOpen(false)}
+        title="Suggest an edit"
+        description="The page stays unchanged until an editor accepts this suggestion."
+        className="max-w-2xl"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => setSuggestOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-8"
+              disabled={suggestBusy}
+              onClick={() => void submitSuggestion()}
+            >
+              {suggestBusy ? "Sending…" : "Send suggestion"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <label className="block">
+            <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+              Proposed body (Markdown)
+            </span>
+            <textarea
+              value={suggestText}
+              onChange={(event) => setSuggestText(event.target.value)}
+              rows={14}
+              spellCheck={false}
+              className="w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-[10px] leading-relaxed outline-none focus:border-primary/40"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+              Note for reviewers
+            </span>
+            <input
+              value={suggestNote}
+              onChange={(event) => setSuggestNote(event.target.value)}
+              placeholder="Why this change?"
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+            />
+          </label>
+        </div>
+      </Modal>
 
       <AiResultDialog
         result={aiResult}

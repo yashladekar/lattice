@@ -17,6 +17,7 @@ import {
   Download,
   FolderUp,
   GitBranch,
+  GitPullRequest,
   HardDrive,
   Loader2,
   LogOut,
@@ -43,6 +44,7 @@ import { VaultImportDialog } from "@/components/workspace/vault-import";
 import { SqlConsolePanel } from "@/components/workspace/sql-console-panel";
 import { PluginManager } from "@/components/workspace/plugin-manager";
 import { DuplicateReviewPanel } from "@/components/workspace/duplicate-review";
+import { ReviewQueue } from "@/components/workspace/review-queue";
 import { WebhookManager } from "@/components/workspace/webhook-manager";
 import { authClient } from "@/lib/auth-client";
 import { getApiBaseUrl } from "@/lib/config";
@@ -60,6 +62,7 @@ type SettingsTab =
   | "general"
   | "appearance"
   | "members"
+  | "reviews"
   | "sync"
   | "ai"
   | "webhooks"
@@ -73,6 +76,7 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "general", label: "General", icon: HardDrive },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "members", label: "Members", icon: Users },
+  { id: "reviews", label: "Reviews", icon: GitPullRequest },
   { id: "sync", label: "Sync & backup", icon: Cloud },
   { id: "ai", label: "Intelligence", icon: Brain },
   { id: "webhooks", label: "Automations", icon: Webhook },
@@ -950,6 +954,8 @@ export function SettingsView() {
             </SettingsCard>
           </section>
         ) : null}
+
+        {tab === "reviews" ? <ReviewQueue /> : null}
 
         {tab === "webhooks" ? <WebhookManager /> : null}
 

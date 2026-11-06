@@ -32,6 +32,7 @@ import type {
   LocalPage,
   LocalPageDocument,
   LocalReviewLog,
+  LocalSuggestedEdit,
   LocalTag,
   LocalTemplate,
   LocalWorkspace,
@@ -172,6 +173,17 @@ function commentPayload(comment: LocalComment): Record<string, unknown> {
     parentId: comment.parentId,
     body: comment.body,
     resolvedAt: comment.resolvedAt,
+  };
+}
+
+function suggestedEditPayload(edit: LocalSuggestedEdit): Record<string, unknown> {
+  return {
+    pageId: edit.pageId,
+    baseRev: edit.baseRev,
+    title: edit.title,
+    content: edit.content,
+    note: edit.note,
+    status: edit.status,
   };
 }
 
@@ -1514,6 +1526,88 @@ export async function deleteCommentLocal(db: LatticeDB, commentId: string): Prom
   });
 }
 
+export async function createSuggestedEditLocal(
+  db: LatticeDB,
+  input: {
+    workspaceId: string;
+    userId: string;
+    pageId: string;
+    title: string;
+    content: TipTapDoc;
+    note?: string | null;
+    baseRev?: number;
+  },
+): Promise<LocalSuggestedEdit> {
+  const timestamp = now();
+  const edit: LocalSuggestedEdit = {
+    id: createId(),
+    workspaceId: input.workspaceId,
+    pageId: input.pageId,
+    authorId: input.userId,
+    baseRev: input.baseRev ?? 0,
+    title: input.title.trim().slice(0, 200) || "Untitled",
+    content: input.content,
+    note: input.note?.trim() || null,
+    status: "PENDING",
+    reviewedById: null,
+    reviewedAt: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    deletedAt: null,
+  };
+  await db.transaction("rw", [db.suggestedEdits, db.outbox], async () => {
+    await db.suggestedEdits.put(edit);
+    await enqueueOutbox(db, {
+      workspaceId: edit.workspaceId,
+      entity: "suggestedEdit",
+      entityId: edit.id,
+      op: "UPSERT",
+      payload: suggestedEditPayload(edit),
+    });
+  });
+  return edit;
+}
+
+/**
+ * Accepting writes the proposed body through the normal document save, so the
+ * change reaches the server as a revision-aware document op. Rejecting only
+ * updates the suggestion.
+ */
+export async function resolveSuggestedEditLocal(
+  db: LatticeDB,
+  input: { editId: string; userId: string; decision: "ACCEPTED" | "REJECTED" },
+): Promise<void> {
+  const edit = await db.suggestedEdits.get(input.editId);
+  if (!edit || edit.status !== "PENDING") return;
+  if (input.decision === "ACCEPTED") {
+    const page = await db.pages.get(edit.pageId);
+    if (!page || page.deletedAt) throw new Error("The page no longer exists.");
+    await savePageContentLocal(db, {
+      pageId: edit.pageId,
+      content: safeDoc(edit.content),
+      userId: input.userId,
+    });
+  }
+  const timestamp = now();
+  const updated: LocalSuggestedEdit = {
+    ...edit,
+    status: input.decision,
+    reviewedById: input.userId,
+    reviewedAt: timestamp,
+    updatedAt: timestamp,
+  };
+  await db.transaction("rw", [db.suggestedEdits, db.outbox], async () => {
+    await db.suggestedEdits.put(updated);
+    await enqueueOutbox(db, {
+      workspaceId: updated.workspaceId,
+      entity: "suggestedEdit",
+      entityId: updated.id,
+      op: "UPSERT",
+      payload: suggestedEditPayload(updated),
+    });
+  });
+}
+
 export async function createTemplateFromPageLocal(
   db: LatticeDB,
   input: {
@@ -1662,6 +1756,7 @@ export interface LocalExport {
     flashcards: LocalFlashcard[];
     comments: LocalComment[];
     attachments: LocalAttachment[];
+    suggestedEdits: LocalSuggestedEdit[];
   };
 }
 
@@ -1685,6 +1780,7 @@ export async function exportWorkspaceLocal(
     flashcards,
     comments,
     attachments,
+    suggestedEdits,
   ] = await Promise.all([
     db.workspaces.get(workspaceId),
     db.notebooks.where("workspaceId").equals(workspaceId).toArray(),
@@ -1701,6 +1797,7 @@ export async function exportWorkspaceLocal(
     db.flashcards.where("workspaceId").equals(workspaceId).toArray(),
     db.comments.where("workspaceId").equals(workspaceId).toArray(),
     db.attachments.where("workspaceId").equals(workspaceId).toArray(),
+    db.suggestedEdits.where("workspaceId").equals(workspaceId).toArray(),
   ]);
   return {
     version: 1,
@@ -1724,6 +1821,7 @@ export async function exportWorkspaceLocal(
       flashcards,
       comments,
       attachments,
+      suggestedEdits,
     },
   };
 }
@@ -1752,6 +1850,7 @@ export async function importWorkspaceLocal(
       db.flashcards,
       db.comments,
       db.attachments,
+      db.suggestedEdits,
       db.outbox,
     ],
     async () => {
@@ -1777,6 +1876,7 @@ export async function importWorkspaceLocal(
       if (data.flashcards.length) await db.flashcards.bulkPut(data.flashcards);
       if (data.comments.length) await db.comments.bulkPut(data.comments);
       if (data.attachments.length) await db.attachments.bulkPut(data.attachments);
+      if (data.suggestedEdits?.length) await db.suggestedEdits.bulkPut(data.suggestedEdits);
 
       for (const notebook of data.notebooks) {
         await enqueueOutbox(db, {
@@ -1901,6 +2001,15 @@ export async function importWorkspaceLocal(
           entityId: comment.id,
           op: "UPSERT",
           payload: commentPayload(comment),
+        });
+      }
+      for (const edit of data.suggestedEdits ?? []) {
+        await enqueueOutbox(db, {
+          workspaceId: edit.workspaceId,
+          entity: "suggestedEdit",
+          entityId: edit.id,
+          op: "UPSERT",
+          payload: suggestedEditPayload(edit),
         });
       }
       for (const attachment of data.attachments) {
