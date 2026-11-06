@@ -66,23 +66,36 @@ If a page body has changed remotely since the client's `baseRev`:
 
 Nothing is silently overwritten. The user can keep the local version (server snapshots the remote first) or keep the server version (local reader updates immediately).
 
-### One exception: writes while a page is live
+### Writes during a live session
 
-While a page has a live Yjs room, a document push with a stale `baseRev` is
-**accepted rather than turned into a conflict**, because live peers converge
-through the CRDT and their JSON snapshots are stale by design. That is the
-right call for the session — but it means a write that came from *outside* the
-session (accepting a suggestion, a Markdown-mode save, an import) can be
-overwritten by the session's next snapshot, and no `SyncConflict` is recorded
-because none was raised.
+Live peers converge through the CRDT, so their JSON snapshots arrive with stale
+revisions by design; the server must accept those or co-editing would stop at
+every keystroke. Document ops therefore carry an **origin** (`session` or
+`write`), and only session snapshots get that exemption:
 
-The failure is silent when it happens: the accepted body lands, and a peer that
-still holds the older CRDT state persists it back. Today the practical guidance
-is to accept suggestions and restore versions when the note is not open
-elsewhere; the fix is an origin flag on document ops so the server can tell a
-session snapshot from an out-of-band write, apply the revision check to the
-latter, and invalidate the stored CRDT so the next session seeds from the
-write.
+- `session` — sent by the editor's live persist path. A stale revision is
+  accepted and applied.
+- `write` — everything else: accepting a suggestion, restoring a version,
+  Markdown-mode saves, imports, the API's `page.saveDocument`, plugin writes.
+  These are revision-checked like any other entity, so a stale one becomes a
+  `SyncConflict` instead of silently losing to a peer's older body.
+
+The change log keeps the origin, so clients can attribute the revision they
+received.
+
+Two companion rules close the rest of the gap:
+
+- A live editor will not persist when the local document advanced from a
+  `write` it did not make. It stops saving, warns that the note changed outside
+  the session, and offers **Reload note** instead of putting the older body
+  back.
+- **Reload note** calls `sync.resetCollab`, which drops the stored CRDT and any
+  live room for that page. Peers reconnect against a fresh room and seed from
+  the stored document, so the newer body is what everyone continues from.
+
+What is still not attempted: merging an out-of-band write into a live CRDT.
+Today the session is reset rather than merged, which costs a reconnect but never
+picks a silent winner.
 
 ## Multi-tab and offline behavior
 

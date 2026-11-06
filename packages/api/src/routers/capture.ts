@@ -303,6 +303,7 @@ export const captureRouter = {
               content: doc,
               plainText: extractPlainText(doc),
               schemaVersion: 1,
+              source: "write",
             },
           },
           {

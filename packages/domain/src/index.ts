@@ -34,3 +34,4 @@ export * from "./markdown-doc";
 export * from "./local-vectors";
 export * from "./version-timeline";
 export * from "./comment-threads";
+export * from "./document-writes";

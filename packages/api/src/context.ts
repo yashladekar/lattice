@@ -18,6 +18,8 @@ export type Context = {
   collab?: {
     isActive(workspaceId: string, pageId: string, userId: string): boolean;
     invalidate(workspaceId: string, pageId: string): void;
+    /** Drops the stored CRDT and any live room for a page, forcing a re-seed. */
+    reset(workspaceId: string, pageId: string): Promise<void>;
   };
   /** Present when the API is hosted by a server that owns the upload directory. */
   uploads?: {

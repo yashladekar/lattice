@@ -38,6 +38,8 @@ interface Room {
   idleTimer: NodeJS.Timeout | null;
   persistTimer: NodeJS.Timeout | null;
   dirty: boolean;
+  /** Set when the room is being discarded, so nothing persists it on the way out. */
+  reset: boolean;
 }
 
 const rooms = new Map<string, Room>();
@@ -89,6 +91,7 @@ function createRoom(
     idleTimer: null,
     persistTimer: null,
     dirty: false,
+    reset: false,
   };
 
   room.doc.on("update", (update: Uint8Array, origin: unknown) => {
@@ -153,6 +156,7 @@ function schedulePersist(room: Room): void {
 }
 
 async function flushPersist(room: Room): Promise<void> {
+  if (room.reset) return;
   if (room.persistTimer) {
     clearTimeout(room.persistTimer);
     room.persistTimer = null;
@@ -182,6 +186,43 @@ async function flushPersist(room: Room): Promise<void> {
     // Keep it dirty so the next change, or the next disconnect, tries again.
     room.dirty = true;
   }
+}
+
+/**
+ * Drops a page's stored CRDT and any live room, so the next session seeds from
+ * the document instead of replaying a copy that no longer matches it. Used
+ * after a write landed outside the session: peers reconnect and pick up the
+ * stored document.
+ */
+export async function resetCollabState(pageId: string): Promise<void> {
+  const key = roomKey("page", pageId);
+  const room = rooms.get(key);
+  if (room) {
+    room.reset = true;
+    if (room.persistTimer) {
+      clearTimeout(room.persistTimer);
+      room.persistTimer = null;
+    }
+    if (room.idleTimer) {
+      clearTimeout(room.idleTimer);
+      room.idleTimer = null;
+    }
+    room.dirty = false;
+    for (const connection of room.connections) {
+      try {
+        connection.socket.close(1012, "Document reset");
+      } catch {
+        // The peer is already gone; the room is dropped below either way.
+      }
+    }
+    room.connections.clear();
+    room.doc.destroy();
+    room.awareness.destroy();
+    rooms.delete(key);
+  }
+  await db.collabDocument.deleteMany({
+    where: { resourceType: "page", resourceId: pageId },
+  });
 }
 
 /**

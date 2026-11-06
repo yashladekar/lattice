@@ -426,7 +426,7 @@ async function applyPage(
       entity: "pageDocument",
       entityId: page.id,
       op: "UPSERT",
-      data: toJsonSafe(created),
+      data: { ...toJsonSafe(created), source: "write" },
     });
   }
 
@@ -458,6 +458,9 @@ async function applyPageDocument(
   if (!content) throw new ORPCError("BAD_REQUEST", { message: "Document content is required" });
 
   const collaborating = ctx.isCollaborating?.(page.id) ?? false;
+  // Session snapshots carry stale revisions by design; every other writer is
+  // checked, so an out-of-band write cannot silently lose to a live peer.
+  const fromSession = stringValue(op.payload.source) === "session";
 
   // Live peers converge through the CRDT, so their JSON snapshots arrive with
   // stale revisions by design. Accept them, and skip writes that change nothing.
@@ -472,7 +475,7 @@ async function applyPageDocument(
     };
   }
 
-  if (baseRev !== existing.rev && !collaborating) {
+  if (baseRev !== existing.rev && !(fromSession && collaborating)) {
     const conflictId = randomUUID();
     const remoteData = toJsonSafe(existing);
     const localData = {
@@ -542,7 +545,7 @@ async function applyPageDocument(
     entity: "pageDocument",
     entityId: page.id,
     op: "UPSERT",
-    data: toJsonSafe(document),
+    data: { ...toJsonSafe(document), source: fromSession ? "session" : "write" },
   });
   changes.push({
     entity: "page",

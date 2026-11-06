@@ -6,7 +6,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import type { Request } from "express";
 
 import { auth, db } from "./services";
-import { isCollaborating, invalidateCollabState } from "./collaboration";
+import { isCollaborating, invalidateCollabState, resetCollabState } from "./collaboration";
 import { aiConfig, uploadRoot } from "./env.server";
 
 interface CreateContextOptions {
@@ -61,6 +61,9 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
         isCollaborating(pageId, userId),
       invalidate: (_workspaceId: string, pageId: string) => {
         void invalidateCollabState(pageId);
+      },
+      reset: async (_workspaceId: string, pageId: string) => {
+        await resetCollabState(pageId);
       },
     },
   };

@@ -543,6 +543,8 @@ export async function savePageContentLocal(
     pageId: string;
     content: TipTapDoc;
     userId: string;
+    /** `session` marks a live editor's snapshot; anything else is a write. */
+    source?: "session" | "write";
   },
 ): Promise<LocalPageDocument | null> {
   const page = await db.pages.get(input.pageId);
@@ -550,12 +552,14 @@ export async function savePageContentLocal(
   if (!page || !existing || page.deletedAt) return null;
   const content = safeDoc(input.content);
   const timestamp = now();
+  const source = input.source ?? "write";
   const document: LocalPageDocument = {
     ...existing,
     content,
     plainText: extractPlainText(content),
     updatedAt: timestamp,
     localUpdatedAt: timestamp,
+    lastChangeSource: source,
   };
   const updatedPage = { ...page, updatedAt: timestamp };
   await db.transaction(
@@ -570,7 +574,7 @@ export async function savePageContentLocal(
         entityId: page.id,
         op: "UPSERT",
         baseRev: existing.rev,
-        payload: documentPayload(document),
+        payload: { ...documentPayload(document), source },
       });
       await queuePage(db, updatedPage);
       await syncPageLinks(db, updatedPage, document, input.userId);

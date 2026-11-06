@@ -23,6 +23,11 @@ import type {
 
 export interface LocalPageDocument extends PageDocument {
   localUpdatedAt?: string;
+  /**
+   * Origin of the change that produced this revision, so a live editor can
+   * tell a peer's session snapshot from an out-of-band write.
+   */
+  lastChangeSource?: "session" | "write" | null;
 }
 
 export interface OutboxItem {

@@ -7,6 +7,7 @@ import {
   extractOutline,
   extractPlainText,
   formatRelative,
+  liveWriteWouldClobber,
   outlineToMermaid,
   safeDoc,
   type CanvasDocument,
@@ -178,6 +179,27 @@ export function PageEditor({
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [pluginPickerOpen, setPluginPickerOpen] = useState(false);
   const [confirmTrash, setConfirmTrash] = useState(false);
+  const [clobberBlocked, setClobberBlocked] = useState(false);
+  const lastWrittenRev = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Baseline for the clobber guard: the revision this editor started from.
+    if (lastWrittenRev.current === null && document) lastWrittenRev.current = document.rev;
+  }, [document]);
+
+  useEffect(() => {
+    lastWrittenRev.current = null;
+    setClobberBlocked(false);
+  }, [pageId]);
+
+  const reloadFromDocument = async () => {
+    try {
+      await client.sync.resetCollab({ pageId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not reset the live session");
+    }
+    window.location.reload();
+  };
   const installedPlugins = useInstalledPlugins();
   const [versions, setVersions] = useState<Array<{ id: string; version: number; title: string; createdAt: string; note: string | null }>>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
@@ -229,11 +251,29 @@ export function PageEditor({
       if (!current.db || !current.user || !current.workspaceId) return;
       try {
         setSaveStatus("saving");
-        await savePageContentLocal(current.db, {
+        const stored = await current.db.pageDocuments.get(pageId);
+        if (
+          stored &&
+          lastWrittenRev.current !== null &&
+          liveWriteWouldClobber({
+            lastWrittenRev: lastWrittenRev.current,
+            currentRev: stored.rev,
+            lastChangeSource: stored.lastChangeSource ?? null,
+          })
+        ) {
+          // A write that did not come from this session landed under the
+          // editor; persisting now would put the older body back.
+          setSaveStatus("error");
+          setClobberBlocked(true);
+          return;
+        }
+        const saved = await savePageContentLocal(current.db, {
           pageId,
           content,
           userId: current.user.id,
+          source: "session",
         });
+        if (saved) lastWrittenRev.current = saved.rev;
         dirty.current = false;
         setSaveStatus("saved");
       } catch (error) {
@@ -1356,6 +1396,22 @@ export function PageEditor({
           className="w-full bg-transparent font-display text-[2.4rem] leading-[1.08] tracking-[-0.03em] outline-none placeholder:text-muted-foreground/40 md:text-[3rem]"
         />
       </div>
+
+      {clobberBlocked ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/[0.05] px-2.5 py-2 text-[9px]">
+          <span className="text-destructive">
+            This note was changed from outside this session, so saving here would overwrite the
+            newer body. Reload to continue from the newer version.
+          </span>
+          <Button
+            size="sm"
+            className="ml-auto h-6 rounded-md text-[8px]"
+            onClick={() => void reloadFromDocument()}
+          >
+            Reload note
+          </Button>
+        </div>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-b border-border/60 pb-3 text-[9px] text-muted-foreground">
         <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5">

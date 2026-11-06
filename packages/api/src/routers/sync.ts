@@ -3,12 +3,25 @@ import {
   syncPushInput,
   type SyncOpInput,
 } from "@notes-learning/domain";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
 import { pullSync, pushSync, resolveSyncConflict, syncSnapshot } from "../services/sync";
 
 export const syncRouter = {
+  resetCollab: workspaceProcedure("EDITOR")
+    .input(z.object({ pageId: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      const page = await context.db.page.findFirst({
+        where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
+      await context.collab?.reset(context.workspaceId, input.pageId);
+      return { ok: true };
+    }),
+
   snapshot: workspaceProcedure("VIEWER")
     .input(z.object({ workspaceId: z.string().min(1) }))
     .handler(async ({ context }) => {

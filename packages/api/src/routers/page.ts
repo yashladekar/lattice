@@ -165,6 +165,7 @@ export const pageRouter = {
               content,
               plainText: extractPlainText(content),
               schemaVersion: 1,
+              source: "write",
             },
           },
         ],
@@ -263,6 +264,7 @@ export const pageRouter = {
               content: input.content,
               plainText: input.plainText ?? extractPlainText(safeDoc(input.content)),
               schemaVersion: input.schemaVersion,
+              source: "write",
             },
           },
         ],
@@ -398,7 +400,12 @@ export const pageRouter = {
           data: { updatedAt: new Date(), updatedById: context.userId },
         });
         changes.push(
-          { entity: "pageDocument", entityId: page.id, op: "UPSERT", data: toJsonSafe(updated) },
+          {
+            entity: "pageDocument",
+            entityId: page.id,
+            op: "UPSERT",
+            data: { ...toJsonSafe(updated), source: "write" },
+          },
           { entity: "page", entityId: page.id, op: "UPSERT", data: toJsonSafe(updatedPage) },
         );
         await recomputePageLinkEdges(tx, page, content, context.userId, changes);
@@ -455,6 +462,7 @@ export const pageRouter = {
               content,
               plainText: extractPlainText(content),
               schemaVersion: 1,
+              source: "write",
             },
           },
         ],

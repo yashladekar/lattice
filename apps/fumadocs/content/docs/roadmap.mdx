@@ -113,10 +113,12 @@ description: What this implementation covers and which subsystems are deliberate
 - Filters are evaluated at enqueue time, so unmatched events never reach the delivery queue; a condition on a field the event lacks excludes it.
 - Recent deliveries show which destination received what, alongside the existing signed payloads, retries, and test action.
 
-## Next: live session and out-of-band writes
+## Shipped: live sessions and out-of-band writes
 
-- An out-of-band document write (accepting a suggestion, restoring a version, importing) is currently accepted while a page has a live Yjs room, because session snapshots carry stale revisions by design. A peer holding older CRDT state can then persist it back with no conflict recorded.
-- Fix direction: tag document ops with their origin, apply the revision check to ops that did not come from a live session, and invalidate the stored CRDT when such a write lands so the next session seeds from it.
+- Document ops carry an origin. Only a `session` snapshot keeps the stale-revision exemption that co-editing needs; every other writer (suggested-edit accept, version restore, Markdown save, import, `page.saveDocument`, plugin write) is revision-checked and turns a stale write into a `SyncConflict` instead of losing silently to a live peer.
+- The change log keeps that origin, and a live editor refuses to persist when the local document advanced from a write it did not make — it warns and offers **Reload note** rather than putting the older body back.
+- **Reload note** calls `sync.resetCollab`, which drops the stored CRDT and any live room so peers reconnect and seed from the stored document.
+- Still not attempted: merging an out-of-band write into a live CRDT. The session resets rather than merges, which costs a reconnect but never picks a silent winner.
 
 ## Explicit non-goals for this release
 

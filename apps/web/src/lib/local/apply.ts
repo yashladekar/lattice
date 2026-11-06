@@ -209,11 +209,13 @@ export async function applyChange(db: LatticeDB, change: SyncChange): Promise<vo
       break;
     case "pageDocument": {
       const pageId = change.entityId;
+      const { source, ...rest } = data as Record<string, unknown> & { source?: unknown };
       const document = {
-        ...data,
+        ...rest,
         pageId,
         localUpdatedAt:
           typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+        lastChangeSource: source === "session" || source === "write" ? source : null,
       };
       await db.pageDocuments.put(document as never);
       break;
