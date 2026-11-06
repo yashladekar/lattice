@@ -196,7 +196,9 @@ export async function purgeWorkspaceTrash(
       purged += teamIds.length;
     }
 
-    await appendChanges(tx, workspaceId, null, changes);
+    // Nothing to record means no reason to touch the workspace row, which may
+    // have been deleted between the sweep listing it and this transaction.
+    if (changes.length) await appendChanges(tx, workspaceId, null, changes);
     return { purged };
   });
 }
@@ -211,10 +213,15 @@ export async function purgeExpiredTrash(
   let purged = 0;
   let touched = 0;
   for (const workspace of workspaces) {
-    const result = await purgeWorkspaceTrash(db, workspace.id, workspace.trashRetentionDays);
-    if (result.purged) {
-      touched += 1;
-      purged += result.purged;
+    try {
+      const result = await purgeWorkspaceTrash(db, workspace.id, workspace.trashRetentionDays);
+      if (result.purged) {
+        touched += 1;
+        purged += result.purged;
+      }
+    } catch (error) {
+      // A workspace deleted mid-sweep, or one bad row, must not stop the rest.
+      console.error(`Trash purge failed for workspace ${workspace.id}`, error);
     }
   }
   return { workspaces: touched, purged };

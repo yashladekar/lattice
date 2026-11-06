@@ -3,11 +3,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { appRouter } from "@notes-learning/api/routers/index";
-import { hashToken } from "@notes-learning/api/authz";
 import { purgeExpiredTrash } from "@notes-learning/api/services/purge";
-import { pushSync } from "@notes-learning/api/services/sync";
+import { ingestEmail } from "@notes-learning/api/services/ingest-email";
 import { deliverWebhookBatch } from "@notes-learning/api/services/webhooks";
-import { type EmailIngestPayload, captureFromEmail } from "@notes-learning/domain";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -20,6 +18,7 @@ import express from "express";
 import { createContext } from "./context";
 import { attachCollaboration } from "./collaboration";
 import { createScimRouter } from "@notes-learning/api/scim-router";
+import { RateLimiter } from "@notes-learning/api/rate-limit";
 import { desktopOrigins, ENV, uploadRoot } from "./env.server";
 import { auth, db } from "./services";
 
@@ -27,7 +26,8 @@ const app = express();
 
 app.set("trust proxy", 1);
 
-const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+const rateLimiter = new RateLimiter();
+setInterval(() => rateLimiter.sweep(), 60_000).unref();
 app.use((req, res, next) => {
   const now = Date.now();
   const ingestRequest = req.path.startsWith("/ingest");
@@ -54,15 +54,9 @@ app.use((req, res, next) => {
             ? 90
             : 600;
   const key = `${req.ip ?? "unknown"}:${scope}`;
-  const bucket = rateBuckets.get(key);
-  if (!bucket || bucket.resetAt < now) {
-    rateBuckets.set(key, { count: 1, resetAt: now + 60_000 });
-  } else {
-    bucket.count += 1;
-    if (bucket.count > limit) {
-      res.status(429).json({ error: "Too many requests" });
-      return;
-    }
+  if (!rateLimiter.hit(key, limit, now)) {
+    res.status(429).json({ error: "Too many requests" });
+    return;
   }
   next();
 });
@@ -161,58 +155,12 @@ app.use("/scim/v2", createScimRouter(db));
 
 app.post("/ingest/email", express.json({ limit: "1mb" }), async (req, res) => {
   const token = String(req.headers["x-lattice-ingest-token"] ?? req.query.token ?? "").trim();
-  if (!token) {
-    res.status(401).json({ error: "Missing x-lattice-ingest-token header" });
+  const result = await ingestEmail(db, { token, body: req.body });
+  if (result.status === 202) {
+    res.status(202).json({ ok: true, captureId: result.captureId });
     return;
   }
-  const ingest = await db.workspaceIngestToken.findUnique({
-    where: { tokenHash: hashToken(token) },
-  });
-  if (!ingest || ingest.revokedAt) {
-    res.status(401).json({ error: "Unknown or revoked ingest token" });
-    return;
-  }
-  const workspace = await db.workspace.findFirst({
-    where: { id: ingest.workspaceId, deletedAt: null },
-    select: { id: true, ownerId: true },
-  });
-  if (!workspace) {
-    res.status(404).json({ error: "Workspace not found" });
-    return;
-  }
-  const draft = captureFromEmail((req.body ?? {}) as EmailIngestPayload);
-  if (!draft) {
-    res.status(400).json({ error: "Nothing to capture: send subject, text, or html" });
-    return;
-  }
-  const captureId = randomUUID();
-  try {
-    await pushSync(db, {
-      workspaceId: workspace.id,
-      userId: workspace.ownerId,
-      ops: [
-        {
-          opId: `email-ingest-${captureId}`,
-          entity: "capture",
-          entityId: captureId,
-          op: "UPSERT",
-          payload: {
-            type: "EMAIL",
-            title: draft.title,
-            content: draft.content,
-            source: draft.source,
-            status: "INBOX",
-            metadata: draft.metadata,
-          },
-        },
-      ],
-    });
-  } catch (error) {
-    console.error("Email ingestion failed", error);
-    res.status(500).json({ error: "Could not store the capture" });
-    return;
-  }
-  res.status(202).json({ ok: true, captureId });
+  res.status(result.status).json({ error: result.error });
 });
 
 const nativeAppUrl = "notes-learning://";

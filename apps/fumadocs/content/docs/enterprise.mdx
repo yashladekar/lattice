@@ -114,8 +114,7 @@ it would otherwise remove — pages, comments, attachments, cards, decks, canvas
 and graph nodes and edges — and a workspace hold stops the purge for that
 workspace entirely. Releasing a hold only affects future purges: nothing is
 deleted at release time, and the next purge can remove the content if it is still
-expired. (Page bodies and saved versions are not deleted by the purge path at
-all today, so they survive regardless of a hold.)
+expired. Page bodies and saved versions are removed with the page through the schema's cascade, so a hold is what keeps them.
 
 Coverage is deliberately explicit:
 

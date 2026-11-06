@@ -64,6 +64,7 @@ export async function cleanupTestWorkspace(db: Database, workspaceId: string): P
   await db.pageVersion.deleteMany({ where: { workspaceId } });
   await db.pageDocument.deleteMany({ where: { workspaceId } });
   await db.pageTag.deleteMany({ where: { page: { workspaceId } } });
+  await db.resourcePermission.deleteMany({ where: { workspaceId } });
   await db.page.deleteMany({ where: { workspaceId } });
   await db.canvasVersion.deleteMany({ where: { workspaceId } });
   await db.canvas.deleteMany({ where: { workspaceId } });

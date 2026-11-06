@@ -107,3 +107,38 @@ describeWithDatabase("legal export bundle", () => {
     expect(bundle.generatedAt).toBeTruthy();
   });
 });
+
+describeWithDatabase("legal export caps", () => {
+  let db: Database;
+  let workspace: TestWorkspace;
+
+  beforeAll(async () => {
+    db = createTestDatabase();
+    workspace = await createTestWorkspace(db);
+    await db.page.createMany({
+      data: [1, 2, 3].map((index) => ({
+        id: `itest_cap_${index}_${workspace.id}`,
+        workspaceId: workspace.id,
+        title: `Page ${index}`,
+        createdById: workspace.ownerId,
+      })),
+    });
+  });
+
+  afterAll(async () => {
+    await cleanupTestWorkspace(db, workspace.id);
+    await db.$disconnect();
+  });
+
+  it("truncates a capped list and says so", async () => {
+    const bundle = await buildLegalExport(db, workspace.id, { caps: { pages: 1 } });
+    expect((bundle.data.pages as unknown[]).length).toBe(1);
+    expect(bundle.truncated).toContain("pages");
+  });
+
+  it("leaves the bundle untruncated under the default caps", async () => {
+    const bundle = await buildLegalExport(db, workspace.id);
+    expect((bundle.data.pages as unknown[]).length).toBe(3);
+    expect(bundle.truncated).toEqual([]);
+  });
+});

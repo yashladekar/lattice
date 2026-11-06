@@ -1,8 +1,8 @@
-const DEFAULT_APP_URL = "http://localhost:3101";
-
+// The app URL is user-configured; there is no default. Without one, opening a
+// capture shows the setup UI (the popup as a tab) instead of a dead link.
 async function appUrl() {
   const stored = await chrome.storage.sync.get("appUrl");
-  return (stored.appUrl || DEFAULT_APP_URL).replace(/\/$/, "");
+  return typeof stored.appUrl === "string" ? stored.appUrl.trim() : "";
 }
 
 function captureUrl(base, payload) {
@@ -16,6 +16,10 @@ function captureUrl(base, payload) {
 
 async function openCapture(payload) {
   const base = await appUrl();
+  if (!base) {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") });
+    return;
+  }
   await chrome.tabs.create({ url: captureUrl(base, payload) });
 }
 

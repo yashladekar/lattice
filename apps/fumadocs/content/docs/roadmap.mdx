@@ -71,7 +71,7 @@ description: What this implementation covers and which subsystems are deliberate
 ## Shipped: legal hold
 
 - Workspace, notebook, and page holds that outrank retention: the purge skips every covered row, and a workspace hold stops it entirely.
-- Coverage expands from the hold scope to the rows the purge would remove: pages, comments, attachments, cards, decks, canvases, and graph nodes and edges; released holds stop protecting anything. Page bodies and versions are not in the purge path today.
+- Coverage expands from the hold scope to the rows the purge would remove: pages, comments, attachments, cards, decks, canvases, and graph nodes and edges; released holds stop protecting anything. Page bodies and versions are removed with the page through the schema's cascade.
 - **Settings → Legal** lists active and released holds with their reason, places new ones, and releases them.
 - Export on demand builds an audited JSON bundle server-side that includes soft-deleted rows and the audit log but never credentials or token hashes, with caps and truncation reported.
 - Verified against the purge for each scope, including that a released hold lets the next purge remove the content.

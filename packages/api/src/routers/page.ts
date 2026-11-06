@@ -8,7 +8,6 @@ import {
   emptyDoc,
   extractPlainText,
   safeDoc,
-  type Role,
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -20,23 +19,11 @@ import {
   recomputePageLinkEdges,
   toJsonSafe,
 } from "../services/changes";
+import { assertPageReadable } from "../services/page-access";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
 import { versionTimeline } from "../services/version-timeline";
 
 const pageIdInput = z.object({ pageId: z.string().min(1) });
-
-async function assertPageReadable(
-  db: Database,
-  workspaceId: string,
-  pageId: string,
-  userId: string,
-  role: Role,
-): Promise<void> {
-  const allowed = await getAccessiblePageIds(db, workspaceId, userId, role);
-  if (allowed && !allowed.has(pageId)) {
-    throw new ORPCError("FORBIDDEN", { message: "You do not have access to this page" });
-  }
-}
 
 async function loadTemplateContent(
   db: Database,

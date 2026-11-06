@@ -25,6 +25,7 @@ import { ORPCError } from "@orpc/server";
 
 import { requireMembership } from "../authz";
 import { appendChanges, ensureCanvasNode, ensurePageNode, recomputePageLinkEdges, toJsonSafe, type PendingChange } from "./changes";
+import { assertPageAccess } from "./page-access";
 
 const CURRENT_SCHEMA_VERSION = 1;
 
@@ -90,25 +91,7 @@ async function assertPageWriteAccess(
   userId: string,
   role: Role,
 ): Promise<void> {
-  if (hasRole(role, "ADMIN")) return;
-  if (page.createdById === userId) return;
-  if (page.visibility === "PRIVATE") {
-    throw new ORPCError("FORBIDDEN", { message: "This page is private" });
-  }
-  if (page.visibility === "SHARED") {
-    const permission = await tx.resourcePermission.findFirst({
-      where: {
-        workspaceId: page.workspaceId,
-        resourceType: "PAGE",
-        resourceId: page.id,
-        userId,
-      },
-      select: { role: true },
-    });
-    if (!permission || !hasRole(permission.role as Role, "EDITOR")) {
-      throw new ORPCError("FORBIDDEN", { message: "You do not have edit access to this page" });
-    }
-  }
+  await assertPageAccess(tx, page, userId, role, "write");
 }
 
 async function assertPageReadAccess(
@@ -117,28 +100,8 @@ async function assertPageReadAccess(
   userId: string,
   role: Role,
 ): Promise<void> {
-  if (hasRole(role, "ADMIN")) return;
-  if (page.createdById === userId) return;
-  if (page.visibility === "PRIVATE") {
-    throw new ORPCError("FORBIDDEN", { message: "This page is private" });
-  }
-  if (page.visibility === "SHARED") {
-    const permission = await tx.resourcePermission.findFirst({
-      where: {
-        workspaceId: page.workspaceId,
-        resourceType: "PAGE",
-        resourceId: page.id,
-        userId,
-      },
-      select: { id: true },
-    });
-    if (!permission) {
-      throw new ORPCError("FORBIDDEN", { message: "You do not have access to this page" });
-    }
-  }
+  await assertPageAccess(tx, page, userId, role, "read");
 }
-
-
 
 function numberValue(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;

@@ -38,11 +38,11 @@ Role rank gates mutations. Page access additionally considers creator, visibilit
 
 ## Rate limiting
 
-Express applies a per-IP budget to RPC and auth endpoints, with a stricter budget for auth. Share lookups are additionally constrained by expired/revoked checks.
+Express applies a per-IP budget with separate buckets for auth (60/min), email ingest (30/min), SCIM (240/min), public share lookups (90/min), and everything else (600/min). Counters are fixed windows in this process: expired buckets are dropped as they are seen and a sweep clears the rest every minute. Running more than one API instance multiplies every limit, so scale out with a shared limiter or a single instance in front.
 
 ## Uploads
 
-`POST /uploads` requires a valid session, accepts one raw file body up to 25 MB, writes to a server-owned directory with a generated filename, and serves only the file URL. Files are not executed.
+`POST /uploads` requires a valid session, accepts one raw file body up to 25 MB, writes to a server-owned directory with a generated filename, and serves only the file URL. Images and audio/video are served inline (they need cross-origin reads for canvas and playback); every other type is served as a download with `X-Content-Type-Options: nosniff` and a sandbox CSP, so an uploaded HTML or SVG file cannot run code on the API origin.
 
 ### PDF text extraction and OCR
 
@@ -60,7 +60,7 @@ Manifest-declared **blocks** and **canvasTools** only describe where a plugin ca
 
 Deletes are soft deletes. Each workspace can set a trash window (30/90/180/365 days, or keep forever) in Settings → General. A scheduled server job then permanently removes soft-deleted rows older than that window and appends tombstone changes, so clients converge on the same result. There is intentionally no manual purge button; an instant purge needs its own op semantic to stay consistent with local-first clients.
 
-**Legal holds outrank retention.** A workspace, notebook, or page hold (Settings → Legal) makes the purge skip every covered row it would otherwise remove — pages, comments, attachments, cards, decks, canvases, and graph nodes and edges — and a workspace hold stops the purge for that workspace entirely. Releasing a hold only affects future purges; nothing is deleted at release time. Page bodies and saved versions are not part of the purge path today. **Settings → Legal → Download legal export** produces an audited JSON bundle that includes soft-deleted rows on purpose and never includes credentials or token hashes.
+**Legal holds outrank retention.** A workspace, notebook, or page hold (Settings → Legal) makes the purge skip every covered row it would otherwise remove — pages, comments, attachments, cards, decks, canvases, and graph nodes and edges — and a workspace hold stops the purge for that workspace entirely. Releasing a hold only affects future purges; nothing is deleted at release time. Page bodies and saved versions are removed with the page through the schema's cascade. **Settings → Legal → Download legal export** produces an audited JSON bundle that includes soft-deleted rows on purpose and never includes credentials or token hashes.
 
 ## Explicitly deferred
 

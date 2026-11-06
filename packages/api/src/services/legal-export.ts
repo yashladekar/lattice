@@ -9,12 +9,33 @@ import type { Database } from "@notes-learning/db";
  * SCIM token hashes. Every list is capped and truncation is reported, so a
  * consumer knows when the bundle is partial.
  */
-const CAPS = {
+export const LEGAL_EXPORT_CAPS = {
+  members: 1_000,
+  notebooks: 2_000,
   pages: 5_000,
   pageVersions: 5_000,
-  audit: 5_000,
+  canvases: 2_000,
+  knowledgeNodes: 10_000,
+  knowledgeEdges: 20_000,
+  tags: 2_000,
+  pageTags: 20_000,
   comments: 10_000,
+  captures: 5_000,
+  templates: 1_000,
+  decks: 2_000,
+  flashcards: 20_000,
+  attachments: 5_000,
+  suggestedEdits: 5_000,
+  objectTypes: 500,
+  auditLog: 5_000,
 } as const;
+
+export type LegalExportCapKey = keyof typeof LEGAL_EXPORT_CAPS;
+
+export interface LegalExportOptions {
+  /** Test hook: override individual caps without generating huge fixtures. */
+  caps?: Partial<Record<LegalExportCapKey, number>>;
+}
 
 export interface LegalExportBundle {
   generatedAt: string;
@@ -27,7 +48,9 @@ export interface LegalExportBundle {
 export async function buildLegalExport(
   db: Database,
   workspaceId: string,
+  options: LegalExportOptions = {},
 ): Promise<LegalExportBundle> {
+  const caps = { ...LEGAL_EXPORT_CAPS, ...options.caps };
   const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
   if (!workspace) throw new Error("Workspace not found.");
 
@@ -53,33 +76,33 @@ export async function buildLegalExport(
     holds,
     audit,
   ] = await Promise.all([
-    db.workspaceMember.findMany({ where: { workspaceId } }),
-    db.notebook.findMany({ where: { workspaceId } }),
-    db.page.findMany({ where: { workspaceId }, take: CAPS.pages + 1 }),
-    db.pageDocument.findMany({ where: { workspaceId } }),
+    db.workspaceMember.findMany({ where: { workspaceId }, take: caps.members + 1 }),
+    db.notebook.findMany({ where: { workspaceId }, take: caps.notebooks + 1 }),
+    db.page.findMany({ where: { workspaceId }, take: caps.pages + 1 }),
+    db.pageDocument.findMany({ where: { workspaceId }, take: caps.pages + 1 }),
     db.pageVersion.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
-      take: CAPS.pageVersions + 1,
+      take: caps.pageVersions + 1,
     }),
-    db.canvas.findMany({ where: { workspaceId } }),
-    db.knowledgeNode.findMany({ where: { workspaceId } }),
-    db.knowledgeEdge.findMany({ where: { workspaceId } }),
-    db.tag.findMany({ where: { workspaceId } }),
-    db.pageTag.findMany({ where: { page: { workspaceId } } }),
-    db.comment.findMany({ where: { workspaceId }, take: CAPS.comments + 1 }),
-    db.capture.findMany({ where: { workspaceId } }),
-    db.template.findMany({ where: { workspaceId } }),
-    db.deck.findMany({ where: { workspaceId } }),
-    db.flashcard.findMany({ where: { workspaceId } }),
-    db.attachment.findMany({ where: { workspaceId } }),
-    db.suggestedEdit.findMany({ where: { workspaceId } }),
-    db.objectType.findMany({ where: { workspaceId } }),
+    db.canvas.findMany({ where: { workspaceId }, take: caps.canvases + 1 }),
+    db.knowledgeNode.findMany({ where: { workspaceId }, take: caps.knowledgeNodes + 1 }),
+    db.knowledgeEdge.findMany({ where: { workspaceId }, take: caps.knowledgeEdges + 1 }),
+    db.tag.findMany({ where: { workspaceId }, take: caps.tags + 1 }),
+    db.pageTag.findMany({ where: { page: { workspaceId } }, take: caps.pageTags + 1 }),
+    db.comment.findMany({ where: { workspaceId }, take: caps.comments + 1 }),
+    db.capture.findMany({ where: { workspaceId }, take: caps.captures + 1 }),
+    db.template.findMany({ where: { workspaceId }, take: caps.templates + 1 }),
+    db.deck.findMany({ where: { workspaceId }, take: caps.decks + 1 }),
+    db.flashcard.findMany({ where: { workspaceId }, take: caps.flashcards + 1 }),
+    db.attachment.findMany({ where: { workspaceId }, take: caps.attachments + 1 }),
+    db.suggestedEdit.findMany({ where: { workspaceId }, take: caps.suggestedEdits + 1 }),
+    db.objectType.findMany({ where: { workspaceId }, take: caps.objectTypes + 1 }),
     db.legalHold.findMany({ where: { workspaceId }, orderBy: { createdAt: "asc" } }),
     db.auditLog.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
-      take: CAPS.audit + 1,
+      take: caps.auditLog + 1,
     }),
   ]);
 
@@ -97,27 +120,27 @@ export async function buildLegalExport(
 
   const data = {
     workspace,
-    members,
+    members: takeWithCap(members, caps.members, "members"),
     users,
-    notebooks,
-    pages: takeWithCap(pages, CAPS.pages, "pages"),
-    pageDocuments: documents,
-    pageVersions: takeWithCap(versions, CAPS.pageVersions, "pageVersions"),
-    canvases,
-    knowledgeNodes: nodes,
-    knowledgeEdges: edges,
-    tags,
-    pageTags,
-    comments: takeWithCap(comments, CAPS.comments, "comments"),
-    captures,
-    templates,
-    decks,
-    flashcards,
-    attachments,
-    suggestedEdits,
-    objectTypes,
+    notebooks: takeWithCap(notebooks, caps.notebooks, "notebooks"),
+    pages: takeWithCap(pages, caps.pages, "pages"),
+    pageDocuments: takeWithCap(documents, caps.pages, "pageDocuments"),
+    pageVersions: takeWithCap(versions, caps.pageVersions, "pageVersions"),
+    canvases: takeWithCap(canvases, caps.canvases, "canvases"),
+    knowledgeNodes: takeWithCap(nodes, caps.knowledgeNodes, "knowledgeNodes"),
+    knowledgeEdges: takeWithCap(edges, caps.knowledgeEdges, "knowledgeEdges"),
+    tags: takeWithCap(tags, caps.tags, "tags"),
+    pageTags: takeWithCap(pageTags, caps.pageTags, "pageTags"),
+    comments: takeWithCap(comments, caps.comments, "comments"),
+    captures: takeWithCap(captures, caps.captures, "captures"),
+    templates: takeWithCap(templates, caps.templates, "templates"),
+    decks: takeWithCap(decks, caps.decks, "decks"),
+    flashcards: takeWithCap(flashcards, caps.flashcards, "flashcards"),
+    attachments: takeWithCap(attachments, caps.attachments, "attachments"),
+    suggestedEdits: takeWithCap(suggestedEdits, caps.suggestedEdits, "suggestedEdits"),
+    objectTypes: takeWithCap(objectTypes, caps.objectTypes, "objectTypes"),
     legalHolds: holds,
-    auditLog: takeWithCap(audit, CAPS.audit, "auditLog"),
+    auditLog: takeWithCap(audit, caps.auditLog, "auditLog"),
   };
 
   const counts = Object.fromEntries(

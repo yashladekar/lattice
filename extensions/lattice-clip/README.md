@@ -7,7 +7,7 @@ A minimal Manifest V3 extension that sends the current page, link, or selection 
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
 3. Choose **Load unpacked** and select this directory.
-4. Set the Lattice URL in the popup (default `http://localhost:3101`).
+4. Open the popup and save your Lattice URL. There is no default: until it is set, the extension asks for one instead of opening a dead link.
 
 Capture flows:
 
