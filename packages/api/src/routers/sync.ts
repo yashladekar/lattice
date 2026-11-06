@@ -7,7 +7,8 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
-import { pullSync, pushSync, resolveSyncConflict, syncSnapshot } from "../services/sync";
+import { snapshotPage } from "../services/snapshot";
+import { pullSync, pushSync, resolveSyncConflict } from "../services/sync";
 
 export const syncRouter = {
   resetCollab: workspaceProcedure("EDITOR")
@@ -23,11 +24,20 @@ export const syncRouter = {
     }),
 
   snapshot: workspaceProcedure("VIEWER")
-    .input(z.object({ workspaceId: z.string().min(1) }))
-    .handler(async ({ context }) => {
-      return syncSnapshot(context.db, {
+    .input(
+      z.object({
+        workspaceId: z.string().min(1),
+        cursor: z.string().max(4_000).nullish(),
+        pageSize: z.number().int().min(1).max(2_000).optional(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      return snapshotPage(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
+        role: context.role,
+        cursor: input.cursor ?? null,
+        pageSize: input.pageSize,
       });
     }),
 

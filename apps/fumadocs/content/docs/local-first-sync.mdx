@@ -105,6 +105,20 @@ picks a silent winner.
 - Initial boot calls `workspace.ensure`, then a snapshot, then incremental pulls.
 - `sync.snapshot` is also the repair path if a device's cursor is older than the retained change log.
 
+### Snapshot paging
+
+A snapshot arrives in pages, not one response: collections in a fixed order
+(workspace, members, notebooks, pages, bodies, canvases, graph, tags, captures,
+templates, decks, cards, comments, attachments, suggestions, object types), each
+paged by id with a keyset cursor (`pageSize` 500 by default, 2,000 max). The
+first page pins the workspace's sync version and every page reports it; the
+client stores nothing until `done`, then applies the assembled payload and sets
+its cursor to that version. Anything that changes mid-download has a later
+change-log version, so the following pull reconciles it. A page set is also the
+repair path when a device's cursor is older than the retained change log.
+Edge visibility is checked against just the endpoints on the current page, not
+every node in the workspace.
+
 ## Access filtering
 
 Pull and snapshot responses filter private pages and dependent nodes, edges, comments, attachments, and cards for non-admin members. Admins see the workspace for governance; creators always see their own private content.

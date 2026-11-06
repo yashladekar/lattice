@@ -185,16 +185,83 @@ export class SyncEngine {
   async bootstrapWorkspace(workspaceId: string): Promise<void> {
     const done = await getMeta<boolean>(this.db, `snapshot:${workspaceId}`);
     if (done) return;
-    const raw = await workspaceClient(workspaceId).sync.snapshot({ workspaceId });
-    const snapshot = raw as unknown as LocalSnapshotPayload;
-    if (
-      !snapshot ||
-      typeof snapshot !== "object" ||
-      !snapshot.workspace ||
-      !Array.isArray(snapshot.pages)
-    ) {
-      throw new Error("Invalid workspace snapshot");
+    const api = workspaceClient(workspaceId);
+    // The snapshot arrives in pages; store nothing until the last one, so a
+    // half-downloaded workspace never looks complete.
+    const snapshot: LocalSnapshotPayload = {
+      version: 0,
+      role: "VIEWER",
+      workspace: null as unknown as LocalSnapshotPayload["workspace"],
+      members: [],
+      notebooks: [],
+      pages: [],
+      pageDocuments: [],
+      canvases: [],
+      nodes: [],
+      edges: [],
+      tags: [],
+      pageTags: [],
+      captures: [],
+      templates: [],
+      decks: [],
+      flashcards: [],
+      comments: [],
+      attachments: [],
+      suggestedEdits: [],
+      objectTypes: [],
+    };
+    const arrays = snapshot as unknown as Record<string, unknown[]>;
+    const parts = [
+      "members",
+      "notebooks",
+      "pages",
+      "pageDocuments",
+      "canvases",
+      "nodes",
+      "edges",
+      "tags",
+      "pageTags",
+      "captures",
+      "templates",
+      "decks",
+      "flashcards",
+      "comments",
+      "attachments",
+      "suggestedEdits",
+      "objectTypes",
+    ] as const;
+
+    let cursor: string | null = null;
+    let complete = false;
+    for (let guard = 0; guard < 10_000; guard += 1) {
+      const page = (await api.sync.snapshot({
+        workspaceId,
+        ...(cursor ? { cursor } : {}),
+      })) as unknown as {
+        version: number;
+        role: string;
+        done: boolean;
+        cursor: string | null;
+        payload: Record<string, unknown>;
+      };
+      if (typeof page.version === "number") snapshot.version = page.version;
+      if (typeof page.role === "string") snapshot.role = page.role;
+      if (page.payload?.workspace && typeof page.payload.workspace === "object") {
+        snapshot.workspace = page.payload.workspace as LocalSnapshotPayload["workspace"];
+      }
+      for (const part of parts) {
+        const rows = page.payload?.[part];
+        if (Array.isArray(rows)) arrays[part]!.push(...rows);
+      }
+      if (page.done || !page.cursor) {
+        complete = true;
+        break;
+      }
+      cursor = page.cursor;
     }
+
+    if (!complete) throw new Error("Snapshot did not finish");
+    if (!snapshot.workspace) throw new Error("Invalid workspace snapshot");
     await applySnapshot(this.db, snapshot);
   }
 

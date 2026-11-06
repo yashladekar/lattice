@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import { appRouter } from "@notes-learning/api/routers/index";
 import { purgeExpiredTrash } from "@notes-learning/api/services/purge";
+import { createUploadHandler } from "@notes-learning/api/uploads";
 import { ingestEmail } from "@notes-learning/api/services/ingest-email";
 import { deliverWebhookBatch } from "@notes-learning/api/services/webhooks";
 import { OpenAPIHandler } from "@orpc/openapi/node";
@@ -111,42 +111,13 @@ app.use(
 app.post(
   "/uploads",
   express.raw({ type: "*/*", limit: "25mb" }),
-  async (req, res) => {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
-    if (!session?.user) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-    if (!req.body || !Buffer.isBuffer(req.body) || req.body.length === 0) {
-      res.status(400).json({ error: "Empty file" });
-      return;
-    }
-    const rawName = (() => {
-      const header = String(req.headers["x-file-name"] ?? "upload");
-      try {
-        return decodeURIComponent(header);
-      } catch {
-        return header;
-      }
-    })();
-    const extension = path
-      .extname(rawName)
-      .toLowerCase()
-      .replace(/[^.a-z0-9]/g, "")
-      .slice(0, 10);
-    const filename = `${randomUUID()}${extension}`;
-    await writeFile(path.join(uploadRoot, filename), req.body);
-    const url = `/uploads/${filename}`;
-    res.json({
-      id: randomUUID(),
-      url,
-      name: path.basename(rawName).slice(0, 200),
-      size: req.body.length,
-      mime: String(req.headers["content-type"] ?? "application/octet-stream"),
-    });
-  },
+  createUploadHandler({
+    uploadRoot,
+    authenticate: async (headers) => {
+      const session = await auth.api.getSession({ headers: fromNodeHeaders(headers) });
+      return session?.user ? { userId: session.user.id } : null;
+    },
+  }),
 );
 
 app.all("/api/auth{/*path}", toNodeHandler(auth));

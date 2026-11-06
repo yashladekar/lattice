@@ -182,8 +182,11 @@ environment or `apps/server/.env`, each create a throwaway workspace, and clean
 it up afterwards; without a database they are skipped rather than failed. They
 cover the document write-origin rules, the purge's legal-hold coverage, the
 version timeline's link derivation and access filtering, workspace AI credential
-resolution, the legal export bundle's contents, the OIDC sign-in flow against a
-fake identity provider, and webhook filtering, signing, and retry backoff.
+resolution, the legal export bundle's contents and caps, the OIDC sign-in flow
+against a fake identity provider, webhook filtering/signing/retry backoff, SCIM
+provisioning, the paged snapshot's ordering and visibility filtering, email
+ingestion, uploads (including hostile filenames), rate-limiter expiry, and the
+page-access rule.
 
 ## Verification
 
