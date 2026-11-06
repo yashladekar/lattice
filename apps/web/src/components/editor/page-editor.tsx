@@ -83,11 +83,13 @@ import { toast } from "sonner";
 import { prosemirrorJSONToYDoc } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 
+import { Skeleton } from "@notes-learning/ui/components/skeleton";
+
 import { useAppData } from "@/components/app-data-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import { Modal } from "@/components/ui/modal";
-import { usePage, usePageDocument, useWorkspacePages } from "@/hooks/use-local-data";
+import { usePage, usePageDocumentState, useWorkspacePages } from "@/hooks/use-local-data";
 import { CollabProvider, collaborationUrl, type CollabPeer, type CollabStatus } from "@/lib/collab";
 import { downloadTextFile } from "@/lib/download";
 import { uploadFile } from "@/lib/upload";
@@ -207,7 +209,9 @@ export function PageEditor({
   const router = useRouter();
   const { db, user, activeWorkspaceId, online } = useAppData();
   const page = usePage(pageId);
-  const document = usePageDocument(pageId);
+  const documentState = usePageDocumentState(pageId);
+  const documentLoading = documentState === undefined;
+  const document = documentState ?? null;
   const allPages = useWorkspacePages();
   const [title, setTitle] = useState(page?.title ?? "Untitled");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -1249,12 +1253,12 @@ export function PageEditor({
 
   if (!page) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-10">
-        <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+      <div className="mx-auto max-w-3xl px-6 py-10" aria-busy>
+        <Skeleton className="h-8 w-48 rounded" />
         <div className="mt-6 space-y-2">
-          <div className="h-3 w-full animate-pulse rounded bg-muted" />
-          <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+          <Skeleton className="h-3 w-full rounded" />
+          <Skeleton className="h-3 w-5/6 rounded" />
+          <Skeleton className="h-3 w-2/3 rounded" />
         </div>
       </div>
     );
@@ -1278,7 +1282,11 @@ export function PageEditor({
           <span className="opacity-30">·</span>
           <span>{formatRelative(page.updatedAt)}</span>
           <span className="opacity-30">·</span>
-          <span>{state.words} words</span>
+          {documentLoading ? (
+            <span aria-live="polite">Loading the text…</span>
+          ) : (
+            <span>{state.words} words</span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <DropdownMenu>

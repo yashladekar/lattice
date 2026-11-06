@@ -12,6 +12,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo } from "react";
 
 import { useAppData } from "@/components/app-data-provider";
+import { getMeta } from "@/lib/local/db";
 import type {
   LocalCanvas,
   LocalCapture,
@@ -27,6 +28,24 @@ import type {
   LocalTag,
   LocalTemplate,
 } from "@/lib/local/types";
+
+/**
+ * Whether this device already holds a full copy of the active workspace.
+ * `undefined` while that is still unknown, so callers can tell "not loaded"
+ * apart from "genuinely empty" -- every hook below coalesces its query
+ * default, which erases that difference.
+ */
+export function useWorkspaceReady(): boolean | undefined {
+  const { db, activeWorkspaceId } = useAppData();
+  return useLiveQuery(
+    async () => {
+      if (!db || !activeWorkspaceId) return false;
+      return (await getMeta<boolean>(db, `snapshot:${activeWorkspaceId}`)) === true;
+    },
+    [db, activeWorkspaceId],
+    undefined,
+  );
+}
 
 export function useWorkspaceNotebooks(): LocalNotebook[] {
   const { db, activeWorkspaceId } = useAppData();
@@ -81,6 +100,24 @@ export function usePage(pageId: string | null | undefined): LocalPage | null {
       [db, pageId],
       null,
     ) ?? null
+  );
+}
+
+/**
+ * The document row, with `undefined` while the query is still pending. The
+ * editor needs that third state: an empty editor and a not-yet-loaded one look
+ * identical from `null` alone.
+ */
+export function usePageDocumentState(
+  pageId: string | null | undefined,
+): LocalPageDocument | null | undefined {
+  const { db } = useAppData();
+  return useLiveQuery(
+    async () => {
+      if (!db || !pageId) return null;
+      return (await db.pageDocuments.get(pageId)) ?? null;
+    },
+    [db, pageId],
   );
 }
 

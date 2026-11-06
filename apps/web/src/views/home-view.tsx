@@ -34,6 +34,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useLiveQuery } from "dexie-react-hooks";
 
+import { Skeleton } from "@notes-learning/ui/components/skeleton";
+
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -46,6 +48,7 @@ import {
   useWorkspaceCanvases,
   useWorkspaceNotebooks,
   useWorkspacePages,
+  useWorkspaceReady,
   useWorkspaceSearchIndex,
   useWorkspaceTags,
 } from "@/hooks/use-local-data";
@@ -204,6 +207,7 @@ export function HomeView({
 }) {
   const router = useRouter();
   const { db, user, activeWorkspace, activeWorkspaceId } = useAppData();
+  const ready = useWorkspaceReady();
   const pages = useWorkspacePages();
   const notebooks = useWorkspaceNotebooks();
   const canvases = useWorkspaceCanvases();
@@ -389,10 +393,14 @@ export function HomeView({
           <h1 className="mt-2 font-display text-4xl tracking-[-0.03em] md:text-5xl">
             {greeting()}, {user?.name?.split(" ")[0] ?? "there"}.
           </h1>
-          <p className="mt-2 max-w-lg text-xs leading-relaxed text-muted-foreground">
-            {activeWorkspace?.name ?? "Your workspace"} · {pages.length} pages · {graph.edges.length} connections ·{" "}
-            {due.length} cards due.
-          </p>
+          {ready ? (
+            <p className="mt-2 max-w-lg text-xs leading-relaxed text-muted-foreground">
+              {activeWorkspace?.name ?? "Your workspace"} · {pages.length} pages ·{" "}
+              {graph.edges.length} connections · {due.length} cards due.
+            </p>
+          ) : (
+            <Skeleton className="mt-3 h-4 w-64 rounded" />
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <Button
@@ -612,8 +620,12 @@ export function HomeView({
                 </div>
               </div>
               <div>
-                <div className="text-2xl font-semibold tracking-[-0.03em]">{due.length}</div>
-                <div className="text-xs text-muted-foreground">cards waiting</div>
+                <div className="text-2xl font-semibold tracking-[-0.03em]">
+                  {ready ? due.length : <Skeleton className="h-7 w-10 rounded" />}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {ready ? "cards waiting" : <Skeleton className="h-4 w-24 rounded" />}
+                </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {learning.streak > 0 ? `${learning.streak}-day streak` : "Start a streak today"}
                 </div>
@@ -647,7 +659,13 @@ export function HomeView({
                 <X className="size-3" />
               </button>
             </div>
-            {inboxCount ? (
+            {!ready ? (
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-7 w-12 rounded" />
+                <Skeleton className="h-4 w-40 rounded" />
+                <Skeleton className="h-4 w-3/4 rounded" />
+              </div>
+            ) : inboxCount ? (
               <>
                 <div className="mt-3 flex items-baseline gap-2">
                   <span className="text-2xl font-semibold tracking-[-0.03em]">{inboxCount}</span>
@@ -733,8 +751,16 @@ export function HomeView({
             </div>
             <div className="mt-3 flex items-end justify-between">
               <div>
-                <div className="text-2xl font-semibold tracking-[-0.03em]">{learning.cards.length}</div>
-                <div className="text-xs text-muted-foreground">cards across {learning.decks.length} decks</div>
+                <div className="text-2xl font-semibold tracking-[-0.03em]">
+                  {ready ? learning.cards.length : <Skeleton className="h-7 w-10 rounded" />}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {ready ? (
+                    `cards across ${learning.decks.length} decks`
+                  ) : (
+                    <Skeleton className="h-4 w-32 rounded" />
+                  )}
+                </div>
               </div>
               <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                 {learning.logs.length} reviews / 60d

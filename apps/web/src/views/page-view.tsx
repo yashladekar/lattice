@@ -1,13 +1,14 @@
 "use client";
 
 import { extractOutline } from "@notes-learning/domain";
+import { Skeleton } from "@notes-learning/ui/components/skeleton";
 import { ArrowLeft, FileQuestion } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { PageContextPanel } from "@/components/editor/page-context-panel";
 import { PageEditor } from "@/components/editor/page-editor";
-import { usePage, usePageDocument } from "@/hooks/use-local-data";
+import { usePage, usePageDocument, useWorkspaceReady } from "@/hooks/use-local-data";
 import { appHref } from "@/lib/navigation";
 
 export function PageView({
@@ -27,6 +28,7 @@ export function PageView({
   onToggleFocus: () => void;
   compact?: boolean;
 }) {
+  const ready = useWorkspaceReady();
   const page = usePage(pageId);
   const document = usePageDocument(pageId);
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
@@ -57,6 +59,20 @@ export function PageView({
   }
 
   if (!page) {
+    // Until the local copy is complete, a missing row means "not yet", not
+    // "gone" -- saying otherwise on a cold open is a false accusation.
+    if (!ready) {
+      return (
+        <div className="mx-auto max-w-3xl px-6 py-10" aria-busy>
+          <Skeleton className="h-8 w-56 rounded" />
+          <div className="mt-6 space-y-2">
+            <Skeleton className="h-3 w-full rounded" />
+            <Skeleton className="h-3 w-5/6 rounded" />
+            <Skeleton className="h-3 w-2/3 rounded" />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="grid h-full place-items-center px-6 text-center">
         <div>

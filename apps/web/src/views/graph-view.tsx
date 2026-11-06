@@ -57,6 +57,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { useWorkspaceReady } from "@/hooks/use-local-data";
 import {
   useGraph,
   useWorkspaceCanvases,
@@ -223,6 +224,7 @@ function kindIcon(kind: NodeKind) {
 export function GraphView({ onShare }: { onShare?: () => void }) {
   const router = useRouter();
   const { db, user, activeWorkspaceId, online } = useAppData();
+  const ready = useWorkspaceReady();
   const graph = useGraph();
   const pages = useWorkspacePages();
   const canvases = useWorkspaceCanvases();
@@ -1160,7 +1162,9 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
           <div className="absolute inset-0 grid place-items-center">
             <div className="max-w-sm text-center">
               <Network className="mx-auto size-8 text-muted-foreground/40" />
-              <h2 className="mt-3 font-display text-2xl">Your graph is waiting</h2>
+              <h2 className="mt-3 font-display text-2xl">
+                {ready ? "Your graph is waiting" : "Reading your workspace…"}
+              </h2>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Create pages and link them with [[, or add a topic and connect it to what you already know.
               </p>
