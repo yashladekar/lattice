@@ -499,6 +499,9 @@ importers:
       lib0:
         specifier: ^0.2.119
         version: 0.2.119
+      unpdf:
+        specifier: ^2.1.0
+        version: 2.1.0
       varlock:
         specifier: 'catalog:'
         version: 1.23.0
@@ -704,6 +707,9 @@ importers:
       sonner:
         specifier: 'catalog:'
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      unpdf:
+        specifier: ^2.1.0
+        version: 2.1.0
       varlock:
         specifier: 'catalog:'
         version: 1.23.0
@@ -774,6 +780,9 @@ importers:
       '@orpc/zod':
         specifier: 'catalog:'
         version: 1.16.1(@orpc/contract@1.16.1)(@orpc/server@1.16.1(ws@8.22.1))(ws@8.22.1)(zod@4.6.7)
+      unpdf:
+        specifier: ^2.1.0
+        version: 2.1.0
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -8129,6 +8138,15 @@ packages:
       '@expo/metro-config':
         optional: true
       metro-transform-worker:
+        optional: true
+
+  unpdf@2.1.0:
+    resolution: {integrity: sha512-G/Hsrm++g0EoubUhV8TDFItq6oQ+FUu9EMvIRtHUwseKXB0iJoCvaLvBGOpYUBqyvggv/XfxhYYtohL2QpE3xQ==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      '@napi-rs/canvas': ^0.1.69 || ^1.0.0
+    peerDependenciesMeta:
+      '@napi-rs/canvas':
         optional: true
 
   unpipe@1.0.0:
@@ -17071,6 +17089,8 @@ snapshots:
     optionalDependencies:
       '@expo/metro-config': 58.0.20(expo@58.0.22)(supports-color@8.1.1)(typescript@6.0.3)
       metro-transform-worker: 0.87.2(supports-color@8.1.1)
+
+  unpdf@2.1.0: {}
 
   unpipe@1.0.0: {}
 

@@ -1,14 +1,22 @@
 /**
- * Appends a transcript to a capture body. Re-running the same transcript is a
+ * Appends a titled section to a capture body. Re-running the same body is a
  * no-op so a retry cannot duplicate text.
  */
-export function appendTranscript(existing: string | null, transcript: string): string {
+export function appendSection(
+  existing: string | null,
+  heading: string,
+  body: string,
+): string {
   const current = (existing ?? "").trim();
-  const clean = transcript.trim();
+  const clean = body.trim();
   if (!clean) return current;
   if (current.includes(clean)) return current;
-  if (!current) return `### Transcript\n\n${clean}`;
-  return `${current}\n\n### Transcript\n\n${clean}`;
+  if (!current) return `### ${heading}\n\n${clean}`;
+  return `${current}\n\n### ${heading}\n\n${clean}`;
+}
+
+export function appendTranscript(existing: string | null, transcript: string): string {
+  return appendSection(existing, "Transcript", transcript);
 }
 
 const AUDIO_EXTENSIONS = new Set([

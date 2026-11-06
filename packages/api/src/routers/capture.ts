@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 
 import {
+  appendSection,
   createId,
   docFromText,
   extractPlainText,
@@ -11,6 +12,7 @@ import {
   type TipTapDoc,
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
+import { extractText } from "unpdf";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
@@ -398,5 +400,67 @@ export const captureRouter = {
         .filter((entry) => entry.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 20);
+    }),
+
+  extractText: workspaceProcedure("EDITOR")
+    .input(z.object({ captureId: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      if (!context.uploads) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "Uploads are not available on this server.",
+        });
+      }
+      const capture = await context.db.capture.findFirst({
+        where: { id: input.captureId, workspaceId: context.workspaceId, deletedAt: null },
+      });
+      if (!capture) throw new ORPCError("NOT_FOUND");
+      if (capture.type !== "PDF") {
+        throw new ORPCError("BAD_REQUEST", { message: "Only PDF captures can be extracted." });
+      }
+      if (!capture.url) {
+        throw new ORPCError("BAD_REQUEST", { message: "This capture has no file." });
+      }
+      const upload = await context.uploads.read(capture.url);
+      if (!upload) {
+        throw new ORPCError("NOT_FOUND", { message: "The PDF could not be read." });
+      }
+      if (upload.bytes.byteLength > 25 * 1024 * 1024) {
+        throw new ORPCError("BAD_REQUEST", { message: "PDFs up to 25 MB can be extracted." });
+      }
+      let pages = 0;
+      let text = "";
+      try {
+        const result = await extractText(upload.bytes, { mergePages: true });
+        pages = result.totalPages;
+        text = result.text.replace(/\n{3,}/g, "\n\n").trim();
+      } catch {
+        throw new ORPCError("BAD_GATEWAY", { message: "This PDF could not be parsed." });
+      }
+      if (!text) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            "This PDF has no selectable text. Scanned pages need OCR, which is not enabled.",
+        });
+      }
+      const content = appendSection(capture.content, "Extracted text", text);
+      const metadata = {
+        ...(capture.metadata as Record<string, unknown>),
+        pdfPages: pages,
+        extractedAt: new Date().toISOString(),
+      };
+      await pushSync(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        ops: [
+          {
+            opId: `pdf-extract-${capture.id}-${randomUUID()}`,
+            entity: "capture",
+            entityId: capture.id,
+            op: "UPSERT",
+            payload: { content, metadata },
+          },
+        ],
+      });
+      return { text, pages };
     }),
 };

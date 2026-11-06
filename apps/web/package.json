@@ -67,6 +67,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "sonner": "catalog:",
+    "unpdf": "^2.1.0",
     "varlock": "catalog:",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.33",

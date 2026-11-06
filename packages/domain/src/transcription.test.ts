@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { appendTranscript, isAudioFilename } from "./transcription";
+import { appendSection, appendTranscript, isAudioFilename } from "./transcription";
 
 describe("transcription helpers", () => {
   it("appends a transcript under a heading", () => {
     expect(appendTranscript("Interview notes", "We talked about spacing.")).toBe(
       "Interview notes\n\n### Transcript\n\nWe talked about spacing.",
     );
+  });
+
+  it("appends any titled section once", () => {
+    expect(appendSection("PDF capture", "Extracted text", "Chapter one")).toBe(
+      "PDF capture\n\n### Extracted text\n\nChapter one",
+    );
+    expect(appendSection("PDF capture", "Extracted text", "")).toBe("PDF capture");
   });
 
   it("turns an empty capture into a transcript", () => {

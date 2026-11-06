@@ -19,6 +19,7 @@ import {
   Sparkles,
   Tag,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
@@ -81,6 +82,7 @@ function CaptureCard({
     useLiveQuery(async () => (db ? db.pageDocuments.toArray() : []), [db], []) ?? [];
   const [busy, setBusy] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedLinks, setSelectedLinks] = useState<string[]>([]);
@@ -125,6 +127,24 @@ function CaptureCard({
       toast.error(error instanceof Error ? error.message : "Could not transcribe the recording");
     } finally {
       setTranscribing(false);
+    }
+  };
+
+  const extractPdf = async () => {
+    if (!online) {
+      toast.error("PDF extraction needs a connection to the sync server.");
+      return;
+    }
+    setExtracting(true);
+    try {
+      await retrySync();
+      await client.capture.extractText({ captureId: capture.id });
+      await retrySync();
+      toast.success("PDF text extracted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not extract the PDF text");
+    } finally {
+      setExtracting(false);
     }
   };
 
@@ -339,6 +359,23 @@ function CaptureCard({
             Transcribe
           </Button>
         ) : null}
+        {capture.type === "PDF" && capture.url ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            disabled={extracting || !online}
+            onClick={() => void extractPdf()}
+            title={online ? "Extract selectable text from the PDF" : "Needs a sync server"}
+          >
+            {extracting ? (
+              <Loader2 className="size-2.5 animate-spin" />
+            ) : (
+              <FileText className="size-2.5" />
+            )}{" "}
+            Extract text
+          </Button>
+        ) : null}
         {capture.status === "ARCHIVED" ? (
           <Button
             variant="ghost"
@@ -389,12 +426,14 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
         });
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
-  const audioInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  const uploadAudio = async (file: File) => {
+  const uploadCaptureFile = async (file: File) => {
     if (!db || !user || !activeWorkspaceId) return;
-    if (!file.type.startsWith("audio/") && !isAudioFilename(file.name)) {
-      toast.error("Choose an audio file.");
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isAudio = file.type.startsWith("audio/") || isAudioFilename(file.name);
+    if (!isAudio && !isPdf) {
+      toast.error("Choose an audio file or a PDF.");
       return;
     }
     try {
@@ -402,16 +441,19 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
       await createCaptureLocal(db, {
         workspaceId: activeWorkspaceId,
         userId: user.id,
-        type: "AUDIO",
+        type: isAudio ? "AUDIO" : "PDF",
         title: file.name.slice(0, 120),
         content: "",
         url: uploaded.url,
-        source: "audio upload",
-        metadata: { mime: file.type, size: file.size },
+        source: isAudio ? "audio upload" : "pdf upload",
+        metadata: {
+          mime: file.type || (isPdf ? "application/pdf" : ""),
+          size: file.size,
+        },
       });
-      toast.success("Audio added to the inbox");
+      toast.success(isAudio ? "Audio added to the inbox" : "PDF added to the inbox");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not upload the audio");
+      toast.error(error instanceof Error ? error.message : "Could not upload the file");
     }
   };
 
@@ -456,22 +498,22 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             variant="outline"
             size="sm"
             className="h-8 rounded-lg text-[10px]"
-            onClick={() => audioInputRef.current?.click()}
+            onClick={() => uploadInputRef.current?.click()}
           >
-            <Mic className="size-3" /> Upload audio
+            <Upload className="size-3" /> Upload file
           </Button>
         </div>
       </div>
 
       <input
-        ref={audioInputRef}
+        ref={uploadInputRef}
         type="file"
-        accept="audio/*"
+        accept="audio/*,application/pdf"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = "";
-          if (file) void uploadAudio(file);
+          if (file) void uploadCaptureFile(file);
         }}
       />
 
