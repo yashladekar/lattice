@@ -253,13 +253,16 @@ export function PageContextPanel({
   };
 
   const properties = page.properties ?? {};
-  const propertyEntries = Object.entries(properties).filter(
-    ([key]) => key.trim() && key !== "__type",
-  );
   const objectTypeId = typeof properties.__type === "string" ? properties.__type : null;
   const assignedType =
     objectTypes.find((type) => type.id === objectTypeId && !type.deletedAt) ?? null;
   const typedProperties = assignedType ? parsePropertyDefinitions(assignedType.properties) : [];
+  const typedKeys = new Set(typedProperties.map((definition) => definition.key));
+  // Keys the assigned schema renders are not repeated as freeform properties,
+  // where they could be edited or removed as if they were plain text.
+  const propertyEntries = Object.entries(properties).filter(
+    ([key]) => key.trim() && key !== "__type" && !typedKeys.has(key),
+  );
 
   const setObjectType = async (nextId: string) => {
     if (!db) return;

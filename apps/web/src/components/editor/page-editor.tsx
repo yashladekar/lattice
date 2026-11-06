@@ -83,6 +83,7 @@ import { prosemirrorJSONToYDoc } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 
 import { useAppData } from "@/components/app-data-provider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { usePage, usePageDocument, useWorkspacePages } from "@/hooks/use-local-data";
 import { CollabProvider, collaborationUrl, type CollabPeer, type CollabStatus } from "@/lib/collab";
@@ -176,6 +177,7 @@ export function PageEditor({
   const [suggestNote, setSuggestNote] = useState("");
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [pluginPickerOpen, setPluginPickerOpen] = useState(false);
+  const [confirmTrash, setConfirmTrash] = useState(false);
   const installedPlugins = useInstalledPlugins();
   const [versions, setVersions] = useState<Array<{ id: string; version: number; title: string; createdAt: string; note: string | null }>>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
@@ -1143,7 +1145,6 @@ export function PageEditor({
 
   const removePage = async () => {
     if (!db) return;
-    if (!window.confirm("Move this page and its subpages to trash?")) return;
     await deletePageLocal(db, pageId);
     router.push(appRouteObject({ view: "home" }));
   };
@@ -1306,7 +1307,7 @@ export function PageEditor({
                 <Network className="size-3.5" /> Create mind map
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => void removePage()}>
+              <DropdownMenuItem variant="destructive" onClick={() => setConfirmTrash(true)}>
                 <Trash2 className="size-3.5" /> Move to trash
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -1569,6 +1570,18 @@ export function PageEditor({
           const files = Array.from(event.target.files ?? []);
           event.target.value = "";
           for (const file of files) void uploadImageFile(file);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmTrash}
+        title="Move this page to trash?"
+        description="The page and its subpages move to Trash, where they can be restored until the retention window passes."
+        confirmLabel="Move to trash"
+        onClose={() => setConfirmTrash(false)}
+        onConfirm={async () => {
+          setConfirmTrash(false);
+          await removePage();
         }}
       />
 

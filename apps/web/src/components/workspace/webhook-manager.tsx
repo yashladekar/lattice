@@ -16,6 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { client } from "@/utils/orpc";
 
 const EVENT_LABELS: Record<WebhookEvent, string> = {
@@ -87,6 +88,7 @@ export function WebhookManager() {
   const [operations, setOperations] = useState<Array<"UPSERT" | "DELETE">>([]);
   const [actorIds, setActorIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; name: string } | null>(null);
 
   const openNew = () => {
     setEditingId(null);
@@ -183,8 +185,7 @@ export function WebhookManager() {
     }
   };
 
-  const remove = async (id: string, label: string) => {
-    if (!window.confirm(`Remove “${label}” and cancel its pending deliveries?`)) return;
+  const remove = async (id: string) => {
     try {
       await client.webhook.remove({ id });
       await refresh();
@@ -270,7 +271,7 @@ export function WebhookManager() {
                       variant="outline"
                       size="sm"
                       className="h-6 rounded-md text-[8px] text-destructive"
-                      onClick={() => void remove(endpoint.id, endpoint.name)}
+                      onClick={() => setPendingRemove({ id: endpoint.id, name: endpoint.name })}
                     >
                       <Trash2 className="size-2.5" /> Remove
                     </Button>
@@ -475,6 +476,23 @@ export function WebhookManager() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        title="Remove this destination?"
+        description={
+          pendingRemove
+            ? `“${pendingRemove.name}” stops receiving events and its pending deliveries are cancelled.`
+            : ""
+        }
+        confirmLabel="Remove"
+        onClose={() => setPendingRemove(null)}
+        onConfirm={async () => {
+          const endpoint = pendingRemove;
+          setPendingRemove(null);
+          if (endpoint) await remove(endpoint.id);
+        }}
+      />
 
       {online ? (
         <div className="rounded-xl border border-border/70 bg-card/40 p-4">

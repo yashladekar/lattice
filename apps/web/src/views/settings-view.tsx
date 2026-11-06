@@ -47,6 +47,7 @@ import { PluginManager } from "@/components/workspace/plugin-manager";
 import { DuplicateReviewPanel } from "@/components/workspace/duplicate-review";
 import { ReviewQueue } from "@/components/workspace/review-queue";
 import { ObjectTypeManager } from "@/components/workspace/object-type-manager";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { WebhookManager } from "@/components/workspace/webhook-manager";
 import { authClient } from "@/lib/auth-client";
 import { getApiBaseUrl } from "@/lib/config";
@@ -168,6 +169,8 @@ export function SettingsView() {
     enabled: online && Boolean(activeWorkspaceId),
   });
   const [newIngestToken, setNewIngestToken] = useState<string | null>(null);
+  const [pendingRetention, setPendingRetention] = useState<number | null>(null);
+  const [pendingMember, setPendingMember] = useState<{ id: string; name: string } | null>(null);
   const [indexing, setIndexing] = useState(false);
 
   const saveGeneral = async () => {
@@ -193,14 +196,15 @@ export function SettingsView() {
 
   const setRetention = async (days: number) => {
     if (!db || !activeWorkspaceId) return;
-    if (
-      days !== 0 &&
-      !window.confirm(
-        `Permanently remove trash older than ${days} days? Deleted notes, canvases, decks, and captures past that age cannot be recovered.`,
-      )
-    ) {
+    if (days !== 0) {
+      setPendingRetention(days);
       return;
     }
+    await applyRetention(days);
+  };
+
+  const applyRetention = async (days: number) => {
+    if (!db || !activeWorkspaceId) return;
     await updateWorkspaceLocal(db, activeWorkspaceId, { trashRetentionDays: days });
     toast.success(
       days === 0 ? "Trash is kept forever" : `Trash older than ${days} days will be purged`,
@@ -290,7 +294,6 @@ export function SettingsView() {
   };
 
   const removeMember = async (memberId: string) => {
-    if (!window.confirm("Remove this member from the workspace?")) return;
     try {
       await client.workspace.removeMember({ memberId });
       await queryClient.invalidateQueries({ queryKey: ["workspace-members", activeWorkspaceId] });
@@ -442,6 +445,40 @@ export function SettingsView() {
       </aside>
 
       <div className="min-w-0 flex-1">
+        <ConfirmDialog
+          open={pendingRetention !== null}
+          title="Change the trash window?"
+          description={
+            pendingRetention
+              ? `Deleted notes, canvases, decks, and captures older than ${pendingRetention} days will be permanently removed on the next purge and cannot be recovered.`
+              : ""
+          }
+          confirmLabel="Change window"
+          onClose={() => setPendingRetention(null)}
+          onConfirm={async () => {
+            const days = pendingRetention;
+            setPendingRetention(null);
+            if (days !== null) await applyRetention(days);
+          }}
+        />
+
+        <ConfirmDialog
+          open={pendingMember !== null}
+          title="Remove this member?"
+          description={
+            pendingMember
+              ? `${pendingMember.name} loses access to this workspace immediately. Their content stays.`
+              : ""
+          }
+          confirmLabel="Remove"
+          onClose={() => setPendingMember(null)}
+          onConfirm={async () => {
+            const member = pendingMember;
+            setPendingMember(null);
+            if (member) await removeMember(member.id);
+          }}
+        />
+
         {tab === "general" ? (
           <section className="space-y-4">
             <SettingsCard title="Workspace identity" description="How this workspace appears across Lattice.">
@@ -716,7 +753,7 @@ export function SettingsView() {
                         <button
                           type="button"
                           aria-label="Remove member"
-                          onClick={() => void removeMember(member.id)}
+                          onClick={() => setPendingMember({ id: member.id, name: member.user.name })}
                           className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 className="size-2.5" />

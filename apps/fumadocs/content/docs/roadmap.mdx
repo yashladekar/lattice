@@ -113,6 +113,11 @@ description: What this implementation covers and which subsystems are deliberate
 - Filters are evaluated at enqueue time, so unmatched events never reach the delivery queue; a condition on a field the event lacks excludes it.
 - Recent deliveries show which destination received what, alongside the existing signed payloads, retries, and test action.
 
+## Next: live session and out-of-band writes
+
+- An out-of-band document write (accepting a suggestion, restoring a version, importing) is currently accepted while a page has a live Yjs room, because session snapshots carry stale revisions by design. A peer holding older CRDT state can then persist it back with no conflict recorded.
+- Fix direction: tag document ops with their origin, apply the revision check to ops that did not come from a live session, and invalidate the stored CRDT when such a write lands so the next session seeds from it.
+
 ## Explicit non-goals for this release
 
 This build does not claim production-grade E2E encryption, SSO/SCIM, or app-store signing. The data model and service boundaries are designed so these can be added without replacing the knowledge model.

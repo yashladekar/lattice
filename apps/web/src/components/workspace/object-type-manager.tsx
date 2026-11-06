@@ -12,6 +12,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import {
   createObjectTypeLocal,
@@ -46,6 +47,7 @@ export function ObjectTypeManager() {
   const [color, setColor] = useState("#2f6b4f");
   const [description, setDescription] = useState("");
   const [drafts, setDrafts] = useState<PropertyDraft[]>([{ ...BLANK_DRAFT }]);
+  const [pendingDelete, setPendingDelete] = useState<LocalObjectType | null>(null);
   const canEdit = ["OWNER", "ADMIN", "MEMBER", "EDITOR"].includes(role ?? "");
 
   const openNew = () => {
@@ -122,13 +124,6 @@ export function ObjectTypeManager() {
 
   const remove = async (type: LocalObjectType) => {
     if (!db) return;
-    if (
-      !window.confirm(
-        `Delete “${type.name}”? Pages keep their stored values but lose the assigned type.`,
-      )
-    ) {
-      return;
-    }
     await deleteObjectTypeLocal(db, type.id);
     toast.success("Type deleted");
   };
@@ -185,7 +180,7 @@ export function ObjectTypeManager() {
                   type="button"
                   aria-label={`Delete ${type.name}`}
                   disabled={!canEdit}
-                  onClick={() => void remove(type)}
+                  onClick={() => setPendingDelete(type)}
                   className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
                 >
                   <Trash2 className="size-3" />
@@ -199,6 +194,23 @@ export function ObjectTypeManager() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this object type?"
+        description={
+          pendingDelete
+            ? `“${pendingDelete.name}” stops rendering on pages. Stored values are kept and reappear as plain properties.`
+            : ""
+        }
+        confirmLabel="Delete"
+        onClose={() => setPendingDelete(null)}
+        onConfirm={async () => {
+          const type = pendingDelete;
+          setPendingDelete(null);
+          if (type) await remove(type);
+        }}
+      />
 
       <Modal
         open={dialogOpen}

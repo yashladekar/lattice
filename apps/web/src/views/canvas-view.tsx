@@ -41,6 +41,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@notes-learning/ui/components/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@notes-learning/ui/lib/utils";
 import {
@@ -324,6 +325,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   const [nestedOpen, setNestedOpen] = useState(false);
   const [generateIntent, setGenerateIntent] = useState<null | "mindmap" | "flow" | "concept">(null);
   const [pluginTool, setPluginTool] = useState<null | { pluginId: string; toolId: string }>(null);
+  const [pendingTemplate, setPendingTemplate] = useState<null | (() => void)>(null);
   const installedPlugins = useInstalledPlugins();
   const canvasPluginTools = useMemo(
     () =>
@@ -1521,15 +1523,19 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   };
 
   const applyTemplate = (build: () => CanvasDocument) => {
-    if (document.elements.length && !window.confirm("Replace the current canvas with this template?")) {
+    const replace = () => {
+      const next = build();
+      pushHistory();
+      setDocument(next);
+      setSelectedIds([]);
+      setTemplateOpen(false);
+      requestAnimationFrame(() => fitDocument(next));
+    };
+    if (document.elements.length) {
+      setPendingTemplate(() => replace);
       return;
     }
-    const next = build();
-    pushHistory();
-    setDocument(next);
-    setSelectedIds([]);
-    setTemplateOpen(false);
-    requestAnimationFrame(() => fitDocument(next));
+    replace();
   };
 
   const groupSelected = () => {
@@ -2768,6 +2774,19 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
           setPluginTool(null);
         }}
         onPick={(pageId) => void generateFromPage(pageId)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingTemplate)}
+        title="Replace this canvas?"
+        description="The template replaces the current elements. Undo and snapshots stay available."
+        confirmLabel="Replace"
+        onClose={() => setPendingTemplate(null)}
+        onConfirm={() => {
+          const replace = pendingTemplate;
+          setPendingTemplate(null);
+          replace?.();
+        }}
       />
 
       <Modal

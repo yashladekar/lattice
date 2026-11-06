@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { ReadOnlyDocument } from "@/components/editor/read-only-document";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { useWorkspacePages } from "@/hooks/use-local-data";
 import { resolveSuggestedEditLocal } from "@/lib/local/repository";
@@ -45,6 +46,7 @@ export function ReviewQueue() {
     enabled: online && Boolean(activeWorkspaceId),
   });
   const [preview, setPreview] = useState<LocalSuggestedEdit | null>(null);
+  const [pendingAccept, setPendingAccept] = useState<LocalSuggestedEdit | null>(null);
 
   const pageById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [pages]);
   const documentByPage = useMemo(
@@ -67,15 +69,6 @@ export function ReviewQueue() {
 
   const resolve = async (edit: LocalSuggestedEdit, decision: "ACCEPTED" | "REJECTED") => {
     if (!db || !user) return;
-    const page = pageById.get(edit.pageId);
-    const document = documentByPage.get(edit.pageId);
-    if (decision === "ACCEPTED") {
-      const stale = document ? suggestionIsStale(edit.baseRev, document.rev) : false;
-      const message = stale
-        ? `“${page?.title ?? "This page"}” changed after this suggestion was written. Accepting replaces the current body. Continue?`
-        : `Accept this suggestion and replace the body of “${page?.title ?? "this page"}”?`;
-      if (!window.confirm(message)) return;
-    }
     try {
       await resolveSuggestedEditLocal(db, {
         editId: edit.id,
@@ -86,6 +79,15 @@ export function ReviewQueue() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not review the suggestion");
     }
+  };
+
+  const acceptWarning = (edit: LocalSuggestedEdit) => {
+    const page = pageById.get(edit.pageId);
+    const document = documentByPage.get(edit.pageId);
+    const stale = document ? suggestionIsStale(edit.baseRev, document.rev) : false;
+    return stale
+      ? `“${page?.title ?? "This page"}” changed after this suggestion was written. Accepting replaces the current body.`
+      : `Accepting replaces the body of “${page?.title ?? "this page"}” through the normal document save.`;
   };
 
   return (
@@ -147,7 +149,7 @@ export function ReviewQueue() {
                       size="sm"
                       className="h-6 rounded-md text-[8px]"
                       disabled={!canReview || !page}
-                      onClick={() => void resolve(edit, "ACCEPTED")}
+                      onClick={() => setPendingAccept(edit)}
                     >
                       <Check className="size-2.5" /> Accept
                     </Button>
@@ -201,6 +203,19 @@ export function ReviewQueue() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(pendingAccept)}
+        title="Accept this suggestion?"
+        description={pendingAccept ? acceptWarning(pendingAccept) : ""}
+        confirmLabel="Accept"
+        onClose={() => setPendingAccept(null)}
+        onConfirm={async () => {
+          const edit = pendingAccept;
+          setPendingAccept(null);
+          if (edit) await resolve(edit, "ACCEPTED");
+        }}
+      />
 
       <Modal
         open={Boolean(preview)}

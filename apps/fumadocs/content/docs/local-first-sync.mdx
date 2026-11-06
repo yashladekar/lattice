@@ -66,6 +66,24 @@ If a page body has changed remotely since the client's `baseRev`:
 
 Nothing is silently overwritten. The user can keep the local version (server snapshots the remote first) or keep the server version (local reader updates immediately).
 
+### One exception: writes while a page is live
+
+While a page has a live Yjs room, a document push with a stale `baseRev` is
+**accepted rather than turned into a conflict**, because live peers converge
+through the CRDT and their JSON snapshots are stale by design. That is the
+right call for the session — but it means a write that came from *outside* the
+session (accepting a suggestion, a Markdown-mode save, an import) can be
+overwritten by the session's next snapshot, and no `SyncConflict` is recorded
+because none was raised.
+
+The failure is silent when it happens: the accepted body lands, and a peer that
+still holds the older CRDT state persists it back. Today the practical guidance
+is to accept suggestions and restore versions when the note is not open
+elsewhere; the fix is an origin flag on document ops so the server can tell a
+session snapshot from an out-of-band write, apply the revision check to the
+latter, and invalidate the stored CRDT so the next session seeds from the
+write.
+
 ## Multi-tab and offline behavior
 
 - A Web Locks leader (`lattice-sync-<userId>`) owns push/pull; other tabs read the same IndexedDB.
