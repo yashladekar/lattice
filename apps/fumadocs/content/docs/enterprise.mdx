@@ -99,9 +99,12 @@ Details worth knowing:
   at the provider.
 - **SAML is not implemented.** OIDC covers Okta, Entra ID, Google, Auth0, and
   Keycloak; a SAML-only IdP needs a SAML library and an XML-signature review.
-- The flow is verified end-to-end against a local test provider
-  (`apps/server/src/fake-idp.ts`): start → authorize → callback → session, plus
-  the unknown-workspace, replayed-state, redirect, and unprovisioned guards.
+- The flow is covered by an integration test that drives better-auth's own
+  endpoints against a fake identity provider
+  (`packages/api/test/fake-idp.ts`): start → authorize → callback → session,
+  plus the unknown-workspace, replayed-state, redirect, and unprovisioned
+  guards. Run the provider by hand for manual testing with
+  `pnpm --filter @notes-learning/api exec tsx test/fake-idp-cli.ts`.
 
 ## Shipped: legal hold and export on demand
 
