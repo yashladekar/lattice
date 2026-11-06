@@ -167,6 +167,20 @@ describeWithDatabase("paged snapshot", () => {
     expect(new Set(pageIds).size).toBe(pageIds.length);
   });
 
+  it("sends the workspace as one row, not a collection", async () => {
+    const pages = await collect(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      role: "ADMIN",
+      pageSize: 2,
+    });
+    const carriers = pages.filter((page) => "workspace" in page.payload);
+    expect(carriers).toHaveLength(1);
+    const shipped = carriers[0]!.payload.workspace as { id?: string };
+    expect(Array.isArray(shipped)).toBe(false);
+    expect(shipped.id).toBe(workspace.id);
+  });
+
   it("filters what a viewer may not read, including edges to private pages", async () => {
     const pages = await collect(db, {
       workspaceId: workspace.id,

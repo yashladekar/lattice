@@ -129,12 +129,7 @@ export async function snapshotPage(
   let done = false;
   let cursor: string | null = null;
 
-  const finishPart = (rows: unknown[], rawCount: number, lastRawId: string | null) => {
-    payload[part] = rows;
-    if (rawCount > pageSize && lastRawId) {
-      cursor = encodeSnapshotCursor({ version: state.version, part: state.part, after: lastRawId });
-      return;
-    }
+  const nextPart = () => {
     if (state.part + 1 >= SNAPSHOT_PARTS.length) {
       done = true;
       return;
@@ -146,12 +141,24 @@ export async function snapshotPage(
     });
   };
 
+  const finishPart = (rows: unknown[], rawCount: number, lastRawId: string | null) => {
+    payload[part] = rows;
+    if (rawCount > pageSize && lastRawId) {
+      cursor = encodeSnapshotCursor({ version: state.version, part: state.part, after: lastRawId });
+      return;
+    }
+    nextPart();
+  };
+
   if (part === "workspace") {
     const workspace = await db.workspace.findFirst({
       where: { id: input.workspaceId, deletedAt: null },
     });
     if (!workspace) throw new ORPCError("NOT_FOUND", { message: "Workspace not found" });
-    finishPart([workspace], 0, null);
+    // The client keeps the workspace as one row, so this part is the object
+    // itself rather than a collection like every other part.
+    payload.workspace = workspace;
+    nextPart();
     return { version: state.version, role: input.role, done, cursor, payload };
   }
 
