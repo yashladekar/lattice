@@ -1,11 +1,18 @@
 "use client";
 
-import { isSafeWebhookUrl, WEBHOOK_EVENTS, type WebhookEvent } from "@notes-learning/domain";
+import {
+  isSafeWebhookUrl,
+  PAGE_TYPES,
+  WEBHOOK_EVENTS,
+  type WebhookEvent,
+  type WebhookFilters,
+} from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -27,12 +34,24 @@ const STATUS_TONE: Record<string, string> = {
   CANCELLED: "text-muted-foreground",
 };
 
+function describeFilters(filters: WebhookFilters): string {
+  const parts: string[] = [];
+  if (filters.titleContains) parts.push(`title contains “${filters.titleContains}”`);
+  if (filters.notebookIds.length) parts.push(`${filters.notebookIds.length} notebook(s)`);
+  if (filters.pageTypes.length) parts.push(filters.pageTypes.join(", ").toLowerCase());
+  if (filters.operations.length) {
+    parts.push(filters.operations.map((op) => (op === "UPSERT" ? "saved" : "deleted")).join(" / "));
+  }
+  if (filters.actorIds.length) parts.push(`${filters.actorIds.length} author(s)`);
+  return parts.length ? parts.join(" · ") : "all matching events";
+}
+
 export function WebhookManager() {
-  const { online, activeWorkspaceId } = useAppData();
+  const { db, online, activeWorkspaceId } = useAppData();
   const queryClient = useQueryClient();
-  const status = useQuery({
-    queryKey: ["webhook", activeWorkspaceId],
-    queryFn: async () => client.webhook.get(),
+  const endpoints = useQuery({
+    queryKey: ["webhooks", activeWorkspaceId],
+    queryFn: async () => client.webhook.list(),
     enabled: online && Boolean(activeWorkspaceId),
   });
   const deliveries = useQuery({
@@ -40,27 +59,81 @@ export function WebhookManager() {
     queryFn: async () => client.webhook.deliveries(),
     enabled: online && Boolean(activeWorkspaceId),
   });
+  const members = useQuery({
+    queryKey: ["workspace-members", activeWorkspaceId],
+    queryFn: async () => client.workspace.members(),
+    enabled: online && Boolean(activeWorkspaceId),
+  });
+  const notebooks =
+    useLiveQuery(
+      async () => {
+        if (!db || !activeWorkspaceId) return [];
+        return db.notebooks.where("workspaceId").equals(activeWorkspaceId).toArray();
+      },
+      [db, activeWorkspaceId],
+      [],
+    ) ?? [];
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("Webhook");
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<WebhookEvent[]>(["page.updated"]);
   const [enabled, setEnabled] = useState(true);
   const [rotateSecret, setRotateSecret] = useState(false);
-  const [secret, setSecret] = useState<string | null>(null);
+  const [titleContains, setTitleContains] = useState("");
+  const [notebookIds, setNotebookIds] = useState<string[]>([]);
+  const [pageTypes, setPageTypes] = useState<string[]>([]);
+  const [operations, setOperations] = useState<Array<"UPSERT" | "DELETE">>([]);
+  const [actorIds, setActorIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!status.data) return;
-    setUrl(status.data.url);
-    setEvents(status.data.events.length ? status.data.events : ["page.updated"]);
-    setEnabled(status.data.enabled);
-    setSecret(status.data.secret);
-  }, [status.data]);
+  const openNew = () => {
+    setEditingId(null);
+    setName("Webhook");
+    setUrl("");
+    setEvents(["page.updated"]);
+    setEnabled(true);
+    setRotateSecret(false);
+    setTitleContains("");
+    setNotebookIds([]);
+    setPageTypes([]);
+    setOperations([]);
+    setActorIds([]);
+    setFormOpen(true);
+  };
 
-  const toggleEvent = (event: WebhookEvent) => {
-    setEvents((current) =>
-      current.includes(event)
-        ? current.filter((entry) => entry !== event)
-        : [...current, event],
-    );
+  const openEdit = (endpoint: {
+    id: string;
+    name: string;
+    url: string;
+    events: WebhookEvent[];
+    filters: WebhookFilters;
+    enabled: boolean;
+  }) => {
+    setEditingId(endpoint.id);
+    setName(endpoint.name);
+    setUrl(endpoint.url);
+    setEvents(endpoint.events.length ? endpoint.events : ["page.updated"]);
+    setEnabled(endpoint.enabled);
+    setRotateSecret(false);
+    setTitleContains(endpoint.filters.titleContains ?? "");
+    setNotebookIds(endpoint.filters.notebookIds);
+    setPageTypes(endpoint.filters.pageTypes);
+    setOperations(endpoint.filters.operations);
+    setActorIds(endpoint.filters.actorIds);
+    setFormOpen(true);
+  };
+
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["webhooks", activeWorkspaceId] }),
+      queryClient.invalidateQueries({ queryKey: ["webhook-deliveries", activeWorkspaceId] }),
+    ]);
+  };
+
+  const toggle = <T,>(list: T[], value: T, set: (next: T[]) => void) => {
+    set(list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value]);
   };
 
   const save = async () => {
@@ -74,76 +147,163 @@ export function WebhookManager() {
     }
     setBusy(true);
     try {
-      const result = await client.webhook.save({
+      await client.webhook.save({
+        id: editingId ?? undefined,
+        name,
         url,
         events,
         enabled,
         rotateSecret,
+        filters: {
+          titleContains: titleContains || null,
+          notebookIds,
+          pageTypes,
+          operations,
+          actorIds,
+        },
       });
-      setSecret(result.secret);
+      await refresh();
+      setFormOpen(false);
       setRotateSecret(false);
-      await Promise.all([status.refetch(), deliveries.refetch()]);
-      await queryClient.invalidateQueries({ queryKey: ["webhook", activeWorkspaceId] });
-      toast.success("Webhook saved");
+      toast.success(editingId ? "Destination updated" : "Destination created");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the webhook");
+      toast.error(error instanceof Error ? error.message : "Could not save the destination");
     } finally {
       setBusy(false);
     }
   };
 
-  const sendTest = async () => {
+  const sendTest = async (id: string) => {
     try {
-      await client.webhook.test();
-      await deliveries.refetch();
+      await client.webhook.test({ id });
+      await refresh();
       toast.success("Test delivery queued");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not queue the test");
     }
   };
 
-  const remove = async () => {
-    if (!window.confirm("Remove this webhook endpoint and cancel pending deliveries?")) return;
+  const remove = async (id: string, label: string) => {
+    if (!window.confirm(`Remove “${label}” and cancel its pending deliveries?`)) return;
     try {
-      await client.webhook.remove();
-      await Promise.all([status.refetch(), deliveries.refetch()]);
-      setUrl("");
-      setEvents(["page.updated"]);
-      setEnabled(true);
-      setSecret(null);
-      toast.success("Webhook removed");
+      await client.webhook.remove({ id });
+      await refresh();
+      if (editingId === id) setFormOpen(false);
+      toast.success("Destination removed");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not remove the webhook");
-    }
-  };
-
-  const copySecret = async () => {
-    if (!secret) return;
-    try {
-      await navigator.clipboard.writeText(secret);
-      toast.success("Signing secret copied");
-    } catch {
-      toast.error("Could not copy the secret");
+      toast.error(error instanceof Error ? error.message : "Could not remove the destination");
     }
   };
 
   return (
     <section className="space-y-4">
       <div className="rounded-xl border border-border/70 bg-card/40 p-4">
-        <h3 className="text-[11px] font-medium">Webhook endpoint</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-[11px] font-medium">Automation destinations</h3>
+          <Button
+            size="sm"
+            className="h-7 rounded-md text-[9px]"
+            disabled={!online || (endpoints.data?.length ?? 0) >= 5}
+            onClick={openNew}
+          >
+            <Plus className="size-3" /> New destination
+          </Button>
+        </div>
         <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
-          Lattice POSTs JSON when content changes. Every delivery is signed with{" "}
-          <span className="font-mono">x-lattice-signature: sha256=HMAC(secret, body)</span>, so
-          your receiver can verify it. Deliveries retry with backoff for up to five attempts.
+          Lattice POSTs signed JSON when content changes. Each destination picks its own events and
+          conditions; deliveries retry with backoff for up to five attempts. Signature header:{" "}
+          <span className="font-mono">x-lattice-signature: sha256=HMAC(secret, body)</span>.
         </p>
 
         {!online ? (
           <p className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-[9px] text-muted-foreground">
-            Webhooks need a connection to the sync server.
+            Automations need a connection to the sync server.
           </p>
         ) : (
-          <>
-            <label className="mt-3 block">
+          <div className="mt-2 space-y-1">
+            {endpoints.data?.length ? (
+              endpoints.data.map((endpoint) => (
+                <div
+                  key={endpoint.id}
+                  className="rounded-lg border border-border/50 bg-background/50 px-2.5 py-2"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-medium">{endpoint.name}</span>
+                    {!endpoint.enabled ? (
+                      <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[7px] text-muted-foreground">
+                        paused
+                      </span>
+                    ) : null}
+                    <code className="min-w-0 flex-1 truncate font-mono text-[8.5px] text-muted-foreground">
+                      {endpoint.url}
+                    </code>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[8.5px] text-muted-foreground">
+                    <span>{endpoint.events.join(", ")}</span>
+                    <span>{describeFilters(endpoint.filters)}</span>
+                    <span>
+                      {endpoint.lastDeliveryAt
+                        ? `last ${new Date(endpoint.lastDeliveryAt).toLocaleString()}${
+                            endpoint.lastStatus ? ` · HTTP ${endpoint.lastStatus}` : ""
+                          }`
+                        : "no deliveries yet"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 rounded-md text-[8px]"
+                      onClick={() => openEdit(endpoint)}
+                    >
+                      <Pencil className="size-2.5" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 rounded-md text-[8px]"
+                      onClick={() => void sendTest(endpoint.id)}
+                    >
+                      <Send className="size-2.5" /> Test
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 rounded-md text-[8px] text-destructive"
+                      onClick={() => void remove(endpoint.id, endpoint.name)}
+                    >
+                      <Trash2 className="size-2.5" /> Remove
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="py-4 text-center text-[9px] text-muted-foreground">
+                No destinations yet. Create one to react to page, whiteboard, capture, or comment
+                events.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {formOpen && online ? (
+        <div className="rounded-xl border border-border/70 bg-card/40 p-4">
+          <h3 className="text-[11px] font-medium">
+            {editingId ? "Edit destination" : "New destination"}
+          </h3>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <label className="block w-40">
+              <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                Name
+              </span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+              />
+            </label>
+            <label className="block min-w-[240px] flex-1">
               <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                 Endpoint URL
               </span>
@@ -152,17 +312,22 @@ export function WebhookManager() {
                 onChange={(event) => setUrl(event.target.value)}
                 placeholder="https://hooks.example.com/lattice"
                 spellCheck={false}
-                className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[10px] outline-none focus:border-primary/40"
+                className="h-8 w-full rounded-md border border-border bg-background px-2 font-mono text-[10px] outline-none focus:border-primary/40"
               />
             </label>
+          </div>
 
-            <div className="mt-2 grid gap-1 sm:grid-cols-2">
+          <div className="mt-3">
+            <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+              Events
+            </span>
+            <div className="mt-1 grid gap-1 sm:grid-cols-2">
               {WEBHOOK_EVENTS.map((event) => (
                 <label key={event} className="flex items-center gap-2 text-[9.5px]">
                   <input
                     type="checkbox"
                     checked={events.includes(event)}
-                    onChange={() => toggleEvent(event)}
+                    onChange={() => toggle(events, event, setEvents)}
                     className="size-3 accent-[var(--saffron)]"
                   />
                   <span className="font-mono text-[8.5px] text-muted-foreground">{event}</span>
@@ -170,81 +335,146 @@ export function WebhookManager() {
                 </label>
               ))}
             </div>
+          </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-[9.5px]">
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <div>
+              <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                Conditions
+              </span>
+              <label className="mt-1 block">
                 <input
-                  type="checkbox"
-                  checked={enabled}
-                  onChange={(event) => setEnabled(event.target.checked)}
-                  className="size-3 accent-[var(--moss)]"
+                  value={titleContains}
+                  onChange={(event) => setTitleContains(event.target.value)}
+                  placeholder="Only titles containing…"
+                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
                 />
-                Enabled
               </label>
-              <label className="flex items-center gap-2 text-[9.5px]">
-                <input
-                  type="checkbox"
-                  checked={rotateSecret}
-                  onChange={(event) => setRotateSecret(event.target.checked)}
-                  className="size-3 accent-[var(--saffron)]"
-                />
-                Rotate signing secret on save
-              </label>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                <label className="flex items-center gap-1.5 text-[9px]">
+                  <input
+                    type="checkbox"
+                    checked={operations.includes("UPSERT")}
+                    onChange={() => toggle(operations, "UPSERT", setOperations)}
+                    className="size-3 accent-[var(--moss)]"
+                  />
+                  Saved / restored
+                </label>
+                <label className="flex items-center gap-1.5 text-[9px]">
+                  <input
+                    type="checkbox"
+                    checked={operations.includes("DELETE")}
+                    onChange={() => toggle(operations, "DELETE", setOperations)}
+                    className="size-3 accent-[var(--moss)]"
+                  />
+                  Deleted / trashed
+                </label>
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {PAGE_TYPES.map((type) => (
+                  <label key={type} className="flex items-center gap-1.5 text-[9px]">
+                    <input
+                      type="checkbox"
+                      checked={pageTypes.includes(type)}
+                      onChange={() => toggle(pageTypes, type, setPageTypes)}
+                      className="size-3 accent-[var(--moss)]"
+                    />
+                    {type.toLowerCase()}
+                  </label>
+                ))}
+              </div>
             </div>
 
-            {secret ? (
-              <div className="mt-2 rounded-lg border border-border/60 bg-background/50 p-2.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
-                    Signing secret
-                  </span>
-                  <code className="min-w-0 flex-1 break-all font-mono text-[9px]">{secret}</code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 rounded-md text-[8px]"
-                    onClick={() => void copySecret()}
-                  >
-                    Copy
-                  </Button>
+            <div className="space-y-2">
+              <div>
+                <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Notebooks
+                </span>
+                <div className="mt-1 max-h-24 space-y-0.5 overflow-y-auto">
+                  {notebooks.length ? (
+                    notebooks
+                      .filter((notebook) => !notebook.deletedAt)
+                      .map((notebook) => (
+                        <label key={notebook.id} className="flex items-center gap-1.5 text-[9px]">
+                          <input
+                            type="checkbox"
+                            checked={notebookIds.includes(notebook.id)}
+                            onChange={() => toggle(notebookIds, notebook.id, setNotebookIds)}
+                            className="size-3 accent-[var(--moss)]"
+                          />
+                          <span className="truncate">{notebook.name}</span>
+                        </label>
+                      ))
+                  ) : (
+                    <p className="text-[8.5px] text-muted-foreground">No notebooks.</p>
+                  )}
                 </div>
               </div>
-            ) : null}
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button size="sm" className="h-8 rounded-lg text-[10px]" disabled={busy} onClick={() => void save()}>
-                Save webhook
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-lg text-[10px]"
-                disabled={!status.data?.configured}
-                onClick={() => void sendTest()}
-              >
-                <Send className="size-3" /> Send test
-              </Button>
-              {status.data?.configured ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 rounded-lg text-[10px] text-destructive"
-                  onClick={() => void remove()}
-                >
-                  <Trash2 className="size-3" /> Remove
-                </Button>
-              ) : null}
-              <span className="text-[8px] text-muted-foreground">
-                {status.data?.lastDeliveryAt
-                  ? `Last delivery ${new Date(status.data.lastDeliveryAt).toLocaleString()}${
-                      status.data.lastStatus ? ` · HTTP ${status.data.lastStatus}` : ""
-                    }`
-                  : "No deliveries yet."}
-              </span>
+              <div>
+                <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Authors
+                </span>
+                <div className="mt-1 max-h-24 space-y-0.5 overflow-y-auto">
+                  {(members.data ?? []).map((member) => (
+                    <label key={member.userId} className="flex items-center gap-1.5 text-[9px]">
+                      <input
+                        type="checkbox"
+                        checked={actorIds.includes(member.userId)}
+                        onChange={() => toggle(actorIds, member.userId, setActorIds)}
+                        className="size-3 accent-[var(--moss)]"
+                      />
+                      <span className="truncate">{member.user.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-[9.5px]">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(event) => setEnabled(event.target.checked)}
+                className="size-3 accent-[var(--moss)]"
+              />
+              Enabled
+            </label>
+            <label className="flex items-center gap-2 text-[9.5px]">
+              <input
+                type="checkbox"
+                checked={rotateSecret}
+                onChange={(event) => setRotateSecret(event.target.checked)}
+                className="size-3 accent-[var(--saffron)]"
+              />
+              Rotate signing secret on save
+            </label>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              className="h-8 rounded-lg text-[10px]"
+              disabled={busy}
+              onClick={() => void save()}
+            >
+              {editingId ? "Save destination" : "Create destination"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 rounded-lg text-[10px]"
+              onClick={() => setFormOpen(false)}
+            >
+              Cancel
+            </Button>
+            <span className="text-[8px] text-muted-foreground">
+              At most five destinations per workspace.
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {online ? (
         <div className="rounded-xl border border-border/70 bg-card/40 p-4">
@@ -256,8 +486,16 @@ export function WebhookManager() {
                   key={delivery.id}
                   className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-[9px]"
                 >
-                  <span className="font-mono text-[8.5px] text-muted-foreground">{delivery.event}</span>
-                  <span className={cn("font-medium uppercase tracking-wide", STATUS_TONE[delivery.status] ?? "text-muted-foreground")}>
+                  <span className="text-[8.5px] text-muted-foreground">{delivery.endpointName}</span>
+                  <span className="font-mono text-[8.5px] text-muted-foreground">
+                    {delivery.event}
+                  </span>
+                  <span
+                    className={cn(
+                      "font-medium uppercase tracking-wide",
+                      STATUS_TONE[delivery.status] ?? "text-muted-foreground",
+                    )}
+                  >
                     {delivery.status.toLowerCase()}
                   </span>
                   <span className="text-muted-foreground">
@@ -269,7 +507,10 @@ export function WebhookManager() {
                     </span>
                   ) : null}
                   {delivery.lastError ? (
-                    <span className="min-w-0 flex-1 truncate text-destructive" title={delivery.lastError}>
+                    <span
+                      className="min-w-0 flex-1 truncate text-destructive"
+                      title={delivery.lastError}
+                    >
                       {delivery.lastError}
                     </span>
                   ) : null}
@@ -277,7 +518,7 @@ export function WebhookManager() {
               ))
             ) : (
               <p className="py-3 text-center text-[9px] text-muted-foreground">
-                No deliveries yet. Save the endpoint and send a test.
+                No deliveries yet. Create a destination and send a test.
               </p>
             )}
           </div>

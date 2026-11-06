@@ -88,9 +88,9 @@ Content-Type: application/json
 
 `text` wins over `html`, which is reduced to plain text. Each delivery becomes an `EMAIL` capture in the inbox through the normal sync change log, so every device receives it. Tokens are stored as SHA-256 hashes, can be rotated or revoked, and the endpoint is limited to 30 requests per minute per IP.
 
-## Webhooks
+## Automations
 
-**Settings → Automations** configures one HTTPS endpoint per workspace for content events:
+**Settings → Automations** configures up to five named HTTPS destinations per workspace. Each destination subscribes to its own events and applies condition filters when an event is queued:
 
 | Event | Fires when |
 | --- | --- |
@@ -108,7 +108,14 @@ x-lattice-delivery: whd_…
 x-lattice-signature: sha256=<hex HMAC-SHA256 of the raw body>
 ```
 
-The signing secret is shown in the settings panel and can be rotated. Failures retry with backoff (1, 5, 15, 60, 240 minutes) up to five attempts; disabled endpoints and non-HTTPS or private-address URLs are cancelled. Test deliveries use `webhook.test`.
+- **Operation** — only saves/restores, only deletes, or both.
+- **Title contains** — a case-insensitive substring on the changed record's title.
+- **Notebooks** and **page types** — narrow to specific notebooks or DOCUMENT/CANVAS/DATABASE pages.
+- **Authors** — only changes made by selected workspace members.
+
+A condition on a field the event does not carry (say, a title filter on a comment event) excludes that change, so a narrowed destination stays narrow. Filtering happens at enqueue time, so a non-matching event never reaches the delivery queue.
+
+The signing secret is shown per destination and can be rotated. Failures retry with backoff (1, 5, 15, 60, 240 minutes) up to five attempts; disabled endpoints and non-HTTPS or private-address URLs are cancelled. Test deliveries use `webhook.test`.
 
 Targets must be public HTTPS hosts. Literal private IPs, localhost, and `.local` names are refused before delivery; DNS-based SSRF checks are left to your deployment's egress policy.
 

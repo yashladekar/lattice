@@ -4,8 +4,10 @@ import { Prisma, type TransactionClient } from "@notes-learning/db";
 import {
   dedupeChanges,
   extractPageLinks,
+  parseWebhookFilters,
   safeDoc,
   webhookEventForChange,
+  webhookMatchesFilters,
   type PendingSyncChange,
   type SyncEntity,
 } from "@notes-learning/domain";
@@ -74,38 +76,42 @@ async function enqueueWebhookDeliveries(
   actorId: string | null,
   changes: PendingChange[],
 ): Promise<void> {
-  const endpoint = await tx.webhookEndpoint.findUnique({
-    where: { workspaceId },
-    select: { id: true, enabled: true, events: true },
+  const endpoints = await tx.webhookEndpoint.findMany({
+    where: { workspaceId, enabled: true },
+    select: { id: true, events: true, filters: true },
   });
-  if (!endpoint || !endpoint.enabled) return;
-  const subscribed = Array.isArray(endpoint.events)
-    ? new Set(endpoint.events.filter((event): event is string => typeof event === "string"))
-    : new Set<string>();
-  if (!subscribed.size) return;
+  if (!endpoints.length) return;
 
   const occurredAt = new Date().toISOString();
   const deliveries: Prisma.WebhookDeliveryCreateManyInput[] = [];
-  for (const change of changes) {
-    const event = webhookEventForChange(change.entity, change.op);
-    if (!event || !subscribed.has(event)) continue;
-    const serialized = JSON.stringify(change.data);
-    deliveries.push({
-      id: `whd_${randomUUID()}`,
-      workspaceId,
-      endpointId: endpoint.id,
-      event,
-      payload: {
-        event,
+  for (const endpoint of endpoints) {
+    const subscribed = Array.isArray(endpoint.events)
+      ? new Set(endpoint.events.filter((event): event is string => typeof event === "string"))
+      : new Set<string>();
+    if (!subscribed.size) continue;
+    const filters = parseWebhookFilters(endpoint.filters);
+    for (const change of changes) {
+      const event = webhookEventForChange(change.entity, change.op);
+      if (!event || !subscribed.has(event)) continue;
+      if (!webhookMatchesFilters(filters, change, actorId)) continue;
+      const serialized = JSON.stringify(change.data);
+      deliveries.push({
+        id: `whd_${randomUUID()}`,
         workspaceId,
-        entity: change.entity,
-        entityId: change.entityId,
-        op: change.op,
-        actorId,
-        occurredAt,
-        ...(serialized.length <= 20_000 ? { data: change.data } : {}),
-      } as Prisma.InputJsonValue,
-    });
+        endpointId: endpoint.id,
+        event,
+        payload: {
+          event,
+          workspaceId,
+          entity: change.entity,
+          entityId: change.entityId,
+          op: change.op,
+          actorId,
+          occurredAt,
+          ...(serialized.length <= 20_000 ? { data: change.data } : {}),
+        } as Prisma.InputJsonValue,
+      });
+    }
   }
   if (deliveries.length) {
     await tx.webhookDelivery.createMany({ data: deliveries });

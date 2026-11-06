@@ -119,14 +119,16 @@ model Device {
   @@map("device")
 }
 
-/// One webhook endpoint per workspace. The secret is server-only and is used
-/// to HMAC-sign every delivery.
+/// A named automation destination. A workspace can run several, each with its
+/// own event subscription and condition filters applied when an event is queued.
 model WebhookEndpoint {
   id             String    @id
-  workspaceId    String    @unique
+  workspaceId    String
+  name           String    @default("Webhook")
   url            String
   secret         String
   events         Json      @default("[]")
+  filters        Json      @default("{}")
   enabled        Boolean   @default(true)
   createdById    String
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
@@ -134,7 +136,7 @@ model WebhookEndpoint {
   lastDeliveryAt DateTime? @db.Timestamptz(3)
   lastStatus     Int?
 
-  @@index([workspaceId])
+  @@index([workspaceId, updatedAt])
   @@map("webhook_endpoint")
 }
 

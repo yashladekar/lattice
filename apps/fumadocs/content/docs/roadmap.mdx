@@ -80,10 +80,16 @@ description: What this implementation covers and which subsystems are deliberate
 - A curated in-app directory of audited plugins: word count, TODO extraction, and related notes.
 - Install from an HTTPS URL: the bundle is fetched, its manifest validated, and its requested capabilities shown for approval before anything installs.
 
+## Shipped: automation rules
+
+- Up to five named webhook destinations per workspace in **Settings → Automations**, each with its own event subscription.
+- Conditions narrow a destination: title contains, notebook, page type, operation (saved/deleted), and author.
+- Filters are evaluated at enqueue time, so unmatched events never reach the delivery queue; a condition on a field the event lacks excludes it.
+- Recent deliveries show which destination received what, alongside the existing signed payloads, retries, and test action.
+
 ## Next: platform ecosystem
 
 - Custom blocks and custom canvas tools from plugins.
-- Automation rules on top of the webhook event stream (conditions, filters, destinations).
 
 ## Explicit non-goals for this release
 
