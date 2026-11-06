@@ -1143,9 +1143,9 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 >
                   {kindIcon(node.kind)}
                 </span>
-                <span className="min-w-0 flex flex-col">
-                  <span className="max-w-40 truncate text-xs font-medium">{node.title}</span>
-                  <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                <span className="flex min-w-0 max-w-40 flex-col">
+                  <span className="truncate text-xs font-medium">{node.title}</span>
+                  <span className="truncate text-xs uppercase tracking-widest text-muted-foreground">
                     {node.kind.toLowerCase()}
                     {page?.notebookId ? ` · ${notebookById.get(page.notebookId)?.name ?? ""}` : ""}
                   </span>
