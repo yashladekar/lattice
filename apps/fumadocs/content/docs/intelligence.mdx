@@ -27,10 +27,28 @@ The base URL is server-controlled. User input never becomes an outbound AI endpo
 ## Retrieval
 
 1. Resolve pages visible to the requesting member (private pages excluded unless allowed).
-2. Rank title, body, and scope by token relevance.
+2. Rank title, body, and scope by token relevance, using the provider's semantic index when one is built and token ranking otherwise.
 3. Limit the context window and keep source excerpts.
 4. Ask the provider to cite sources by index.
 5. Return the answer with structured `{ pageId, title, excerpt }` citations.
+
+## Local vectors
+
+Client-side retrieval does not depend on a provider. Every document the app holds
+locally is also indexed with
+**local vectors** (`@notes-learning/domain`, `local-vectors.ts`): text is
+tokenized with stopword removal, light plural/gerund folding, and phrase
+bigrams; terms are weighted by sublinear term frequency and inverse document
+frequency, hashed into 512 dimensions, and L2-normalized so a dot product is
+cosine similarity. Search, the command palette, and the plugin `search` API rank
+with it (see [Search](/docs/search)).
+
+Be clear about what this is: a deterministic lexical-vector index, not a neural
+embedding. It closes the gap that hurts token search most — "habits" finds a
+note that says "habit", word order matters through bigrams, rarer terms count
+for more — and it runs identically offline, in a worker, and on a phone, with no
+download and no network. The server-side Ask path keeps using provider embeddings
+when configured, and plain token ranking when not.
 
 ## Capabilities
 

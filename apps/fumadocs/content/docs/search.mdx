@@ -44,5 +44,12 @@ search pre-filtered to that tag.
 2. term overlap with the body,
 3. recency.
 
+That lexical score is then blended with a **local vector** score (hashed
+TF-IDF over stemmed tokens and bigrams, cached per index) at a weight of 14, so
+documents that share meaning but not spelling still surface — a query for
+"habits" matches a note about "habit" — and a document both rankings agree on
+rises. Vector-only matches are appended when they clear the cosine floor, and
+when local vectors find nothing the plain lexical order is returned unchanged.
+
 The same scoring powers the command palette, which additionally lets you open a
 result directly.

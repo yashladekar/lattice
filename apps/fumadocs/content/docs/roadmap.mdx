@@ -64,9 +64,14 @@ description: What this implementation covers and which subsystems are deliberate
 - Near-duplicate pages found by exact title, drifted title, or repeated body, with the evidence recorded per group.
 - A Duplicates tab that shows each group with excerpts and archives the ones you do not keep, recoverable from Trash.
 
+## Shipped: local vectors
+
+- Hybrid retrieval needs no provider: lexical ranking is blended with a local hashed TF-IDF vector score (stemmed tokens, phrase bigrams, 512 dimensions, L2-normalized), cached per workspace index and rebuilt only when local data changes.
+- It widens recall past exact tokens — a query for "habits" finds a note that says "habit" — while lexical scoring still decides between documents that share words.
+- Runs offline, in a worker, and on a phone with no download, and is honest about its limits: it is a lexical-vector index, not a neural model. Provider embeddings still power the server-side semantic index when configured.
+
 ## Next: knowledge intelligence
 
-- Semantic search without a provider (local embeddings).
 - Temporal graph playback across note versions.
 
 ## Shipped: attachment OCR
