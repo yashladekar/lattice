@@ -6,6 +6,7 @@ export type AiConfig = {
   apiKey: string;
   model: string;
   embeddingModel?: string;
+  transcribeModel?: string;
 };
 
 export type Context = {
@@ -17,5 +18,9 @@ export type Context = {
   collab?: {
     isActive(workspaceId: string, pageId: string, userId: string): boolean;
     invalidate(workspaceId: string, pageId: string): void;
+  };
+  /** Present when the API is hosted by a server that owns the upload directory. */
+  uploads?: {
+    read(url: string): Promise<{ bytes: Uint8Array; filename: string; mime: string } | null>;
   };
 };

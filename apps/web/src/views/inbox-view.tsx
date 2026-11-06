@@ -1,6 +1,6 @@
 "use client";
 
-import { formatRelative, relatedDocuments, safeDoc, suggestTagNames } from "@notes-learning/domain";
+import { formatRelative, isAudioFilename, relatedDocuments, safeDoc, suggestTagNames } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
@@ -12,14 +12,16 @@ import {
   FileText,
   Inbox,
   Link2,
+  Loader2,
   Mail,
+  Mic,
   Plus,
   Sparkles,
   Tag,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -41,6 +43,9 @@ import {
 } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
 import type { LocalCapture } from "@/lib/local/types";
+import { getApiBaseUrl } from "@/lib/config";
+import { uploadFile } from "@/lib/upload";
+import { client } from "@/utils/orpc";
 
 const STATUS_TABS = [
   { id: "INBOX" as const, label: "Inbox" },
@@ -57,6 +62,10 @@ const TYPE_FILTERS = [
 
 type TypeFilter = (typeof TYPE_FILTERS)[number]["id"];
 
+function mediaUrl(url: string): string {
+  return url.startsWith("http") ? url : `${getApiBaseUrl()}${url}`;
+}
+
 function CaptureCard({
   capture,
   onOrganized,
@@ -64,13 +73,14 @@ function CaptureCard({
   capture: LocalCapture;
   onOrganized: (pageId: string) => void;
 }) {
-  const { db, user, activeWorkspaceId } = useAppData();
+  const { db, user, activeWorkspaceId, online, retrySync } = useAppData();
   const notebooks = useWorkspaceNotebooks();
   const workspaceTags = useWorkspaceTags();
   const pages = useWorkspacePages();
   const documents =
     useLiveQuery(async () => (db ? db.pageDocuments.toArray() : []), [db], []) ?? [];
   const [busy, setBusy] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedLinks, setSelectedLinks] = useState<string[]>([]);
@@ -100,6 +110,23 @@ function CaptureCard({
 
   const toggleValue = (list: string[], value: string): string[] =>
     list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
+
+  const transcribe = async () => {
+    if (!online) {
+      toast.error("Transcription needs a connection to the sync server.");
+      return;
+    }
+    setTranscribing(true);
+    try {
+      await client.ai.transcribe({ captureId: capture.id });
+      await retrySync();
+      toast.success("Transcript added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not transcribe the recording");
+    } finally {
+      setTranscribing(false);
+    }
+  };
 
   const makePage = async () => {
     if (!db || !user || !activeWorkspaceId) return;
@@ -193,6 +220,9 @@ function CaptureCard({
               {capture.url.replace(/^https?:\/\//, "").slice(0, 60)}
               <ArrowUpRight className="size-2.5" />
             </a>
+          ) : null}
+          {capture.type === "AUDIO" && capture.url ? (
+            <audio controls preload="none" src={mediaUrl(capture.url)} className="mt-1.5 h-8 w-full" />
           ) : null}
           {capture.type === "EMAIL" && capture.source ? (
             <p className="mt-1 truncate text-[8px] text-muted-foreground">From {capture.source}</p>
@@ -292,6 +322,23 @@ function CaptureCard({
             <Archive className="size-2.5" /> Archive
           </Button>
         ) : null}
+        {capture.type === "AUDIO" && capture.url ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 rounded-md text-[8px] text-muted-foreground"
+            disabled={transcribing || !online}
+            onClick={() => void transcribe()}
+            title={online ? "Transcribe with the server's AI provider" : "Needs a sync server"}
+          >
+            {transcribing ? (
+              <Loader2 className="size-2.5 animate-spin" />
+            ) : (
+              <Mic className="size-2.5" />
+            )}{" "}
+            Transcribe
+          </Button>
+        ) : null}
         {capture.status === "ARCHIVED" ? (
           <Button
             variant="ghost"
@@ -342,6 +389,31 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
         });
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadAudio = async (file: File) => {
+    if (!db || !user || !activeWorkspaceId) return;
+    if (!file.type.startsWith("audio/") && !isAudioFilename(file.name)) {
+      toast.error("Choose an audio file.");
+      return;
+    }
+    try {
+      const uploaded = await uploadFile(file);
+      await createCaptureLocal(db, {
+        workspaceId: activeWorkspaceId,
+        userId: user.id,
+        type: "AUDIO",
+        title: file.name.slice(0, 120),
+        content: "",
+        url: uploaded.url,
+        source: "audio upload",
+        metadata: { mime: file.type, size: file.size },
+      });
+      toast.success("Audio added to the inbox");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not upload the audio");
+    }
+  };
 
   const save = async () => {
     if (!db || !user || !activeWorkspaceId || !text.trim()) return;
@@ -376,10 +448,32 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px]" onClick={onQuickCapture}>
-          <Link2 className="size-3" /> Capture a link
-        </Button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px]" onClick={onQuickCapture}>
+            <Link2 className="size-3" /> Capture a link
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-lg text-[10px]"
+            onClick={() => audioInputRef.current?.click()}
+          >
+            <Mic className="size-3" /> Upload audio
+          </Button>
+        </div>
       </div>
+
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void uploadAudio(file);
+        }}
+      />
 
       <div className="mt-5 rounded-xl border border-saffron/25 bg-saffron/[0.04] p-2.5">
         <Textarea

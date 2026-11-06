@@ -1,6 +1,9 @@
+import { randomUUID } from "node:crypto";
+
 import type { Database } from "@notes-learning/db";
 import { Prisma } from "@notes-learning/db";
 import {
+  appendTranscript,
   buildSnippet,
   cosineSimilarityVectors,
   createId,
@@ -22,10 +25,10 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
-import { aiEnabled, chatCompletion, embedTexts, localAnswer } from "../ai/provider";
+import { aiEnabled, chatCompletion, embedTexts, localAnswer, transcribeAudio } from "../ai/provider";
 import type { AiConfig } from "../context";
 import { workspaceProcedure } from "../index";
-import { getAccessiblePageIds } from "../services/sync";
+import { getAccessiblePageIds, pushSync } from "../services/sync";
 
 interface RetrievedPage {
   pageId: string;
@@ -424,6 +427,66 @@ export const aiRouter = {
         provider,
       });
       return { answer, citations, provider, threadId, local: provider === "local" };
+    }),
+
+  transcribe: workspaceProcedure("EDITOR")
+    .input(z.object({ captureId: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      if (!aiEnabled(context)) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "Transcription needs an AI provider. Set AI_API_KEY on the server.",
+        });
+      }
+      if (!context.uploads) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "Uploads are not available on this server.",
+        });
+      }
+      const capture = await context.db.capture.findFirst({
+        where: { id: input.captureId, workspaceId: context.workspaceId, deletedAt: null },
+      });
+      if (!capture) throw new ORPCError("NOT_FOUND");
+      if (capture.type !== "AUDIO") {
+        throw new ORPCError("BAD_REQUEST", { message: "Only audio captures can be transcribed." });
+      }
+      if (!capture.url) {
+        throw new ORPCError("BAD_REQUEST", { message: "This capture has no audio file." });
+      }
+      const upload = await context.uploads.read(capture.url);
+      if (!upload) {
+        throw new ORPCError("NOT_FOUND", { message: "The audio file could not be read." });
+      }
+      if (upload.bytes.byteLength > 25 * 1024 * 1024) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Audio files up to 25 MB can be transcribed.",
+        });
+      }
+      const text = await transcribeAudio(context.ai, upload);
+      if (!text) {
+        throw new ORPCError("BAD_GATEWAY", {
+          message: "The transcription provider did not return text.",
+        });
+      }
+      const content = appendTranscript(capture.content, text);
+      const metadata = {
+        ...(capture.metadata as Record<string, unknown>),
+        transcribedAt: new Date().toISOString(),
+        transcribeModel: context.ai.transcribeModel ?? "whisper-1",
+      };
+      await pushSync(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        ops: [
+          {
+            opId: `transcribe-${capture.id}-${randomUUID()}`,
+            entity: "capture",
+            entityId: capture.id,
+            op: "UPSERT",
+            payload: { content, metadata },
+          },
+        ],
+      });
+      return { text, content };
     }),
 
   pageAction: workspaceProcedure("VIEWER")

@@ -1,5 +1,7 @@
 import "varlock/auto-load";
 
+import path from "node:path";
+
 import type { AiConfig } from "@notes-learning/api/context";
 
 export { ENV } from "./env";
@@ -13,7 +15,9 @@ export const aiConfig: AiConfig | null = process.env.AI_API_KEY
       apiKey: process.env.AI_API_KEY,
       model: process.env.AI_MODEL ?? "gpt-4.1-mini",
       embeddingModel: process.env.AI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+      transcribeModel: process.env.AI_TRANSCRIBE_MODEL ?? "whisper-1",
     }
   : null;
 
 export const uploadDirectory = process.env.UPLOAD_DIR ?? "./storage/uploads";
+export const uploadRoot = path.resolve(process.cwd(), uploadDirectory);

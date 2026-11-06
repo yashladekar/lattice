@@ -19,7 +19,7 @@ import express from "express";
 
 import { createContext } from "./context";
 import { attachCollaboration } from "./collaboration";
-import { desktopOrigins, ENV, uploadDirectory } from "./env.server";
+import { desktopOrigins, ENV, uploadRoot } from "./env.server";
 import { auth, db } from "./services";
 
 const app = express();
@@ -64,7 +64,6 @@ app.use(
   }),
 );
 
-const uploadRoot = path.resolve(process.cwd(), uploadDirectory);
 await mkdir(uploadRoot, { recursive: true });
 app.use(
   "/uploads",

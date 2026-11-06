@@ -108,3 +108,34 @@ export async function embedTexts(
     return null;
   }
 }
+
+/**
+ * OpenAI-compatible audio transcription (Whisper or a compatible model).
+ * Returns null when the provider is unavailable or returns no text.
+ */
+export async function transcribeAudio(
+  config: AiConfig,
+  input: { bytes: Uint8Array; filename: string; mime: string },
+): Promise<string | null> {
+  const endpoint = `${config.baseUrl.replace(/\/$/, "")}/audio/transcriptions`;
+  try {
+    const copy = new Uint8Array(input.bytes.byteLength);
+    copy.set(input.bytes);
+    const form = new FormData();
+    form.set("model", config.transcribeModel ?? "whisper-1");
+    form.set("file", new Blob([copy.buffer], { type: input.mime }), input.filename);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: `Bearer ${config.apiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!response.ok) return null;
+    const json = (await response.json()) as { text?: unknown };
+    if (typeof json.text !== "string") return null;
+    const text = json.text.trim();
+    return text || null;
+  } catch {
+    return null;
+  }
+}

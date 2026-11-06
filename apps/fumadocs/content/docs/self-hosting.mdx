@@ -70,6 +70,10 @@ IndexedDB is not a backup. Browsers can evict non-persistent origins. Grant pers
 
 Add `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` to the API environment. Keep the provider key server-side. Without it, Ask Lattice runs local retrieval. Set `AI_EMBEDDING_MODEL` (default `text-embedding-3-small`) to control the model used by the optional semantic index.
 
+### Audio transcription
+
+Audio captures in the inbox can be transcribed when the provider exposes `/audio/transcriptions`. The model comes from `AI_TRANSCRIBE_MODEL` (default `whisper-1`). The server reads the stored upload from `UPLOAD_DIR`, sends it to the provider, and appends the transcript to the capture through the sync change log; files above 25 MB are refused.
+
 ## Email capture
 
 Each workspace can generate an ingest token in **Settings → General → Email capture**. Point an email provider's inbound webhook at the API:
