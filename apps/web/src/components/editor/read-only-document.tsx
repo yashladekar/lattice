@@ -140,7 +140,7 @@ function renderNode(
           key={key}
           type="button"
           onClick={() => pageId && onPageLink?.(pageId)}
-          className="inline-flex items-center gap-1 border-b border-primary/25 text-primary"
+          className="inline-flex items-center gap-1 border-b border-primary/25 text-link"
         >
           <span className="text-[0.75em]">{icon}</span>
           {title}

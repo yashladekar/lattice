@@ -11,6 +11,30 @@
   --sticky-rose: oklch(0.9 0.06 18);
   --sticky-slate: oklch(0.89 0.012 75);
   --sticky-paper: oklch(0.98 0.008 85);
+
+  /* Graph identity. The domain metadata names the relation and node kinds;
+     the values live here so edges and fills adapt to the appearance. Light
+     values are chosen to clear 3:1 as a 1.5px line at 0.85 opacity and to
+     keep the icon inside a node readable. */
+  --graph-arrow: #6f6b5c;
+  --relation-related-to: #8c7659;
+  --relation-depends-on: #b86000;
+  --relation-part-of: #4b8a63;
+  --relation-explains: #347ec4;
+  --relation-example-of: #7b69c6;
+  --relation-contradicts: #c74b43;
+  --relation-prerequisite-of: #0089a7;
+  --relation-references: #81796d;
+  --relation-created-from: #60892c;
+  --relation-connected-through: #a853ad;
+  --node-page: #bb5d00;
+  --node-canvas: #4b8a63;
+  --node-topic: #347ec4;
+  --node-concept: #7b69c6;
+  --node-project: #c74b43;
+  --node-person: #0089a7;
+  --node-resource: #9c721c;
+  --node-flashcard: #bc4b87;
 }
 
 .dark {
@@ -23,6 +47,26 @@
   --sticky-rose: oklch(0.51 0.08 18);
   --sticky-slate: oklch(0.38 0.012 75);
   --sticky-paper: oklch(0.26 0.01 75);
+
+  --graph-arrow: #b2aa9d;
+  --relation-related-to: #bea788;
+  --relation-depends-on: #ee9138;
+  --relation-part-of: #7cbc92;
+  --relation-explains: #67b0f9;
+  --relation-example-of: #aa9afc;
+  --relation-contradicts: #ff7e72;
+  --relation-prerequisite-of: #4abbdb;
+  --relation-references: #b2aa9d;
+  --relation-created-from: #8fbb5f;
+  --relation-connected-through: #dd84e2;
+  --node-page: #f28e42;
+  --node-canvas: #7cbc92;
+  --node-topic: #67b0f9;
+  --node-concept: #aa9afc;
+  --node-project: #ff7e72;
+  --node-person: #4abbdb;
+  --node-resource: #cfa354;
+  --node-flashcard: #f47db9;
 }
 
 html,
@@ -249,7 +293,7 @@ body {
 }
 
 .tiptap a {
-  color: var(--primary);
+  color: var(--link);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
@@ -584,9 +628,9 @@ body {
 
 
 .tiptap [data-type="pageLink"] {
-  color: var(--primary);
+  color: var(--link);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklch, var(--primary) 35%, transparent);
+  text-decoration-color: color-mix(in oklch, var(--link) 35%, transparent);
   text-underline-offset: 3px;
   cursor: pointer;
 }

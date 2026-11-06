@@ -83,7 +83,7 @@ export function TabStrip({
               }}
               className={cn(
                 "grid size-6 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground",
-                paneKey === tab.key ? "text-primary opacity-100" : "text-muted-foreground/50 hover-reveal",
+                paneKey === tab.key ? "text-link opacity-100" : "text-muted-foreground/50 hover-reveal",
               )}
             >
               <Columns2 className="size-3" />

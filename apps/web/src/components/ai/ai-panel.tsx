@@ -357,7 +357,7 @@ export function AiPanel({
                       <button
                         type="button"
                         onClick={() => void createPageFromAnswer(message)}
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-xs text-link hover:underline"
                       >
                         <BookOpen className="size-2.5" /> Save answer as a page
                       </button>

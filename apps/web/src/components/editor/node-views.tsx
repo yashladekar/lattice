@@ -51,7 +51,7 @@ export function PageLinkView({ node }: NodeViewProps) {
         type="button"
         onClick={() => pageId && router.push(appRouteObject({ view: "page", id: pageId }))}
         className={cn(
-          "mx-0.5 inline-flex max-w-full items-center gap-1 border-b border-primary/30 align-baseline text-primary",
+          "mx-0.5 inline-flex max-w-full items-center gap-1 border-b border-primary/30 align-baseline text-link",
           missing && "border-destructive/30 text-muted-foreground",
         )}
         title={missing ? "This page is missing or private" : title}
@@ -93,7 +93,7 @@ export function PageEmbedView({ node, selected }: NodeViewProps) {
           <button
             type="button"
             onClick={() => pageId && router.push(appRouteObject({ view: "page", id: pageId }))}
-            className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            className="mt-2 inline-flex items-center gap-1 text-xs text-link hover:underline"
           >
             Open page <ArrowUpRight className="size-2.5" />
           </button>

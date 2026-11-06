@@ -425,7 +425,7 @@ export function PluginManager() {
                       granted
                         ? CAPABILITY_INFO[capability].risk === "high"
                           ? "border-destructive/50 text-destructive"
-                          : "border-primary/40 text-primary"
+                          : "border-primary/40 text-link"
                         : "border-border/60 text-muted-foreground",
                       !asked && "opacity-50",
                     )}

@@ -402,7 +402,7 @@ export function LearnView() {
               <button
                 type="button"
                 onClick={() => setTab("quiz")}
-                className="ml-auto inline-flex items-center gap-1 text-primary hover:underline"
+                className="ml-auto inline-flex items-center gap-1 text-link hover:underline"
               >
                 Test yourself with a quiz <ArrowRight className="size-2.5" />
               </button>
@@ -437,7 +437,7 @@ export function LearnView() {
                   <button
                     type="button"
                     onClick={() => setTab("review")}
-                    className="text-xs text-primary hover:underline"
+                    className="text-xs text-link hover:underline"
                   >
                     Review due
                   </button>

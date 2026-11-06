@@ -138,7 +138,7 @@ function PagePreview() {
                 </div>
                 <div className="flex items-center gap-1.5 text-xs">
                   <span className="text-saffron">◇</span>
-                  <span className="border-b border-primary/30 text-primary">The graph is the database</span>
+                  <span className="border-b border-primary/30 text-link">The graph is the database</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="grid size-3.5 place-items-center rounded border border-border">

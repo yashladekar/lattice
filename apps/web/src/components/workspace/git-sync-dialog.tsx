@@ -35,7 +35,7 @@ function stateTone(action: GitSyncRow["action"]): string {
     case "remote-missing":
       return "text-saffron";
     default:
-      return "text-primary";
+      return "text-link";
   }
 }
 

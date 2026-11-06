@@ -11,79 +11,89 @@ import { extractPageLinks } from "./editor";
 
 export const RELATION_META: Record<
   RelationType,
-  { label: string; description: string; color: string; directional: boolean }
+  { label: string; description: string; color: string; token: string; directional: boolean }
 > = {
   RELATED_TO: {
     label: "Related to",
     description: "A loose conceptual connection",
     color: "#8b8b7a",
+    token: "relation-related-to",
     directional: false,
   },
   DEPENDS_ON: {
     label: "Depends on",
     description: "Requires the target to make sense",
     color: "#d97706",
+    token: "relation-depends-on",
     directional: true,
   },
   PART_OF: {
     label: "Part of",
     description: "Belongs to a larger whole",
     color: "#2f6b4f",
+    token: "relation-part-of",
     directional: true,
   },
   EXPLAINS: {
     label: "Explains",
     description: "Clarifies or teaches the target",
     color: "#3b82f6",
+    token: "relation-explains",
     directional: true,
   },
   EXAMPLE_OF: {
     label: "Example of",
     description: "A concrete instance of the target",
     color: "#8b5cf6",
+    token: "relation-example-of",
     directional: true,
   },
   CONTRADICTS: {
     label: "Contradicts",
     description: "Conflicts with the target",
     color: "#dc2626",
+    token: "relation-contradicts",
     directional: false,
   },
   PREREQUISITE_OF: {
     label: "Prerequisite of",
     description: "Should be learned before the target",
     color: "#0891b2",
+    token: "relation-prerequisite-of",
     directional: true,
   },
   REFERENCES: {
     label: "References",
     description: "An internal page link",
     color: "#a3a395",
+    token: "relation-references",
     directional: true,
   },
   CREATED_FROM: {
     label: "Created from",
     description: "Derived from another object",
     color: "#65a30d",
+    token: "relation-created-from",
     directional: true,
   },
   CONNECTED_THROUGH: {
     label: "Connected through",
     description: "Linked by a shared canvas or theme",
     color: "#c026d3",
+    token: "relation-connected-through",
     directional: false,
   },
 };
 
-export const NODE_META: Record<NodeKind, { label: string; color: string }> = {
-  PAGE: { label: "Page", color: "#e07a2e" },
-  CANVAS: { label: "Canvas", color: "#2f6b4f" },
-  TOPIC: { label: "Topic", color: "#3b82f6" },
-  CONCEPT: { label: "Concept", color: "#8b5cf6" },
-  PROJECT: { label: "Project", color: "#dc2626" },
-  PERSON: { label: "Person", color: "#0891b2" },
-  RESOURCE: { label: "Resource", color: "#a16207" },
-  FLASHCARD: { label: "Flashcard", color: "#db2777" },
+export const NODE_META: Record<NodeKind, { label: string; color: string; token: string }> = {
+  PAGE: { label: "Page", token: "node-page", color: "#e07a2e" },
+  CANVAS: { label: "Canvas", token: "node-canvas", color: "#2f6b4f" },
+  TOPIC: { label: "Topic", token: "node-topic", color: "#3b82f6" },
+  CONCEPT: { label: "Concept", token: "node-concept", color: "#8b5cf6" },
+  PROJECT: { label: "Project", token: "node-project", color: "#dc2626" },
+  PERSON: { label: "Person", token: "node-person", color: "#0891b2" },
+  RESOURCE: { label: "Resource", token: "node-resource", color: "#a16207" },
+  FLASHCARD: { label: "Flashcard", token: "node-flashcard", color: "#db2777" },
 };
 
 export interface GraphData {

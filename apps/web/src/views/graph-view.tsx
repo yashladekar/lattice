@@ -770,7 +770,10 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               <DropdownMenuItem onClick={() => setRelationFilter("all")}>All relations</DropdownMenuItem>
               {RELATIONS.map((relation) => (
                 <DropdownMenuItem key={relation} onClick={() => setRelationFilter(relation)}>
-                  <span className="size-1.5 rounded-full" style={{ background: RELATION_META[relation].color }} />
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ background: `var(--${RELATION_META[relation].token})` }}
+                  />
                   {RELATION_META[relation].label}
                 </DropdownMenuItem>
               ))}
@@ -1008,7 +1011,12 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                   : "border-transparent bg-muted/40 text-muted-foreground opacity-50",
               )}
             >
-              <span className="size-1.5 rounded-full" style={{ background: NODE_META[kind].color }} />
+              <span
+                className="inline-flex size-4 items-center justify-center rounded-full"
+                style={{ background: `var(--${NODE_META[kind].token})` }}
+              >
+                <span className="text-background">{kindIcon(kind)}</span>
+              </span>
               {NODE_META[kind].label}
             </button>
           ))}
@@ -1024,7 +1032,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
           <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1">
             <defs>
               <marker id="graph-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b8b7a" />
+                <path d="M 0 0 L 10 5 L 0 10 z" style={{ fill: "var(--graph-arrow)" }} />
               </marker>
             </defs>
             {filtered.edges.map((edge) => {
@@ -1043,7 +1051,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               const x2 = target.x - (dx / dist) * (radiusB + 4);
               const y2 = target.y - (dy / dist) * (radiusB + 4);
               const highlighted = selectedId === edge.sourceNodeId || selectedId === edge.targetNodeId;
-              const color = RELATION_META[edge.relationType as RelationType]?.color ?? "#8b8b7a";
+              const token = RELATION_META[edge.relationType as RelationType]?.token ?? "relation-related-to";
               return (
                 <g key={edge.id} className="graph-edge" opacity={selectedId && !highlighted ? 0.18 : 1}>
                   <line
@@ -1051,19 +1059,20 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                     y1={y1}
                     x2={x2}
                     y2={y2}
-                    stroke={color}
-                    strokeWidth={highlighted ? 2 : 1}
-                    strokeOpacity={highlighted ? 0.85 : 0.32}
+                    style={{ stroke: `var(--${token})` }}
+                    strokeWidth={highlighted ? 2.5 : 1.5}
+                    strokeOpacity={highlighted ? 1 : 0.85}
                     markerEnd={edge.relationType === "REFERENCES" || edge.relationType === "DEPENDS_ON" || edge.relationType === "PREREQUISITE_OF" ? "url(#graph-arrow)" : undefined}
                     vectorEffect="non-scaling-stroke"
                   />
                   {highlighted && sourceNode && targetNode ? (
                     <text
                       x={(x1 + x2) / 2}
-                      y={(y1 + y2) / 2 - 5}
+                      y={(y1 + y2) / 2 - 6}
                       textAnchor="middle"
-                      fill={color}
-                      fontSize={8}
+                      style={{ fill: `var(--${token})` }}
+                      fontSize={11}
+                      fontWeight={600}
                       fontFamily="Inter, sans-serif"
                     >
                       {RELATION_META[edge.relationType as RelationType]?.label ?? edge.relationType}
@@ -1140,7 +1149,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                   </span>
                 </span>
                 {sourceTags.length ? (
-                  <span className="ml-1 size-1.5 rounded-full" style={{ background: tagById.get(sourceTags[0] ?? "")?.color ?? "#8b8b7a" }} />
+                  <span className="ml-1 size-1.5 rounded-full" style={{ background: tagById.get(sourceTags[0] ?? "")?.color ?? "var(--relation-related-to)" }} />
                 ) : null}
               </button>
             );
@@ -1165,7 +1174,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
           <div className="flex items-start gap-2 border-b border-border/60 p-3">
             <span
               className="grid size-7 shrink-0 place-items-center rounded-full text-background"
-              style={{ background: NODE_META[selectedNode.kind].color }}
+              style={{ background: `var(--${NODE_META[selectedNode.kind].token})` }}
             >
               {kindIcon(selectedNode.kind)}
             </span>
@@ -1240,7 +1249,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 const other = graph.nodes.find((node) => node.id === otherId);
                 return (
                   <div key={edge.id} className="flex items-center gap-1 rounded-md border border-border/50 bg-card/40 px-2 py-1.5">
-                    <span className="size-1.5 rounded-full" style={{ background: RELATION_META[edge.relationType as RelationType]?.color ?? "#8b8b7a" }} />
+                    <span className="size-1.5 rounded-full" style={{ background: `var(--${RELATION_META[edge.relationType as RelationType]?.token ?? "relation-related-to"})` }} />
                     <button type="button" onClick={() => setSelectedId(otherId)} className="min-w-0 flex-1 truncate text-left text-xs">
                       {outgoing ? "" : "← "}{RELATION_META[edge.relationType as RelationType]?.label ?? edge.relationType}
                       {outgoing ? " → " : " "}
@@ -1320,7 +1329,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                     <button
                       type="button"
                       onClick={() => void acceptSuggestion(entry.sourceNodeId, entry.targetNodeId)}
-                      className="mt-1 text-xs text-primary hover:underline"
+                      className="mt-1 text-xs text-link hover:underline"
                     >
                       Add connection
                     </button>
@@ -1354,7 +1363,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 <button
                   type="button"
                   onClick={() => void acceptSuggestion(entry.sourceNodeId, entry.targetNodeId)}
-                  className="mt-1 text-xs text-primary hover:underline"
+                  className="mt-1 text-xs text-link hover:underline"
                 >
                   Add
                 </button>

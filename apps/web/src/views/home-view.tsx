@@ -705,7 +705,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => router.push(appRouteObject({ view: "graph" }))}
-                className="flex h-7 items-center gap-0.5 rounded text-foreground hover:text-primary"
+                className="flex h-7 items-center gap-0.5 rounded text-foreground hover:text-link"
               >
                 Explore <ArrowUpRight className="size-2.5" />
               </button>

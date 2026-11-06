@@ -511,7 +511,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
       {db && activeWorkspaceId && !page && route.view === "page" && route.id ? (
         <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-lg backdrop-blur">
           This page is missing or private.
-          <button type="button" onClick={() => router.push(appHref({ view: "home" }))} className="ml-2 text-primary hover:underline">
+          <button type="button" onClick={() => router.push(appHref({ view: "home" }))} className="ml-2 text-link hover:underline">
             Go home
           </button>
         </div>

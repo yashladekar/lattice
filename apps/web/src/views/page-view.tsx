@@ -48,7 +48,7 @@ export function PageView({
           <p className="mt-1 text-xs text-muted-foreground">
             Choose a page from the sidebar or press ⌘K to search.
           </p>
-          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-xs text-primary">
+          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-xs text-link">
             <ArrowLeft className="size-3" /> Back home
           </Link>
         </div>
@@ -65,7 +65,7 @@ export function PageView({
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
             It may have been deleted, or it is private to another collaborator.
           </p>
-          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-xs text-primary">
+          <Link href={appHref({ view: "home" })} className="mt-4 inline-flex items-center gap-1 text-xs text-link">
             <ArrowLeft className="size-3" /> Back home
           </Link>
         </div>

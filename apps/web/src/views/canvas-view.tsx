@@ -207,7 +207,7 @@ function LivePageCard({
           event.stopPropagation();
           onOpen();
         }}
-        className="mt-auto flex items-center gap-1 self-start pt-1 text-xs text-primary hover:underline"
+        className="mt-auto flex items-center gap-1 self-start pt-1 text-xs text-link hover:underline"
       >
         Open note <ArrowRight className="size-2.5" />
       </button>
@@ -2056,7 +2056,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
           <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1">
             <defs>
               <marker id="canvas-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b8b7a" />
+                <path d="M 0 0 L 10 5 L 0 10 z" style={{ fill: "var(--graph-arrow)" }} />
               </marker>
             </defs>
             {document.elements
@@ -2085,7 +2085,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                       y1={from.y}
                       x2={to.x}
                       y2={to.y}
-                      stroke={connector.color ?? "#8b8b7a"}
+                      stroke={connector.color ?? "var(--relation-related-to)"}
                       strokeWidth={selected ? 2.5 : 1.5}
                       strokeDasharray={connector.style === "dashed" ? "8 6" : connector.style === "dotted" ? "2 5" : undefined}
                       markerEnd={connector.arrowEnd === false ? undefined : "url(#canvas-arrow)"}
