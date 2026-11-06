@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
       "A local-first knowledge OS for writing, visual thinking, connected notes, and learning.",
     start_url: "/app",
     display: "standalone",
-    orientation: "portrait-primary",
+    orientation: "any",
     background_color: "#f8f5ee",
     theme_color: "#1d1d1a",
     categories: ["productivity", "education", "utilities"],
