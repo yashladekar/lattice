@@ -47,6 +47,9 @@ export default function SearchScreen() {
           </View>
           <Pressable
             onPress={() => setSubmitted(query.trim())}
+            accessibilityRole="button"
+            accessibilityLabel="Search"
+            hitSlop={12}
             className="h-10 w-10 items-center justify-center rounded-xl bg-amber-500"
           >
             <Ionicons name="search" size={17} color="#1d1d1a" />
@@ -74,7 +77,7 @@ export default function SearchScreen() {
                       <Text className="min-w-0 flex-1 text-sm font-medium text-foreground" numberOfLines={1}>
                         {result.title}
                       </Text>
-                      <Text className="rounded-full border border-border px-1.5 py-0.5 text-[8px] uppercase text-muted">
+                      <Text className="rounded-full border border-border px-1.5 py-0.5 text-xs uppercase text-muted">
                         {result.type}
                       </Text>
                     </View>

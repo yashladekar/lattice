@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import { ActivityIndicator, Text } from "react-native";
-import { Button } from "heroui-native";
+import { Button, useThemeColor } from "heroui-native";
 
 import { authClient } from "@/lib/auth-client";
 import { appStorage } from "@/lib/storage";
@@ -25,6 +25,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 const ACTIVE_KEY = "lattice.activeWorkspace";
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const accent = useThemeColor("accent");
   const queryClient = useQueryClient();
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -97,7 +98,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color="#e8892f" />
+        <ActivityIndicator color={accent} />
         <Text className="mt-3 text-xs text-muted">Opening your workspace…</Text>
       </View>
     );

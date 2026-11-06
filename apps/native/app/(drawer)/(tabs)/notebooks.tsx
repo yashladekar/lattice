@@ -66,12 +66,15 @@ export default function NotebooksScreen() {
                     <Text className="text-base">{notebook.icon ?? "◫"}</Text>
                     <View className="min-w-0 flex-1">
                       <Text className="text-sm font-semibold text-foreground">{notebook.name}</Text>
-                      <Text className="text-[10px] text-muted">
+                      <Text className="text-xs text-muted">
                         {pageCount(notebook.id)} pages
                       </Text>
                     </View>
                     <Pressable
-                      className="h-8 w-8 items-center justify-center rounded-full border border-border bg-surface"
+                      accessibilityRole="button"
+              accessibilityLabel="New page"
+              hitSlop={12}
+              className="h-8 w-8 items-center justify-center rounded-full border border-border bg-surface"
                       onPress={async () => {
                         const created = await client.page.create({
                           notebookId: notebook.id,

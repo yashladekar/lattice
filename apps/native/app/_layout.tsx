@@ -51,11 +51,12 @@ function RootStack() {
 
 function AppRoot() {
   const { data: session, isPending } = authClient.useSession();
+  const accent = useThemeColor("accent");
 
   if (isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color="#e8892f" />
+        <ActivityIndicator color={accent} />
         <Text className="mt-3 text-xs text-muted">Opening Lattice…</Text>
       </View>
     );

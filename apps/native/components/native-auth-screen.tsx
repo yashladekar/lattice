@@ -55,11 +55,11 @@ export function NativeAuthScreen() {
           <View className="mt-8 flex-row items-center justify-center gap-4">
             <View className="flex-row items-center gap-1.5">
               <Ionicons name="shield-checkmark-outline" size={13} color="#6b9a80" />
-              <Text className="text-[10px] text-muted">Secure sync</Text>
+              <Text className="text-xs text-muted">Secure sync</Text>
             </View>
             <View className="flex-row items-center gap-1.5">
               <Ionicons name="phone-portrait-outline" size={13} color="#6b9a80" />
-              <Text className="text-[10px] text-muted">Offline on device</Text>
+              <Text className="text-xs text-muted">Offline on device</Text>
             </View>
           </View>
         </View>

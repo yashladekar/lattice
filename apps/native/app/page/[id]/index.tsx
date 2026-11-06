@@ -64,7 +64,9 @@ export default function NativePageScreen() {
             detail ? (
               <Pressable
                 onPress={() => router.push(`/page/${String(id)}/edit`)}
-                hitSlop={8}
+                hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Edit note"
                 className="flex-row items-center gap-1"
               >
                 <Ionicons name="create-outline" size={20} color={accent} />
@@ -83,13 +85,13 @@ export default function NativePageScreen() {
             <View className="flex-row items-center gap-2">
               <Text className="text-2xl">{detail.icon ?? "◇"}</Text>
               <View className="rounded-full border border-border px-2 py-0.5">
-                <Text className="text-[9px] uppercase tracking-wider text-muted">
+                <Text className="text-xs uppercase tracking-wider text-muted">
                   {detail.type?.toLowerCase() ?? "document"}
                 </Text>
               </View>
               {tags.map((tag) => (
                 <View key={tag.id} className="rounded-full border border-border px-2 py-0.5">
-                  <Text className="text-[9px] text-muted">{tag.name}</Text>
+                  <Text className="text-xs text-muted">{tag.name}</Text>
                 </View>
               ))}
             </View>
@@ -97,7 +99,7 @@ export default function NativePageScreen() {
             <Text className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
               {detail.title}
             </Text>
-            <Text className="mt-1 text-[10px] text-muted">
+            <Text className="mt-1 text-xs text-muted">
               Edited {new Date(detail.updatedAt).toLocaleString()}
             </Text>
 
@@ -110,7 +112,7 @@ export default function NativePageScreen() {
                 <Ionicons name="school-outline" size={15} color={accent} />
                 <Text className="text-xs font-medium text-foreground">Turn this note into recall</Text>
               </View>
-              <Text className="mt-1.5 text-[10px] leading-5 text-muted">
+              <Text className="mt-1.5 text-xs leading-5 text-muted">
                 Generate flashcards from the note's structure, then review them on this device or
                 anywhere else.
               </Text>
@@ -123,7 +125,7 @@ export default function NativePageScreen() {
               </Button>
             </View>
 
-            <Text className="mt-6 text-center text-[9px] text-muted">
+            <Text className="mt-6 text-center text-xs text-muted">
               Shared knowledge · {workspace?.name}
             </Text>
           </View>

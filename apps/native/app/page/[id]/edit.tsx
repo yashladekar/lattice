@@ -130,7 +130,7 @@ export default function NativePageEditScreen() {
             <View className="px-4 py-4">
               <View className="flex-row items-center gap-2">
                 <Ionicons name="logo-markdown" size={14} color={muted} />
-                <Text className="text-[10px] uppercase tracking-widest text-muted">
+                <Text className="text-xs uppercase tracking-widest text-muted">
                   Markdown · saves as a new revision
                 </Text>
               </View>
@@ -143,18 +143,18 @@ export default function NativePageEditScreen() {
                 textAlignVertical="top"
                 placeholder="# Heading&#10;&#10;Write in Markdown…"
                 placeholderTextColor={muted}
-                className="mt-3 min-h-[420px] rounded-2xl border border-border bg-surface p-3 text-[13px] leading-6 text-foreground"
+                className="mt-3 min-h-[420px] rounded-2xl border border-border bg-surface p-3 text-[15px] leading-7 text-foreground"
                 style={{ fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" }}
               />
               <View className="mt-3 flex-row items-center justify-between">
-                <Text className="text-[9px] text-muted">
+                <Text className="text-xs text-muted">
                   {text.length.toLocaleString()} characters · {baseRev === null ? "unknown" : `rev ${baseRev}`}
                 </Text>
                 <Button size="sm" onPress={() => void save()} isDisabled={saving || baseRev === null}>
                   {saving ? <Spinner size="sm" color="default" /> : <Button.Label>Save note</Button.Label>}
                 </Button>
               </View>
-              <Text className="mt-3 text-[9px] leading-5 text-muted">
+              <Text className="mt-3 text-xs leading-5 text-muted">
                 Headings, lists, task lists, quotes, fenced code, and inline bold/italic/code/links
                 round-trip. Anything else is kept as plain text rather than dropped.
               </Text>

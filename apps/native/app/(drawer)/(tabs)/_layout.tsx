@@ -6,12 +6,13 @@ export default function TabLayout() {
   const foreground = useThemeColor("foreground");
   const background = useThemeColor("background");
   const muted = useThemeColor("muted");
+  const accent = useThemeColor("accent");
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#e8892f",
+        tabBarActiveTintColor: accent,
         tabBarInactiveTintColor: muted,
         tabBarStyle: {
           backgroundColor: background,
@@ -24,6 +25,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
+          tabBarAccessibilityLabel: "Home",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="sparkles-outline" size={size} color={color} />
           ),
@@ -33,6 +35,7 @@ export default function TabLayout() {
         name="notebooks"
         options={{
           title: "Notebooks",
+          tabBarAccessibilityLabel: "Notebooks",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="book-outline" size={size} color={color} />
           ),
@@ -42,6 +45,7 @@ export default function TabLayout() {
         name="capture"
         options={{
           title: "Capture",
+          tabBarAccessibilityLabel: "Capture",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="add-circle-outline" size={size} color={color} />
           ),
@@ -51,6 +55,7 @@ export default function TabLayout() {
         name="learn"
         options={{
           title: "Learn",
+          tabBarAccessibilityLabel: "Learn",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="school-outline" size={size} color={color} />
           ),
@@ -60,6 +65,7 @@ export default function TabLayout() {
         name="search"
         options={{
           title: "Search",
+          tabBarAccessibilityLabel: "Search",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search-outline" size={size} color={color} />
           ),

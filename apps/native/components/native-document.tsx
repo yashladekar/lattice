@@ -7,15 +7,15 @@ function DiagramFallback({ source, caption }: { source: string; caption: string 
   return (
     <View className="rounded-xl border border-border bg-surface-secondary p-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-[10px] uppercase tracking-widest text-muted">
+        <Text className="text-xs uppercase tracking-widest text-muted">
           {diagramTypeOf(trimmed)} diagram
         </Text>
-        <Text className="text-[9px] text-muted">renders on web</Text>
+        <Text className="text-xs text-muted">renders on web</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-2">
         <Text className="font-mono text-[11px] leading-5 text-foreground/80">{trimmed}</Text>
       </ScrollView>
-      {caption ? <Text className="mt-2 text-[10px] text-muted">{caption}</Text> : null}
+      {caption ? <Text className="mt-2 text-xs text-muted">{caption}</Text> : null}
     </View>
   );
 }
@@ -90,7 +90,7 @@ function NodeView({ node, index }: { node: TipTapNode; index: number }) {
             {typeof node.attrs?.emoji === "string" ? node.attrs.emoji : "✦"}{" "}
             {typeof node.attrs?.title === "string" ? node.attrs.title : "Note"}
           </Text>
-          <Text className="mt-1 text-[13px] leading-6 text-foreground/80">{inlineText(node)}</Text>
+          <Text className="mt-1 text-sm leading-6 text-foreground/80">{inlineText(node)}</Text>
         </View>
       );
     case "blockquote":
@@ -106,7 +106,7 @@ function NodeView({ node, index }: { node: TipTapNode; index: number }) {
       }
       return (
         <View key={index} className="rounded-xl bg-neutral-900 p-3">
-          <Text className="font-mono text-[12px] leading-5 text-neutral-100">{inlineText(node)}</Text>
+          <Text className="font-mono text-xs leading-5 text-neutral-100">{inlineText(node)}</Text>
         </View>
       );
     }
@@ -122,15 +122,15 @@ function NodeView({ node, index }: { node: TipTapNode; index: number }) {
       return (
         <View key={index} className="rounded-xl border border-border bg-surface-secondary p-3">
           <View className="flex-row items-center gap-2">
-            <Text className="rounded border border-border px-1.5 py-0.5 font-mono text-[9px] text-foreground">
+            <Text className="rounded border border-border px-1.5 py-0.5 font-mono text-xs text-foreground">
               {method}
             </Text>
-            <Text numberOfLines={1} className="min-w-0 flex-1 font-mono text-[10px] text-foreground/80">
+            <Text numberOfLines={1} className="min-w-0 flex-1 font-mono text-xs text-foreground/80">
               {url || "No URL"}
             </Text>
           </View>
-          {label ? <Text className="mt-1.5 text-[10px] text-muted">{label}</Text> : null}
-          <Text className="mt-1.5 text-[9px] text-muted">Open in Lattice to run this request.</Text>
+          {label ? <Text className="mt-1.5 text-xs text-muted">{label}</Text> : null}
+          <Text className="mt-1.5 text-xs text-muted">Open in Lattice to run this request.</Text>
         </View>
       );
     }
@@ -146,7 +146,7 @@ function NodeView({ node, index }: { node: TipTapNode; index: number }) {
     case "liveBlock":
       return (
         <View key={index} className="rounded-xl border border-dashed border-border bg-surface-secondary p-3">
-          <Text className="text-[10px] uppercase tracking-widest text-muted">Embedded page</Text>
+          <Text className="text-xs uppercase tracking-widest text-muted">Embedded page</Text>
           <Text className="mt-1 text-sm text-foreground">
             {typeof node.attrs?.title === "string" ? node.attrs.title : "Open this note"}
           </Text>
@@ -171,7 +171,7 @@ function NodeView({ node, index }: { node: TipTapNode; index: number }) {
     }
     default:
       return (
-        <Text key={index} className="text-[13px] leading-6 text-muted">
+        <Text key={index} className="text-sm leading-6 text-muted">
           {inlineText(node)}
         </Text>
       );

@@ -141,7 +141,7 @@ export default function CaptureScreen() {
           <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
             Waiting in inbox
           </Text>
-          <Text className="text-[10px] text-muted">{captures.data?.length ?? 0}</Text>
+          <Text className="text-xs text-muted">{captures.data?.length ?? 0}</Text>
         </View>
 
         <View className="mt-3 gap-2">
@@ -160,7 +160,7 @@ export default function CaptureScreen() {
                   <Text numberOfLines={1} className="min-w-0 flex-1 text-xs font-medium text-foreground">
                     {capture.title || capture.url || "Capture"}
                   </Text>
-                  <Text className="text-[9px] text-muted">
+                  <Text className="text-xs text-muted">
                     {new Date(capture.createdAt).toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
@@ -185,7 +185,7 @@ export default function CaptureScreen() {
 
         <View className="mt-6 flex-row items-center gap-2 rounded-2xl border border-border bg-surface p-3">
           <Ionicons name="cloud-done-outline" size={16} color={muted} />
-          <Text className="flex-1 text-[10px] leading-4 text-muted">
+          <Text className="flex-1 text-xs leading-4 text-muted">
             Saves to {workspace?.name ?? "your workspace"} · processed later in the web inbox.
           </Text>
         </View>
