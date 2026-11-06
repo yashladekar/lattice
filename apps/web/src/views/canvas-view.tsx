@@ -1773,7 +1773,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   setConnectorStart(null);
                 }}
                 className={cn(
-                  "grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target",
                   tool === (value as Tool) && "bg-foreground text-background hover:bg-foreground hover:text-background",
                 )}
               >
@@ -1786,7 +1786,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               title="Undo"
               onClick={undo}
               disabled={!history.past.length}
-              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 tap-target"
             >
               <Undo2 className="size-3.5" />
             </button>
@@ -1795,7 +1795,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               title="Redo"
               onClick={redo}
               disabled={!history.future.length}
-              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 tap-target"
             >
               <Redo2 className="size-3.5" />
             </button>
@@ -1804,7 +1804,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               type="button"
               title="Zoom out"
               onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.2) }))}
-              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
             >
               <ZoomOut className="size-3.5" />
             </button>
@@ -1815,7 +1815,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               type="button"
               title="Zoom in"
               onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(3, current.zoom * 1.2) }))}
-              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
             >
               <ZoomIn className="size-3.5" />
             </button>
@@ -1823,7 +1823,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               type="button"
               title="Fit canvas"
               onClick={() => fitDocument(document)}
-              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
             >
               <Maximize2 className="size-3.5" />
             </button>
@@ -1832,7 +1832,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               title="Toggle grid"
               onClick={() => setGrid((value) => !value)}
               className={cn(
-                "grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground",
+                "grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target",
                 grid && "bg-muted text-foreground",
               )}
             >
@@ -1842,7 +1842,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button type="button" title="More" className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" />
+                  <button type="button" title="More" className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target" />
                 }
               >
                 <Layers className="size-3.5" />
@@ -1913,7 +1913,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               type="button"
               title="Present"
               onClick={startPresentation}
-              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
             >
               <Play className="size-3.5" />
             </button>
@@ -2454,20 +2454,31 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1">
-                {["#8b8b7a", "#e07a2e", "#2f6b4f", "#3b82f6", "#8b5cf6", "#dc2626"].map((color) => (
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { value: "#8b8b7a", label: "Slate" },
+                  { value: "#e07a2e", label: "Saffron" },
+                  { value: "#2f6b4f", label: "Moss" },
+                  { value: "#3b82f6", label: "Sky" },
+                  { value: "#8b5cf6", label: "Lilac" },
+                  { value: "#dc2626", label: "Rose" },
+                ].map(({ value: color, label }) => (
                   <button
                     key={color}
                     type="button"
+                    aria-label={`Connector colour: ${label}`}
+                    aria-pressed={selectedConnector.color === color}
                     onClick={() =>
                       updateElement(selectedConnector.id, { color } as Partial<CanvasElement>, true)
                     }
                     className={cn(
-                      "size-5 rounded-full border",
-                      selectedConnector.color === color ? "border-foreground" : "border-transparent",
+                      "size-7 rounded-full border",
+                      selectedConnector.color === color
+                        ? "border-foreground ring-2 ring-foreground/40"
+                        : "border-transparent",
                     )}
                     style={{ background: color }}
-                    title={color}
+                    title={label}
                   />
                 ))}
               </div>
@@ -2512,16 +2523,27 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             </div>
           ) : (
             <>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {STICKY_COLORS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => setColor(color)}
-                className={cn("size-5 rounded border border-foreground/10", colorClass(color))}
-                title={color}
-              />
-            ))}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {STICKY_COLORS.map((color) => {
+              const pressed = selectedElements.some(
+                (element) => "color" in element && element.color === color,
+              );
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`Sticky colour: ${color[0]!.toUpperCase()}${color.slice(1)}`}
+                  aria-pressed={pressed}
+                  onClick={() => setColor(color)}
+                  className={cn(
+                    "size-7 rounded border border-foreground/10",
+                    colorClass(color),
+                    pressed && "ring-2 ring-foreground/40",
+                  )}
+                  title={color}
+                />
+              );
+            })}
           </div>
           {selectedElements.length > 1 ? (
             <div className="mt-2 flex flex-wrap gap-1">
@@ -2591,7 +2613,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 <Unlock className="size-3" />
               )}
             </button>
-            <button type="button" onClick={deleteSelected} className="grid size-6 place-items-center rounded border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
+            <button type="button" onClick={deleteSelected} className="grid size-7 place-items-center rounded border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive tap-target" title="Delete">
               <Trash2 className="size-3" />
             </button>
           </div>
@@ -2601,13 +2623,13 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       {presentation ? (
         <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-center gap-2 p-4">
           <div className="flex items-center gap-1 rounded-full border border-white/15 bg-black/50 px-2 py-1 text-white backdrop-blur">
-            <button type="button" onClick={() => changeSlide(-1)} className="grid size-6 place-items-center rounded-full hover:bg-white/10" aria-label="Previous slide">
+            <button type="button" onClick={() => changeSlide(-1)} className="grid size-7 place-items-center rounded-full hover:bg-white/10 tap-target" aria-label="Previous slide">
               <ChevronLeft className="size-3.5" />
             </button>
             <span className="min-w-12 text-center text-xs">
               {frames.length ? `${presentationIndex + 1} / ${frames.length}` : "Canvas"}
             </span>
-            <button type="button" onClick={() => changeSlide(1)} className="grid size-6 place-items-center rounded-full hover:bg-white/10" aria-label="Next slide">
+            <button type="button" onClick={() => changeSlide(1)} className="grid size-7 place-items-center rounded-full hover:bg-white/10 tap-target" aria-label="Next slide">
               <ChevronRight className="size-3.5" />
             </button>
             <button type="button" onClick={() => setPresentation(false)} className="ml-2 inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-xs">
@@ -2649,7 +2671,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   aria-label="Move layer toward front"
                   title="Move toward front"
                   onClick={() => moveLayer(element.id, "up")}
-                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
                 >
                   <ChevronUp className="size-3" />
                 </button>
@@ -2658,7 +2680,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   aria-label="Move layer toward back"
                   title="Move toward back"
                   onClick={() => moveLayer(element.id, "down")}
-                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
                 >
                   <ChevronDown className="size-3" />
                 </button>

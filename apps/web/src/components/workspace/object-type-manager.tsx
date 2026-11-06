@@ -181,7 +181,7 @@ export function ObjectTypeManager() {
                   aria-label={`Delete ${type.name}`}
                   disabled={!canEdit}
                   onClick={() => setPendingDelete(type)}
-                  className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                  className="grid size-7 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive disabled:opacity-30 tap-target"
                 >
                   <Trash2 className="size-3" />
                 </button>
@@ -335,7 +335,7 @@ export function ObjectTypeManager() {
                             : current.filter((_, cursor) => cursor !== index),
                         )
                       }
-                      className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                      className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive tap-target"
                     >
                       <Trash2 className="size-2.5" />
                     </button>

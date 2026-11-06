@@ -414,7 +414,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
                   type="button"
                   aria-label="Close split view"
                   onClick={() => router.push(appHref(withPane(null)))}
-                  className="grid size-5 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground"
+                  className="grid size-7 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground tap-target"
                 >
                   <X className="size-3" />
                 </button>

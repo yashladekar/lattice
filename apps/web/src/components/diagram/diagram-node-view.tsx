@@ -72,7 +72,7 @@ export function DiagramNodeView({ node, updateAttributes, selected }: NodeViewPr
                 type="button"
                 onClick={cancel}
                 title="Cancel"
-                className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
               >
                 <X className="size-3" />
               </button>
@@ -80,7 +80,7 @@ export function DiagramNodeView({ node, updateAttributes, selected }: NodeViewPr
                 type="button"
                 onClick={apply}
                 title="Apply source"
-                className="grid size-6 place-items-center rounded text-moss hover:bg-moss/10"
+                className="grid size-7 place-items-center rounded text-moss hover:bg-moss/10 tap-target"
               >
                 <Check className="size-3" />
               </button>
@@ -91,7 +91,7 @@ export function DiagramNodeView({ node, updateAttributes, selected }: NodeViewPr
                 type="button"
                 onClick={() => setExpanded((value) => !value)}
                 title={expanded ? "Collapse" : "Expand"}
-                className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
               >
                 {expanded ? <Minimize2 className="size-3" /> : <Maximize2 className="size-3" />}
               </button>
@@ -99,7 +99,7 @@ export function DiagramNodeView({ node, updateAttributes, selected }: NodeViewPr
                 type="button"
                 onClick={() => setEditing(true)}
                 title="Edit diagram"
-                className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
               >
                 <Pencil className="size-3" />
               </button>

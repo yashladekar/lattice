@@ -867,14 +867,14 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             </span>
           ) : null}
           <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-popover/90 p-0.5 backdrop-blur">
-            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.2) }))} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted">
+            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.2) }))} className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
               <ZoomOut className="size-3" />
             </button>
             <span className="w-8 text-center font-mono text-xs text-muted-foreground">{Math.round(viewport.zoom * 100)}%</span>
-            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(3, current.zoom * 1.2) }))} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted">
+            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(3, current.zoom * 1.2) }))} className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
               <ZoomIn className="size-3" />
             </button>
-            <button type="button" onClick={fit} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted">
+            <button type="button" onClick={fit} className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
               <Maximize2 className="size-3" />
             </button>
             <button
@@ -882,7 +882,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               onClick={() => selectedId && zoomToNode(selectedId)}
               disabled={!selectedId}
               title="Zoom to selected node"
-              className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted disabled:opacity-30"
+              className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted disabled:opacity-30 tap-target"
             >
               <Focus className="size-3" />
             </button>

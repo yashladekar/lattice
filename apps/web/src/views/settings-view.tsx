@@ -938,7 +938,7 @@ export function SettingsView() {
                           type="button"
                           aria-label="Remove member"
                           onClick={() => setPendingMember({ id: member.id, name: member.user.name })}
-                          className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                          className="grid size-7 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive tap-target"
                         >
                           <Trash2 className="size-2.5" />
                         </button>
@@ -1056,7 +1056,7 @@ export function SettingsView() {
                             type="button"
                             aria-label={`Revoke ${token.name}`}
                             onClick={() => void revokeScimToken(token.id)}
-                            className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                            className="grid size-7 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive tap-target"
                           >
                             <Trash2 className="size-2.5" />
                           </button>
@@ -1499,7 +1499,7 @@ export function SettingsView() {
                       aria-label={`Remove ${device.name}`}
                       title="Remove device"
                       onClick={() => void removeDevice(device.id)}
-                      className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                      className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive tap-target"
                     >
                       <Trash2 className="size-3" />
                     </button>
@@ -1560,7 +1560,7 @@ export function SettingsView() {
                             type="button"
                             aria-label={`Release hold on ${hold.targetLabel}`}
                             onClick={() => void releaseLegalHold(hold.id)}
-                            className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-muted hover:text-foreground"
+                            className="grid size-7 place-items-center rounded text-muted-foreground/50 hover:bg-muted hover:text-foreground tap-target"
                           >
                             <RotateCcw className="size-2.5" />
                           </button>

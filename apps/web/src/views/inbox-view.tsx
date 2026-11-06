@@ -466,7 +466,7 @@ function CaptureCard({
           aria-label="Delete capture"
           disabled={!db}
           onClick={() => setConfirmOpen(true)}
-          className="ml-auto grid size-6 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+          className="ml-auto grid size-7 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive tap-target"
         >
           <Trash2 className="size-3" />
         </button>

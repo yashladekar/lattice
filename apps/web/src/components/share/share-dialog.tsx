@@ -193,7 +193,7 @@ export function ShareDialog({
                         <button
                           type="button"
                           onClick={() => void revoke(share.id)}
-                          className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive tap-target"
                           aria-label="Revoke link"
                         >
                           <Trash2 className="size-2.5" />

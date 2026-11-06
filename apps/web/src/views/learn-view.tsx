@@ -518,7 +518,7 @@ export function LearnView() {
                         setEditFront(card.front);
                         setEditBack(card.back);
                       }}
-                      className="opacity-0 hover:text-foreground group-hover:opacity-100"
+                      className="hover:text-foreground hover-reveal"
                       aria-label="Edit card"
                     >
                       <Pencil className="size-2.5" />
@@ -526,7 +526,7 @@ export function LearnView() {
                     <button
                       type="button"
                       onClick={() => db && void deleteFlashcardLocal(db, card.id)}
-                      className="opacity-0 hover:text-destructive group-hover:opacity-100"
+                      className="hover:text-destructive hover-reveal"
                       aria-label="Delete card"
                     >
                       <X className="size-2.5" />

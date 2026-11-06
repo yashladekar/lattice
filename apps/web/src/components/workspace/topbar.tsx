@@ -114,7 +114,7 @@ export function WorkspaceTopbar({
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden tap-target"
           aria-label="Toggle sidebar"
         >
           <Menu className="size-4" />
@@ -122,7 +122,7 @@ export function WorkspaceTopbar({
         <button
           type="button"
           onClick={onOpenPalette}
-          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground sm:hidden"
+          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground sm:hidden tap-target"
           aria-label="Open command palette"
         >
           <Command className="size-4" />
@@ -132,7 +132,7 @@ export function WorkspaceTopbar({
           <button
             type="button"
             onClick={() => router.push(appRouteObject({ view: "home" }))}
-            className="hidden shrink-0 text-muted-foreground hover:text-foreground sm:block"
+            className="hidden h-7 shrink-0 items-center rounded px-1 text-muted-foreground hover:text-foreground sm:flex"
           >
             {activeWorkspace?.name ?? "Lattice"}
           </button>
@@ -284,7 +284,7 @@ export function WorkspaceTopbar({
             render={
               <button
                 type="button"
-                className="grid size-7 place-items-center rounded-full bg-moss/15 text-xs font-semibold text-moss ring-1 ring-moss/20 transition-opacity hover:opacity-80"
+                className="grid size-7 place-items-center rounded-full bg-moss/15 text-xs font-semibold text-moss ring-1 ring-moss/20 transition-opacity hover:opacity-80 tap-target"
                 aria-label="Account menu"
               />
             }

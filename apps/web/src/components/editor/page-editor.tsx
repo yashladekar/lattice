@@ -1245,7 +1245,7 @@ export function PageEditor({
                       key={icon}
                       type="button"
                       onClick={() => void chooseIcon(icon)}
-                      className="grid size-6 place-items-center rounded hover:bg-muted"
+                      className="grid size-7 place-items-center rounded hover:bg-muted tap-target"
                     >
                       {icon}
                     </button>
@@ -1516,7 +1516,7 @@ export function PageEditor({
                         <button
                           type="button"
                           aria-label="Block actions"
-                          className="grid h-6 w-4 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                          className="grid h-6 w-4 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                         />
                       }
                     >
@@ -2017,7 +2017,7 @@ function BubbleButton({
       title={title}
       onClick={onClick}
       className={cn(
-        "grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground",
+        "grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target",
         active && "bg-muted text-foreground",
       )}
     >

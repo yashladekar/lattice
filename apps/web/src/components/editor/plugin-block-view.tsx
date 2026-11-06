@@ -151,7 +151,7 @@ export function PluginBlockView({ node, updateAttributes, deleteNode }: NodeView
               type="button"
               aria-label="Remove plugin block"
               onClick={() => deleteNode()}
-              className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+              className="grid size-7 place-items-center rounded text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive tap-target"
             >
               <Trash2 className="size-3" />
             </button>

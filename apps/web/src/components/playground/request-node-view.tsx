@@ -122,7 +122,7 @@ export function RequestNodeView({ node, updateAttributes, selected }: NodeViewPr
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="ml-auto grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="ml-auto grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
           title={expanded ? "Collapse request" : "Edit request"}
         >
           {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
@@ -255,7 +255,7 @@ export function RequestNodeView({ node, updateAttributes, selected }: NodeViewPr
               type="button"
               onClick={() => setResponse(null)}
               title="Clear response"
-              className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
             >
               <Trash2 className="size-2.5" />
             </button>

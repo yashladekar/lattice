@@ -190,7 +190,7 @@ export function TemplatePickerDialog({
                         type="button"
                         onClick={() => void remove(option)}
                         title="Delete template"
-                        className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground/40 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                        className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground/40 transition-opacity hover:bg-destructive/10 hover:text-destructive hover-reveal tap-target"
                       >
                         <Trash2 className="size-3" />
                       </button>

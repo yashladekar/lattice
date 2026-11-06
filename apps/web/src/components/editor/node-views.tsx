@@ -433,7 +433,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
               title={entry.label}
               onClick={() => switchView(entry.id)}
               className={cn(
-                "grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground",
+                "grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target",
                 view === entry.id && "bg-muted text-foreground",
               )}
             >
@@ -448,7 +448,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
               render={
                 <button
                   type="button"
-                  className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
                   title="Add field"
                 />
               }
@@ -576,7 +576,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                       type="button"
                       aria-label="Delete row"
                       onClick={() => removeRow(row.id)}
-                      className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive"
+                      className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive tap-target"
                     >
                       <Trash2 className="size-2.5" />
                     </button>
@@ -607,7 +607,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
-                  className="opacity-0 hover:text-destructive group-hover:opacity-100"
+                  className="hover:text-destructive hover-reveal"
                   aria-label="Delete row"
                 >
                   <Trash2 className="size-2.5" />

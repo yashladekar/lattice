@@ -435,7 +435,7 @@ export function HomeView({
               type="button"
               onClick={dismissOnboarding}
               aria-label="Dismiss getting started"
-              className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
             >
               <X className="size-3" />
             </button>
@@ -498,7 +498,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("capture")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide quick capture"
               >
                 <X className="size-3" />
@@ -552,7 +552,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("continue")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide continue working"
               >
                 <X className="size-3" />
@@ -598,7 +598,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("review")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide due reviews"
               >
                 <X className="size-3" />
@@ -641,7 +641,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("inbox")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide inbox"
               >
                 <X className="size-3" />
@@ -693,7 +693,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("graph")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide graph preview"
               >
                 <X className="size-3" />
@@ -705,7 +705,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => router.push(appRouteObject({ view: "graph" }))}
-                className="flex items-center gap-0.5 text-foreground hover:text-primary"
+                className="flex h-7 items-center gap-0.5 rounded text-foreground hover:text-primary"
               >
                 Explore <ArrowUpRight className="size-2.5" />
               </button>
@@ -725,7 +725,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("learning")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide learning progress"
               >
                 <X className="size-3" />
@@ -773,7 +773,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("canvas")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide whiteboards"
               >
                 <X className="size-3" />
@@ -821,7 +821,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("activity")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide activity"
               >
                 <X className="size-3" />
@@ -863,7 +863,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => toggleWidget("notebooks")}
-                className="grid size-5 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                className="grid size-7 place-items-center rounded text-muted-foreground/40 hover:bg-muted hover:text-foreground tap-target"
                 aria-label="Hide notebooks"
               >
                 <X className="size-3" />
@@ -938,7 +938,7 @@ export function HomeView({
                     type="button"
                     aria-label={`Move ${widget.label} up`}
                     onClick={() => moveWidget(widget.id, -1)}
-                    className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
                   >
                     <ChevronUp className="size-3" />
                   </button>
@@ -946,7 +946,7 @@ export function HomeView({
                     type="button"
                     aria-label={`Move ${widget.label} down`}
                     onClick={() => moveWidget(widget.id, 1)}
-                    className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
                   >
                     <ChevronDown className="size-3" />
                   </button>

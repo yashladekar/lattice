@@ -260,7 +260,7 @@ export function AiPanel({
                 setMessages([]);
                 setThreadId(null);
               }}
-              className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
               title="New conversation"
             >
               <Plus className="size-3.5" />
@@ -268,7 +268,7 @@ export function AiPanel({
             <button
               type="button"
               onClick={onClose}
-              className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
               aria-label="Close"
             >
               <X className="size-4" />

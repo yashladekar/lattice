@@ -100,7 +100,7 @@ function PageRow({
           aria-label={open ? "Collapse page" : "Expand page"}
           onClick={() => setOpen((value) => !value)}
           className={cn(
-            "grid size-4 shrink-0 place-items-center rounded text-muted-foreground/60 hover:bg-muted",
+            "grid size-4 shrink-0 place-items-center rounded text-muted-foreground/60 hover:bg-muted tap-target",
             !hasChildren && "pointer-events-none opacity-0",
           )}
         >
@@ -112,7 +112,7 @@ function PageRow({
             onNavigate(node.page.id);
             if (hasChildren) setOpen(true);
           }}
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded text-left"
+          className="flex min-w-0 flex-1 items-center gap-1.5 self-stretch rounded text-left"
         >
           <span className="w-4 shrink-0 text-center text-xs text-muted-foreground">
             {node.page.icon ?? "◇"}
@@ -319,7 +319,7 @@ export function WorkspaceSidebar({
           <button
             type="button"
             onClick={onClose}
-            className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent"
+            className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent tap-target"
             aria-label="Close sidebar"
           >
             <X className="size-4" />
@@ -436,7 +436,7 @@ export function WorkspaceSidebar({
                 )}
               >
                 <span className="w-4 text-center text-xs">{favorite.icon ?? "◇"}</span>
-                <span className="min-w-0 flex-1 truncate text-left">{favorite.title || "Untitled"}</span>
+                <span className="min-w-0 flex-1 self-stretch truncate text-left">{favorite.title || "Untitled"}</span>
               </button>
             ))}
           </div>
@@ -453,7 +453,7 @@ export function WorkspaceSidebar({
           <button
             type="button"
             onClick={() => setNotebookDialog(true)}
-            className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+            className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground tap-target"
             aria-label="New notebook"
           >
             <Plus className="size-3" />
@@ -464,7 +464,7 @@ export function WorkspaceSidebar({
           <button
             type="button"
             onClick={() => setNotebookDialog(true)}
-            className="w-full rounded-lg border border-dashed border-sidebar-border px-3 py-3 text-left text-xs text-muted-foreground hover:bg-sidebar-accent/50"
+            className="flex min-h-11 w-full items-center rounded-lg border border-dashed border-sidebar-border px-3 text-left text-xs text-muted-foreground hover:bg-sidebar-accent/50"
           >
             Create your first notebook
           </button>
@@ -493,7 +493,7 @@ export function WorkspaceSidebar({
                           return next;
                         })
                       }
-                      className="grid size-4 place-items-center rounded text-muted-foreground/60"
+                      className="grid size-4 place-items-center rounded text-muted-foreground/60 tap-target"
                       aria-label={expanded ? "Collapse notebook" : "Expand notebook"}
                     >
                       {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
@@ -505,7 +505,7 @@ export function WorkspaceSidebar({
                         setExpandedNotebooks((current) => new Set(current).add(notebook.id));
                         go({ view: "home", notebook: notebook.id });
                       }}
-                      className="min-w-0 flex-1 truncate text-left"
+                      className="min-w-0 flex-1 self-stretch truncate text-left"
                     >
                       {notebook.name}
                     </button>
@@ -515,7 +515,7 @@ export function WorkspaceSidebar({
                           <button
                             type="button"
                             aria-label={`Options for ${notebook.name}`}
-                            className="grid size-4 place-items-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                            className="grid size-4 place-items-center rounded hover:bg-muted hover-reveal tap-target"
                           />
                         }
                       >
@@ -580,7 +580,7 @@ export function WorkspaceSidebar({
                     <button
                       type="button"
                       onClick={() => void createPage(notebook.id)}
-                      className="grid size-4 place-items-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                      className="grid size-4 place-items-center rounded hover:bg-muted hover-reveal tap-target"
                       aria-label={`New page in ${notebook.name}`}
                     >
                       <Plus className="size-3" />
@@ -639,7 +639,7 @@ export function WorkspaceSidebar({
           <button
             type="button"
             onClick={() => void createCanvas()}
-            className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+            className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground tap-target"
             aria-label="New canvas"
           >
             <Plus className="size-3" />
@@ -671,7 +671,7 @@ export function WorkspaceSidebar({
                       <button
                         type="button"
                         aria-label={`Options for ${canvas.title}`}
-                        className="grid size-4 place-items-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                        className="grid size-4 place-items-center rounded hover:bg-muted hover-reveal tap-target"
                       />
                     }
                   >
@@ -694,7 +694,7 @@ export function WorkspaceSidebar({
             <button
               type="button"
               onClick={() => void createCanvas()}
-              className="w-full rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground/60 hover:bg-sidebar-accent"
+              className="flex h-8 w-full items-center rounded-md px-2 text-left text-xs text-muted-foreground/60 hover:bg-sidebar-accent"
             >
               + Start a whiteboard
             </button>
@@ -712,7 +712,7 @@ export function WorkspaceSidebar({
                   key={tag.id}
                   type="button"
                   onClick={() => go({ view: "search", query: `#${tag.name}` })}
-                  className="inline-flex items-center gap-1 rounded-full border border-sidebar-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                  className="inline-flex h-7 items-center gap-1 rounded-full border border-sidebar-border px-2.5 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
                 >
                   <Tag className="size-2.5" />
                   {tag.name}
@@ -739,7 +739,7 @@ export function WorkspaceSidebar({
           <button
             type="button"
             onClick={() => go({ view: "trash" })}
-            className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+            className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground tap-target"
             aria-label="Trash"
           >
             <Trash2 className="size-3.5" />
@@ -750,7 +750,7 @@ export function WorkspaceSidebar({
           <button
             type="button"
             onClick={onOpenPalette}
-            className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent"
+            className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent tap-target"
             aria-label="Command palette"
           >
             <Sparkles className="size-3" />
