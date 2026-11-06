@@ -12,6 +12,7 @@ import type {
   LocalMember,
   LocalNode,
   LocalNotebook,
+  LocalObjectType,
   LocalPage,
   LocalPageDocument,
   LocalPageTag,
@@ -42,6 +43,7 @@ export class LatticeDB extends Dexie {
   reviewLogs!: Table<LocalReviewLog, string>;
   comments!: Table<LocalComment, string>;
   suggestedEdits!: Table<LocalSuggestedEdit, string>;
+  objectTypes!: Table<LocalObjectType, string>;
   attachments!: Table<LocalAttachment, string>;
   conflicts!: Table<LocalConflict, string>;
   outbox!: Table<OutboxItem, string>;
@@ -74,6 +76,9 @@ export class LatticeDB extends Dexie {
     });
     this.version(2).stores({
       suggestedEdits: "id, workspaceId, pageId, status, updatedAt",
+    });
+    this.version(3).stores({
+      objectTypes: "id, workspaceId, updatedAt",
     });
   }
 }

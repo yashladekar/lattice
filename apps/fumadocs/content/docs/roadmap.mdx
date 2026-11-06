@@ -34,6 +34,12 @@ description: What this implementation covers and which subsystems are deliberate
 
 - Granular block-level comments and discussion resolution at scale.
 
+## Shipped: object types
+
+- Workspaces define object types with a typed property schema — text, number, date, select, checkbox — in **Settings → Object types**.
+- Pages opt in from the Info tab; the assigned schema renders typed inputs that write through the normal page property path, so values sync and export with the page.
+- Definitions are validated on the server too: keys are derived from labels, duplicate and reserved keys dropped, and the schema is capped at 40 fields.
+
 ## Shipped: query console
 
 - Read-only SQL over workspace-scoped views, with a result grid and schema browser.
@@ -77,7 +83,6 @@ description: What this implementation covers and which subsystems are deliberate
 ## Next: platform ecosystem
 
 - Custom blocks and custom canvas tools from plugins.
-- Custom object types and property schemas.
 - Automation rules on top of the webhook event stream (conditions, filters, destinations).
 
 ## Explicit non-goals for this release

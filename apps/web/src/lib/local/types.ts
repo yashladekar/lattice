@@ -8,6 +8,7 @@ import type {
   KnowledgeEdge,
   KnowledgeNode,
   Notebook,
+  ObjectType,
   Page,
   PageDocument,
   PageTag,
@@ -78,6 +79,7 @@ export type LocalDeck = Deck;
 export type LocalFlashcard = Flashcard;
 export type LocalComment = Comment;
 export type LocalSuggestedEdit = SuggestedEdit;
+export type LocalObjectType = ObjectType;
 export type LocalAttachment = Attachment;
 export type LocalReviewLog = ReviewLog;
 
@@ -101,4 +103,5 @@ export interface LocalSnapshotPayload {
   comments: Comment[];
   attachments: Attachment[];
   suggestedEdits: SuggestedEdit[];
+  objectTypes: ObjectType[];
 }

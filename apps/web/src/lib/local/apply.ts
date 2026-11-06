@@ -39,6 +39,7 @@ async function putWorkspace(db: LatticeDB, snapshot: LocalSnapshotPayload): Prom
   if (snapshot.flashcards.length) await db.flashcards.bulkPut(snapshot.flashcards);
   if (snapshot.comments.length) await db.comments.bulkPut(snapshot.comments);
   if (snapshot.suggestedEdits?.length) await db.suggestedEdits.bulkPut(snapshot.suggestedEdits);
+  if (snapshot.objectTypes?.length) await db.objectTypes.bulkPut(snapshot.objectTypes);
   if (snapshot.attachments.length) await db.attachments.bulkPut(snapshot.attachments);
 }
 
@@ -66,6 +67,7 @@ export async function applySnapshot(
       db.flashcards,
       db.comments,
       db.suggestedEdits,
+      db.objectTypes,
       db.attachments,
       db.meta,
     ],
@@ -170,6 +172,11 @@ async function markDeleted(
       if (row) await db.suggestedEdits.put({ ...row, deletedAt });
       break;
     }
+    case "objectType": {
+      const row = await db.objectTypes.get(id);
+      if (row) await db.objectTypes.put({ ...row, deletedAt });
+      break;
+    }
     case "attachment": {
       const row = await db.attachments.get(id);
       if (row) await db.attachments.put({ ...row, deletedAt });
@@ -243,6 +250,9 @@ export async function applyChange(db: LatticeDB, change: SyncChange): Promise<vo
       break;
     case "suggestedEdit":
       await db.suggestedEdits.put(data as never);
+      break;
+    case "objectType":
+      await db.objectTypes.put(data as never);
       break;
     case "attachment":
       await db.attachments.put(data as never);

@@ -426,6 +426,15 @@ export interface Comment extends BaseEntity {
 export const SUGGESTION_STATUSES = ["PENDING", "ACCEPTED", "REJECTED"] as const;
 export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
 
+export interface ObjectType extends BaseEntity {
+  workspaceId: string;
+  name: string;
+  icon: string | null;
+  color: string;
+  description: string | null;
+  properties: import("./object-types").ObjectPropertyDefinition[];
+}
+
 export interface SuggestedEdit extends BaseEntity {
   workspaceId: string;
   pageId: string;
@@ -590,6 +599,7 @@ export const SYNC_ENTITIES = [
   "comment",
   "attachment",
   "suggestedEdit",
+  "objectType",
 ] as const;
 export type SyncEntity = (typeof SYNC_ENTITIES)[number];
 

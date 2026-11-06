@@ -28,3 +28,4 @@ export * from "./embeddings";
 export * from "./webhooks";
 export * from "./transcription";
 export * from "./suggestions";
+export * from "./object-types";

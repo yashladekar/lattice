@@ -1,7 +1,7 @@
 "use client";
 
-import type { OutlineItem, Visibility } from "@notes-learning/domain";
-import { formatRelative } from "@notes-learning/domain";
+import type { OutlineItem, PropertyValue, Visibility } from "@notes-learning/domain";
+import { coercePropertyValue, formatRelative, parsePropertyDefinitions } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import { Input } from "@notes-learning/ui/components/input";
 import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   AtSign,
   RotateCcw,
@@ -162,6 +163,15 @@ export function PageContextPanel({
   const tags = usePageTags(page.id);
   const workspaceTags = useWorkspaceTags();
   const cards = usePageFlashcards(page.id);
+  const objectTypes =
+    useLiveQuery(
+      async () => {
+        if (!db || !activeWorkspaceId) return [];
+        return db.objectTypes.where("workspaceId").equals(activeWorkspaceId).toArray();
+      },
+      [db, activeWorkspaceId],
+      [],
+    ) ?? [];
 
   const membersQuery = useQuery({
     queryKey: ["workspace-members", activeWorkspaceId],
@@ -218,7 +228,27 @@ export function PageContextPanel({
   };
 
   const properties = page.properties ?? {};
-  const propertyEntries = Object.entries(properties).filter(([key]) => key.trim());
+  const propertyEntries = Object.entries(properties).filter(
+    ([key]) => key.trim() && key !== "__type",
+  );
+  const objectTypeId = typeof properties.__type === "string" ? properties.__type : null;
+  const assignedType =
+    objectTypes.find((type) => type.id === objectTypeId && !type.deletedAt) ?? null;
+  const typedProperties = assignedType ? parsePropertyDefinitions(assignedType.properties) : [];
+
+  const setObjectType = async (nextId: string) => {
+    if (!db) return;
+    const next = { ...properties };
+    if (nextId) next.__type = nextId;
+    else delete next.__type;
+    await updatePagePropertiesLocal(db, page.id, next);
+    toast.success(nextId ? "Object type assigned" : "Object type cleared");
+  };
+
+  const setTypedValue = async (key: string, value: PropertyValue) => {
+    if (!db) return;
+    await updatePagePropertiesLocal(db, page.id, { ...properties, [key]: value });
+  };
 
   const setProperty = async (key: string, value: string) => {
     if (!db) return;
@@ -350,8 +380,120 @@ export function PageContextPanel({
                   <span className="text-muted-foreground">Type</span>
                   <span className="capitalize">{page.type.toLowerCase()}</span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Object type</span>
+                  <select
+                    value={assignedType?.id ?? ""}
+                    disabled={!db || !objectTypes.length}
+                    onChange={(event) => void setObjectType(event.target.value)}
+                    className="h-6 max-w-[140px] rounded-md border border-border/60 bg-background px-1 text-[9px] outline-none focus:border-primary/40 disabled:opacity-50"
+                  >
+                    <option value="">None</option>
+                    {objectTypes
+                      .filter((type) => !type.deletedAt)
+                      .map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
             </section>
+
+            {assignedType ? (
+              <section>
+                <div className="flex items-center justify-between">
+                  <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+                    {assignedType.name}
+                  </div>
+                  <span
+                    className="grid size-5 place-items-center rounded text-[10px]"
+                    style={{ backgroundColor: `${assignedType.color}22`, color: assignedType.color }}
+                  >
+                    {assignedType.icon ?? "◈"}
+                  </span>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {typedProperties.map((definition) => {
+                    const value = coercePropertyValue(
+                      definition.type,
+                      properties[definition.key],
+                    );
+                    if (definition.type === "checkbox") {
+                      return (
+                        <label
+                          key={definition.key}
+                          className="flex items-center justify-between text-[10px]"
+                        >
+                          <span className="text-muted-foreground">{definition.label}</span>
+                          <input
+                            type="checkbox"
+                            checked={value === true}
+                            onChange={(event) =>
+                              void setTypedValue(definition.key, event.target.checked)
+                            }
+                            className="size-3.5 accent-[var(--moss,#2f6b4f)]"
+                          />
+                        </label>
+                      );
+                    }
+                    if (definition.type === "select") {
+                      return (
+                        <label key={definition.key} className="block">
+                          <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                            {definition.label}
+                          </span>
+                          <select
+                            value={typeof value === "string" ? value : ""}
+                            onChange={(event) => void setTypedValue(definition.key, event.target.value)}
+                            className="h-7 w-full rounded-md border border-border/60 bg-background px-1.5 text-[10px] outline-none focus:border-primary/40"
+                          >
+                            <option value="">—</option>
+                            {(definition.options ?? []).map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      );
+                    }
+                    return (
+                      <label key={definition.key} className="block">
+                        <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                          {definition.label}
+                        </span>
+                        <input
+                          type={
+                            definition.type === "number"
+                              ? "number"
+                              : definition.type === "date"
+                                ? "date"
+                                : "text"
+                          }
+                          value={value === null || value === undefined ? "" : String(value)}
+                          onChange={(event) => {
+                            const raw = event.target.value;
+                            if (definition.type === "number") {
+                              void setTypedValue(definition.key, raw === "" ? null : Number(raw));
+                              return;
+                            }
+                            void setTypedValue(definition.key, raw);
+                          }}
+                          className="h-7 w-full rounded-md border border-border/60 bg-background px-1.5 text-[10px] outline-none focus:border-primary/40"
+                        />
+                      </label>
+                    );
+                  })}
+                  {!typedProperties.length ? (
+                    <p className="text-[9px] text-muted-foreground">
+                      This type has no fields yet — add some in Settings → Object types.
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
 
             <section>
               <div className="flex items-center justify-between">

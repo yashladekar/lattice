@@ -12,6 +12,7 @@ import {
   extractPlainText,
   hasRole,
   isSuggestionStatus,
+  parsePropertyDefinitions,
   safeDoc,
   type Role,
   type SuggestionStatus,
@@ -173,7 +174,7 @@ function allowedString<T extends readonly string[]>(
 
 async function assertNoCrossWorkspace(
   tx: TransactionClient,
-  model: "page" | "canvas" | "notebook" | "knowledgeNode" | "knowledgeEdge" | "tag" | "capture" | "template" | "deck" | "flashcard" | "comment" | "suggestedEdit" | "attachment" | "pageTag",
+  model: "page" | "canvas" | "notebook" | "knowledgeNode" | "knowledgeEdge" | "tag" | "capture" | "template" | "deck" | "flashcard" | "comment" | "suggestedEdit" | "objectType" | "attachment" | "pageTag",
   id: string,
   workspaceId: string,
 ): Promise<void> {
@@ -203,7 +204,9 @@ async function assertNoCrossWorkspace(
                           ? await tx.comment.findUnique({ where: { id }, select: { workspaceId: true } })
                           : model === "suggestedEdit"
                             ? await tx.suggestedEdit.findUnique({ where: { id }, select: { workspaceId: true } })
-                            : model === "attachment"
+                            : model === "objectType"
+                              ? await tx.objectType.findUnique({ where: { id }, select: { workspaceId: true } })
+                              : model === "attachment"
                             ? await tx.attachment.findUnique({ where: { id }, select: { workspaceId: true } })
                             : await tx.pageTag.findUnique({
                                 where: { id },
@@ -1350,6 +1353,90 @@ async function applyComment(
   return { accepted: { entity: "comment", entityId: comment.id, updatedAt: comment.updatedAt } };
 }
 
+async function applyObjectType(
+  ctx: ApplyContext,
+  op: SyncOpInput,
+  changes: PendingChange[],
+): Promise<ApplyResult> {
+  const { tx, workspaceId, role } = ctx;
+  if (!hasRole(role, "EDITOR")) throw new ORPCError("FORBIDDEN");
+  const payload = op.payload;
+  const existing = await tx.objectType.findUnique({ where: { id: op.entityId } });
+  await assertNoCrossWorkspace(tx, "objectType", op.entityId, workspaceId);
+  if (existing && existing.workspaceId !== workspaceId) throw new ORPCError("CONFLICT");
+
+  if (op.op === "DELETE" || payload.deletedAt) {
+    if (!existing) return {};
+    const deleted = await tx.objectType.update({
+      where: { id: existing.id },
+      data: { deletedAt: new Date() },
+    });
+    changes.push({
+      entity: "objectType",
+      entityId: deleted.id,
+      op: "DELETE",
+      data: toJsonSafe(deleted),
+    });
+    return {
+      accepted: {
+        entity: "objectType",
+        entityId: deleted.id,
+        updatedAt: deleted.updatedAt,
+      },
+    };
+  }
+
+  const name = stringValue(payload.name)?.trim().slice(0, 80);
+  if (!name && !existing) {
+    throw new ORPCError("BAD_REQUEST", { message: "A type needs a name." });
+  }
+  const properties = hasOwn(payload, "properties")
+    ? parsePropertyDefinitions(payload.properties)
+    : undefined;
+
+  const objectType = existing
+    ? await tx.objectType.update({
+        where: { id: existing.id },
+        data: {
+          name: name ?? existing.name,
+          icon: hasOwn(payload, "icon")
+            ? (nullableString(payload.icon) ?? null)
+            : existing.icon,
+          color: stringValue(payload.color)?.slice(0, 32) ?? existing.color,
+          description: hasOwn(payload, "description")
+            ? (nullableString(payload.description) ?? null)
+            : existing.description,
+          properties: (properties ?? existing.properties) as unknown as Prisma.InputJsonValue,
+          deletedAt: null,
+        },
+      })
+    : await tx.objectType.create({
+        data: {
+          id: op.entityId,
+          workspaceId,
+          name: name as string,
+          icon: nullableString(payload.icon) ?? null,
+          color: stringValue(payload.color)?.slice(0, 32) ?? "#2f6b4f",
+          description: nullableString(payload.description) ?? null,
+          properties: parsePropertyDefinitions(payload.properties) as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+  changes.push({
+    entity: "objectType",
+    entityId: objectType.id,
+    op: "UPSERT",
+    data: toJsonSafe(objectType),
+  });
+  return {
+    accepted: {
+      entity: "objectType",
+      entityId: objectType.id,
+      updatedAt: objectType.updatedAt,
+    },
+  };
+}
+
 async function applySuggestedEdit(
   ctx: ApplyContext,
   op: SyncOpInput,
@@ -1600,6 +1687,8 @@ async function applyOp(
       return applyComment(ctx, op, changes);
     case "suggestedEdit":
       return applySuggestedEdit(ctx, op, changes);
+    case "objectType":
+      return applyObjectType(ctx, op, changes);
     case "attachment":
       return applyAttachment(ctx, op, changes);
     case "member":
@@ -1867,6 +1956,7 @@ export async function syncSnapshot(
     comments,
     attachments,
     suggestedEdits,
+    objectTypes,
   ] = await Promise.all([
     db.workspaceMember.findMany({
       where: { workspaceId: input.workspaceId, deletedAt: null },
@@ -1892,6 +1982,7 @@ export async function syncSnapshot(
     db.suggestedEdit.findMany({
       where: { workspaceId: input.workspaceId, deletedAt: null },
     }),
+    db.objectType.findMany({ where: { workspaceId: input.workspaceId, deletedAt: null } }),
   ]);
 
   const allowed = await getAccessiblePageIds(db, input.workspaceId, input.userId, membership.role);
@@ -1948,6 +2039,7 @@ export async function syncSnapshot(
     comments: visibleComments,
     attachments: visibleAttachments,
     suggestedEdits: visibleSuggestedEdits,
+    objectTypes,
   });
 }
 

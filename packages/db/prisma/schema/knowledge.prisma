@@ -80,6 +80,24 @@ model PageTag {
   @@map("page_tag")
 }
 
+/// A workspace-defined object type with a typed property schema. Pages opt in
+/// by storing the id in `page.properties.__type`.
+model ObjectType {
+  id          String   @id
+  workspaceId String
+  name        String
+  icon        String?
+  color       String   @default("#2f6b4f")
+  description String?
+  properties  Json     @default("[]")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([workspaceId, updatedAt])
+  @@map("object_type")
+}
+
 /// Provider embedding for a page, used for semantic retrieval. The vector is
 /// stored as JSON so no Postgres extension is required at this scale.
 model PageEmbedding {

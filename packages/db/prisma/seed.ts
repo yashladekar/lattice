@@ -221,6 +221,8 @@ async function resetWorkspace(workspaceId: string, db: ReturnType<typeof createP
   await db.pageDocument.deleteMany({ where: { workspaceId } });
   await db.canvasVersion.deleteMany({ where: { workspaceId } });
   await db.attachment.deleteMany({ where: { workspaceId } });
+  await db.suggestedEdit.deleteMany({ where: { workspaceId } });
+  await db.objectType.deleteMany({ where: { workspaceId } });
   await db.capture.deleteMany({ where: { workspaceId } });
   await db.template.deleteMany({ where: { workspaceId } });
   await db.page.deleteMany({ where: { workspaceId } });
@@ -649,12 +651,40 @@ async function main() {
     },
   });
 
+  const readingType = await db.objectType.create({
+    data: {
+      id: uid(),
+      workspaceId: workspace.id,
+      name: "Reading",
+      icon: "◈",
+      color: "#4a6fa5",
+      description: "Typed fields for a note you are reading through",
+      properties: [
+        {
+          key: "status",
+          label: "Status",
+          type: "select",
+          options: ["To read", "Reading", "Done"],
+        },
+        { key: "rating", label: "Rating", type: "number" },
+        { key: "finished", label: "Finished", type: "checkbox" },
+      ],
+    },
+  });
+  await db.page.update({
+    where: { id: pageIdByKey.get(PAGES[0]!.key)! },
+    data: {
+      properties: { __type: readingType.id, status: "Reading", rating: 4, finished: false },
+    },
+  });
+
   console.log(`Seeded "${DEMO_NAME}" for ${user.email}.`);
   console.log("  · 5 linked pages across 2 notebooks");
   console.log("  · 2 topics with manual relations, 3 tags");
   console.log(`  · 1 whiteboard ("${canvas.title}")`);
   console.log(`  · 1 deck ("${deck.name}") with ${cards.length} due-spread cards`);
   console.log("  · 1 capture waiting in the inbox");
+  console.log(`  · 1 object type ("${readingType.name}") assigned to the first note`);
 }
 
 main()

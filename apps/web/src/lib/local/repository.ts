@@ -10,6 +10,7 @@ import {
   templateById,
   type CanvasDocument,
   type NotebookKind,
+  type ObjectPropertyDefinition,
   type PageType,
   type RelationType,
   type ReviewRating,
@@ -29,6 +30,7 @@ import type {
   LocalFlashcard,
   LocalNode,
   LocalNotebook,
+  LocalObjectType,
   LocalPage,
   LocalPageDocument,
   LocalReviewLog,
@@ -184,6 +186,16 @@ function suggestedEditPayload(edit: LocalSuggestedEdit): Record<string, unknown>
     content: edit.content,
     note: edit.note,
     status: edit.status,
+  };
+}
+
+function objectTypePayload(objectType: LocalObjectType): Record<string, unknown> {
+  return {
+    name: objectType.name,
+    icon: objectType.icon,
+    color: objectType.color,
+    description: objectType.description,
+    properties: objectType.properties,
   };
 }
 
@@ -1526,6 +1538,80 @@ export async function deleteCommentLocal(db: LatticeDB, commentId: string): Prom
   });
 }
 
+export async function createObjectTypeLocal(
+  db: LatticeDB,
+  input: {
+    workspaceId: string;
+    name: string;
+    icon?: string | null;
+    color?: string;
+    description?: string | null;
+    properties?: ObjectPropertyDefinition[];
+  },
+): Promise<LocalObjectType> {
+  const timestamp = now();
+  const objectType: LocalObjectType = {
+    id: createId(),
+    workspaceId: input.workspaceId,
+    name: input.name.trim().slice(0, 80) || "Untitled type",
+    icon: input.icon ?? "◈",
+    color: input.color ?? "#2f6b4f",
+    description: input.description?.trim() || null,
+    properties: input.properties ?? [],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    deletedAt: null,
+  };
+  await db.transaction("rw", [db.objectTypes, db.outbox], async () => {
+    await db.objectTypes.put(objectType);
+    await enqueueOutbox(db, {
+      workspaceId: objectType.workspaceId,
+      entity: "objectType",
+      entityId: objectType.id,
+      op: "UPSERT",
+      payload: objectTypePayload(objectType),
+    });
+  });
+  return objectType;
+}
+
+export async function updateObjectTypeLocal(
+  db: LatticeDB,
+  objectTypeId: string,
+  patch: Partial<Pick<LocalObjectType, "name" | "icon" | "color" | "description" | "properties">>,
+): Promise<LocalObjectType | null> {
+  const existing = await db.objectTypes.get(objectTypeId);
+  if (!existing) return null;
+  const objectType: LocalObjectType = { ...existing, ...patch, updatedAt: now() };
+  await db.transaction("rw", [db.objectTypes, db.outbox], async () => {
+    await db.objectTypes.put(objectType);
+    await enqueueOutbox(db, {
+      workspaceId: objectType.workspaceId,
+      entity: "objectType",
+      entityId: objectType.id,
+      op: "UPSERT",
+      payload: objectTypePayload(objectType),
+    });
+  });
+  return objectType;
+}
+
+export async function deleteObjectTypeLocal(db: LatticeDB, objectTypeId: string): Promise<void> {
+  const existing = await db.objectTypes.get(objectTypeId);
+  if (!existing) return;
+  const objectType: LocalObjectType = { ...existing, deletedAt: now(), updatedAt: now() };
+  await db.transaction("rw", [db.objectTypes, db.outbox], async () => {
+    await db.objectTypes.put(objectType);
+    await enqueueOutbox(db, {
+      workspaceId: objectType.workspaceId,
+      entity: "objectType",
+      entityId: objectType.id,
+      op: "DELETE",
+      payload: objectTypePayload(objectType),
+    });
+  });
+}
+
 export async function createSuggestedEditLocal(
   db: LatticeDB,
   input: {
@@ -1757,6 +1843,7 @@ export interface LocalExport {
     comments: LocalComment[];
     attachments: LocalAttachment[];
     suggestedEdits: LocalSuggestedEdit[];
+    objectTypes: LocalObjectType[];
   };
 }
 
@@ -1781,6 +1868,7 @@ export async function exportWorkspaceLocal(
     comments,
     attachments,
     suggestedEdits,
+    objectTypes,
   ] = await Promise.all([
     db.workspaces.get(workspaceId),
     db.notebooks.where("workspaceId").equals(workspaceId).toArray(),
@@ -1798,6 +1886,7 @@ export async function exportWorkspaceLocal(
     db.comments.where("workspaceId").equals(workspaceId).toArray(),
     db.attachments.where("workspaceId").equals(workspaceId).toArray(),
     db.suggestedEdits.where("workspaceId").equals(workspaceId).toArray(),
+    db.objectTypes.where("workspaceId").equals(workspaceId).toArray(),
   ]);
   return {
     version: 1,
@@ -1822,6 +1911,7 @@ export async function exportWorkspaceLocal(
       comments,
       attachments,
       suggestedEdits,
+      objectTypes,
     },
   };
 }
@@ -1851,6 +1941,7 @@ export async function importWorkspaceLocal(
       db.comments,
       db.attachments,
       db.suggestedEdits,
+      db.objectTypes,
       db.outbox,
     ],
     async () => {
@@ -1877,6 +1968,7 @@ export async function importWorkspaceLocal(
       if (data.comments.length) await db.comments.bulkPut(data.comments);
       if (data.attachments.length) await db.attachments.bulkPut(data.attachments);
       if (data.suggestedEdits?.length) await db.suggestedEdits.bulkPut(data.suggestedEdits);
+      if (data.objectTypes?.length) await db.objectTypes.bulkPut(data.objectTypes);
 
       for (const notebook of data.notebooks) {
         await enqueueOutbox(db, {
@@ -2010,6 +2102,15 @@ export async function importWorkspaceLocal(
           entityId: edit.id,
           op: "UPSERT",
           payload: suggestedEditPayload(edit),
+        });
+      }
+      for (const objectType of data.objectTypes ?? []) {
+        await enqueueOutbox(db, {
+          workspaceId: objectType.workspaceId,
+          entity: "objectType",
+          entityId: objectType.id,
+          op: "UPSERT",
+          payload: objectTypePayload(objectType),
         });
       }
       for (const attachment of data.attachments) {
