@@ -103,10 +103,6 @@ description: What this implementation covers and which subsystems are deliberate
 - Filters are evaluated at enqueue time, so unmatched events never reach the delivery queue; a condition on a field the event lacks excludes it.
 - Recent deliveries show which destination received what, alongside the existing signed payloads, retries, and test action.
 
-## Next: platform ecosystem
-
-- Custom blocks and custom canvas tools from plugins.
-
 ## Explicit non-goals for this release
 
 This build does not claim production-grade E2E encryption, SSO/SCIM, or app-store signing. The data model and service boundaries are designed so these can be added without replacing the knowledge model.
