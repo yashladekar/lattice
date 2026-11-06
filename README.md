@@ -19,7 +19,7 @@ The repository/package names remain `notes-learning` from the original scaffold;
 - **Navigation** — dashboard with configurable widgets, command palette (`⌘/Ctrl+K`), search with tag/type/notebook filters, tabs with a split pane, keyboard shortcuts, timeline, trash, first-run checklist.
 - **Import & export** — full workspace JSON export/import, per-page Markdown, one-way GitHub Markdown import, two-way Git sync with an optional schedule, and an Obsidian-style Markdown vault export that round-trips through the vault importer.
 - **Collaboration** — comments with a mention picker, suggested-edit review, notifications, presence heartbeat, async multi-device sync, public read-only sharing, page/notebook visibility controls, device list with revocation.
-- **Platforms** — web/PWA (with an update prompt), Tauri desktop config that opens external links in the OS browser, Expo companion for capture/browse/search/review with an offline query cache.
+- **Platforms** — web/PWA (with an update prompt), Tauri desktop config that opens external links in the OS browser, Expo companion for capture, browse, search, review, and Markdown page editing with an offline query cache.
 - **Plugins** — capability-checked worker isolation with per-capability consent, a curated local directory, HTTPS install with manifest validation, and manifest-declared editor blocks and canvas tools whose output is stored in the document.
 - **Self-hosting** — Docker Compose, runtime web config, hashed share/invite tokens, rate limiting, authenticated uploads, workspace-chosen trash retention with a scheduled server purge, and HMAC-signed webhook deliveries to up to five filtered automation destinations.
 

@@ -166,6 +166,8 @@ and the list is derived from the same property, so it syncs with the page.
 - **Markdown** — round-trip the document through a Markdown serializer/importer.
 - **Outline** — heading and list structure in the context panel.
 
+The mobile companion has a Markdown editor of its own. It uses a DOM-free subset parser from the domain package (`simpleMarkdownToDoc`) covering headings, paragraphs, bullet/ordered/task lists, quotes, fenced code, rules, and inline bold/italic/code/links; anything else is kept as plain text rather than dropped. Saving goes through `page.saveDocument` with the revision the phone loaded, so an edit made against a stale revision comes back as a conflict — reload or resolve it in the web app, never a silent overwrite.
+
 ## Versions
 
 Explicit versions can be saved. Conflicts also create snapshots. Restoring a version always creates a new snapshot first, so history is never destructive.

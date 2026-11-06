@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner, useThemeColor, useToast } from "heroui-native";
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { NativeDocument } from "@/components/native-document";
 import { useWorkspace } from "@/contexts/workspace-context";
@@ -60,6 +60,16 @@ export default function NativePageScreen() {
           title: detail?.title ?? "Note",
           headerStyle: { backgroundColor: background },
           headerTintColor: foreground,
+          headerRight: () =>
+            detail ? (
+              <Pressable
+                onPress={() => router.push(`/page/${String(id)}/edit`)}
+                hitSlop={8}
+                className="flex-row items-center gap-1"
+              >
+                <Ionicons name="create-outline" size={20} color={accent} />
+              </Pressable>
+            ) : null,
         }}
       />
       {page.isLoading ? (

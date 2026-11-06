@@ -18,7 +18,8 @@ description: What this implementation covers and which subsystems are deliberate
 - Share links for pages, canvases, notebooks, and graphs; public read-only surfaces.
 - Comments with a mention picker, notifications, presence heartbeats, audit log, devices with revocation, and a suggested-edit review queue.
 - Signed webhook deliveries for page, canvas, capture, and comment events, queued from the change log with retries and a test action.
-- Web, PWA shell with an update prompt, Tauri packaging config with OS-browser link handling, Expo companion with a persisted offline query cache, self-host Docker with a persistent uploads volume.
+- Web, PWA shell with an update prompt, Tauri packaging config with OS-browser link handling, self-host Docker with a persistent uploads volume.
+- Expo companion with capture, browse, search, review, **Markdown page editing**, and a persisted offline query cache. Editing uses a DOM-free Markdown subset parser and the same revision-aware `page.saveDocument` path as the web app, so a stale edit returns a conflict instead of overwriting another device.
 - Fumadocs product/architecture documentation.
 
 ## Shipped: live co-editing

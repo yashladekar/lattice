@@ -30,3 +30,4 @@ export * from "./transcription";
 export * from "./suggestions";
 export * from "./object-types";
 export * from "./ocr";
+export * from "./markdown-doc";
