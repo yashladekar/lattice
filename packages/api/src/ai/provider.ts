@@ -68,3 +68,43 @@ export function localAnswer(
   );
   return lines.join("\n");
 }
+
+/**
+ * OpenAI-compatible embeddings. Returns null when the provider is unreachable
+ * or answers with a shape we do not understand, so callers fall back to token
+ * retrieval instead of indexing garbage.
+ */
+export async function embedTexts(
+  config: AiConfig,
+  inputs: string[],
+): Promise<number[][] | null> {
+  if (!inputs.length) return [];
+  const endpoint = `${config.baseUrl.replace(/\/$/, "")}/embeddings`;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${config.apiKey}`,
+      },
+      signal: AbortSignal.timeout(30_000),
+      body: JSON.stringify({
+        model: config.embeddingModel ?? "text-embedding-3-small",
+        input: inputs,
+      }),
+    });
+    if (!response.ok) return null;
+    const json = (await response.json()) as {
+      data?: Array<{ embedding?: unknown; index?: number }>;
+    };
+    if (!Array.isArray(json.data) || json.data.length !== inputs.length) return null;
+    const ordered = [...json.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    const vectors = ordered.map((entry) =>
+      Array.isArray(entry.embedding) ? (entry.embedding as unknown[]) : null,
+    );
+    if (vectors.some((vector) => !vector)) return null;
+    return vectors.map((vector) => (vector as number[]).map((value) => Number(value)));
+  } catch {
+    return null;
+  }
+}

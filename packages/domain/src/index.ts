@@ -24,3 +24,4 @@ export * from "./graph-query";
 export * from "./vault-export";
 export * from "./email-ingest";
 export * from "./plugin-directory";
+export * from "./embeddings";

@@ -1,9 +1,13 @@
 import type { Database } from "@notes-learning/db";
+import { Prisma } from "@notes-learning/db";
 import {
   buildSnippet,
+  cosineSimilarityVectors,
   createId,
+  embeddingSource,
   extractOutline,
   generateFlashcardsFromDoc,
+  isEmbeddingVector,
   knowledgeGaps,
   masteryScore,
   relatedDocuments,
@@ -18,7 +22,8 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
-import { aiEnabled, chatCompletion, localAnswer } from "../ai/provider";
+import { aiEnabled, chatCompletion, embedTexts, localAnswer } from "../ai/provider";
+import type { AiConfig } from "../context";
 import { workspaceProcedure } from "../index";
 import { getAccessiblePageIds } from "../services/sync";
 
@@ -90,6 +95,82 @@ function contextBlock(pages: RetrievedPage[]): string {
     .join("\n\n---\n\n");
 }
 
+/**
+ * Ranks pages by embedding similarity when a vector index exists. Returns null
+ * when there is nothing to rank, so callers fall back to token retrieval.
+ */
+async function retrieveSemantic(
+  db: Database,
+  config: AiConfig,
+  workspaceId: string,
+  userId: string,
+  role: Role,
+  question: string,
+  scope?: { notebookId?: string | null; pageIds?: string[] },
+  limit = 8,
+): Promise<RetrievedPage[] | null> {
+  const rows = await db.pageEmbedding.findMany({
+    where: { workspaceId },
+    select: { pageId: true, vector: true },
+  });
+  if (!rows.length) return null;
+  const embedded = await embedTexts(config, [question]);
+  const questionVector = embedded?.[0];
+  if (!questionVector) return null;
+  const allowed = await getAccessiblePageIds(db, workspaceId, userId, role);
+  const scopedIds =
+    scope?.notebookId || scope?.pageIds?.length
+      ? new Set(
+          (
+            await db.page.findMany({
+              where: {
+                workspaceId,
+                deletedAt: null,
+                ...(scope.notebookId ? { notebookId: scope.notebookId } : {}),
+                ...(scope.pageIds?.length ? { id: { in: scope.pageIds } } : {}),
+              },
+              select: { id: true },
+            })
+          ).map((page) => page.id),
+        )
+      : null;
+  const ranked = rows
+    .map((row) => ({
+      pageId: row.pageId,
+      score: isEmbeddingVector(row.vector)
+        ? cosineSimilarityVectors(questionVector, row.vector)
+        : null,
+    }))
+    .filter((entry): entry is { pageId: string; score: number } => entry.score !== null)
+    .filter((entry) => entry.score > 0.2)
+    .filter((entry) => !allowed || allowed.has(entry.pageId))
+    .filter((entry) => !scopedIds || scopedIds.has(entry.pageId))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+  if (!ranked.length) return null;
+
+  const pages = await db.page.findMany({
+    where: { id: { in: ranked.map((entry) => entry.pageId) }, workspaceId, deletedAt: null },
+    include: { document: true },
+  });
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  return ranked.flatMap((entry) => {
+    const page = byId.get(entry.pageId);
+    if (!page) return [];
+    const body = page.document?.plainText ?? "";
+    return [
+      {
+        pageId: page.id,
+        title: page.title,
+        body,
+        score: entry.score,
+        excerpt: buildSnippet(body, question, 700),
+        updatedAt: page.updatedAt.toISOString(),
+      } satisfies RetrievedPage,
+    ];
+  });
+}
+
 const SYSTEM_PROMPT =
   "You are Lattice, a calm, precise knowledge assistant. Answer using the supplied notes. Cite sources as [1], [2] matching the order provided. If the notes do not support an answer, say what is missing. Do not invent facts. Keep responses compact and useful. Never claim to have modified the user's notes.";
 
@@ -153,6 +234,107 @@ export const aiRouter = {
     };
   }),
 
+  embeddingStatus: workspaceProcedure("VIEWER").handler(async ({ context }) => {
+    const [count, latest] = await Promise.all([
+      context.db.pageEmbedding.count({ where: { workspaceId: context.workspaceId } }),
+      context.db.pageEmbedding.findFirst({
+        where: { workspaceId: context.workspaceId },
+        select: { model: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
+    return {
+      enabled: aiEnabled(context),
+      model: latest?.model ?? context.ai?.embeddingModel ?? "text-embedding-3-small",
+      count,
+      lastIndexedAt: latest?.updatedAt.toISOString() ?? null,
+    };
+  }),
+
+  reindex: workspaceProcedure("EDITOR").handler(async ({ context }) => {
+    if (!aiEnabled(context)) {
+      return {
+        ok: false as const,
+        indexed: 0,
+        skipped: 0,
+        reason: "Semantic search needs an AI provider with an embeddings endpoint.",
+      };
+    }
+    const allowed = await getAccessiblePageIds(
+      context.db,
+      context.workspaceId,
+      context.userId,
+      context.role,
+    );
+    const pages = await context.db.page.findMany({
+      where: {
+        workspaceId: context.workspaceId,
+        deletedAt: null,
+        ...(allowed ? { id: { in: [...allowed] } } : {}),
+      },
+      include: { document: true },
+    });
+    const indexable = pages.filter(
+      (page) => page.document && (page.document.plainText.trim() || page.title.trim()),
+    );
+    const model = context.ai.embeddingModel ?? "text-embedding-3-small";
+    let indexed = 0;
+    const batchSize = 32;
+    for (let offset = 0; offset < indexable.length; offset += batchSize) {
+      const batch = indexable.slice(offset, offset + batchSize);
+      const vectors = await embedTexts(
+        context.ai,
+        batch.map((page) => embeddingSource(page.title, page.document?.plainText ?? "")),
+      );
+      if (!vectors) {
+        return {
+          ok: false as const,
+          indexed,
+          skipped: pages.length - indexable.length,
+          reason: "The embedding provider did not respond.",
+        };
+      }
+      await context.db.$transaction(
+        batch.map((page, index) => {
+          const vector = vectors[index] ?? [];
+          return context.db.pageEmbedding.upsert({
+            where: { pageId: page.id },
+            create: {
+              pageId: page.id,
+              workspaceId: context.workspaceId,
+              model,
+              dimensions: vector.length,
+              vector: vector as Prisma.InputJsonValue,
+            },
+            update: {
+              model,
+              dimensions: vector.length,
+              vector: vector as Prisma.InputJsonValue,
+            },
+          });
+        }),
+      );
+      indexed += batch.length;
+    }
+    const keep = new Set(indexable.map((page) => page.id));
+    const existing = await context.db.pageEmbedding.findMany({
+      where: { workspaceId: context.workspaceId },
+      select: { pageId: true },
+    });
+    const stale = existing.map((row) => row.pageId).filter((pageId) => !keep.has(pageId));
+    if (stale.length) {
+      await context.db.pageEmbedding.deleteMany({
+        where: { workspaceId: context.workspaceId, pageId: { in: stale } },
+      });
+    }
+    return {
+      ok: true as const,
+      indexed,
+      skipped: pages.length - indexable.length,
+      model,
+    };
+  }),
+
   threads: workspaceProcedure("VIEWER").handler(async ({ context }) => {
     return context.db.aiThread.findMany({
       where: {
@@ -194,14 +376,28 @@ export const aiRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      const pages = await retrievePages(
-        context.db,
-        context.workspaceId,
-        context.userId,
-        context.role,
-        input.question,
-        input.scope,
-      );
+      let pages: RetrievedPage[] | null = null;
+      if (aiEnabled(context)) {
+        pages = await retrieveSemantic(
+          context.db,
+          context.ai,
+          context.workspaceId,
+          context.userId,
+          context.role,
+          input.question,
+          input.scope,
+        );
+      }
+      if (!pages) {
+        pages = await retrievePages(
+          context.db,
+          context.workspaceId,
+          context.userId,
+          context.role,
+          input.question,
+          input.scope,
+        );
+      }
       let answer = localAnswer(input.question, citationsFrom(pages));
       let provider = "local";
       if (aiEnabled(context)) {

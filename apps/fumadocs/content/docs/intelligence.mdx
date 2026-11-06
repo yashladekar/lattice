@@ -66,6 +66,21 @@ offline**:
 Ambiguous names return the candidate list instead of guessing. Anything that is
 not a graph question falls through to the server retrieval/provider path.
 
+## Semantic index
+
+With an OpenAI-compatible provider configured, **Settings → Intelligence → Semantic index**
+embeds each page and stores the vectors in Postgres. Ask then embeds the question
+and ranks pages by cosine similarity before building the context for the model.
+Without an index, or if the provider cannot produce embeddings, retrieval falls
+back to token overlap.
+
+- The embeddings model comes from `AI_EMBEDDING_MODEL` (default
+  `text-embedding-3-small`).
+- The index is per workspace and rebuilds on demand; rebuild after large imports
+  or a model change.
+- Vectors are stored as JSON, so no Postgres extension is required at this scale.
+- Pages the requester cannot read are excluded before ranking.
+
 ## Guardrails
 
 - AI can propose; it cannot silently write. Applying cards, connections, or pages is a user action.

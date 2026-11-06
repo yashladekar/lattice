@@ -13,7 +13,7 @@ description: What this implementation covers and which subsystems are deliberate
 - Universal capture inbox, quick capture, URL preview, tag and related-note suggestions with explicit approval, capture-to-page, and email ingestion through an inbound webhook.
 - Workspace JSON export/import, per-page Markdown, GitHub Markdown import with two-way Git sync (including an optional schedule), an Obsidian-style Markdown vault export for round-trips, and Obsidian and Notion vault import.
 - Learning decks, generated and manual cards, SM-2 review, quizzes, mastery, paths, gaps, and opt-in due-card reminders while the app is open.
-- Optional AI with citations and local fallback: summarize, explain, compare, examples, connections, cards, mind map, outdated pages, and gaps.
+- Optional AI with citations and local fallback: summarize, explain, compare, examples, connections, cards, mind map, outdated pages, and gaps, plus an embedding-based semantic index for Ask retrieval.
 - Dashboard widgets with reorder and visibility controls, command palette, tabs with a split pane, keyboard-first navigation, search, timeline, trash, and a dismissible first-run checklist.
 - Share links for pages, canvases, notebooks, and graphs; public read-only surfaces.
 - Comments with a mention picker, notifications, presence heartbeats, audit log, devices with revocation.
@@ -59,7 +59,8 @@ description: What this implementation covers and which subsystems are deliberate
 
 ## Next: knowledge intelligence
 
-- Embedding-based semantic search with a vector index.
+- Semantic search without a provider (local embeddings).
+- Temporal graph playback across note versions.
 
 ## Next: capture and ingestion
 

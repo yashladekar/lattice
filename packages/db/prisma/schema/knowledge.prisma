@@ -79,3 +79,17 @@ model PageTag {
   @@index([tagId])
   @@map("page_tag")
 }
+
+/// Provider embedding for a page, used for semantic retrieval. The vector is
+/// stored as JSON so no Postgres extension is required at this scale.
+model PageEmbedding {
+  pageId      String   @id
+  workspaceId String
+  model       String
+  dimensions  Int
+  vector      Json
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@map("page_embedding")
+}

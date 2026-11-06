@@ -150,7 +150,13 @@ export function SettingsView() {
     queryFn: async () => client.workspace.ingestToken(),
     enabled: online && Boolean(activeWorkspaceId),
   });
+  const embeddingStatus = useQuery({
+    queryKey: ["ai-embeddings", activeWorkspaceId],
+    queryFn: async () => client.ai.embeddingStatus(),
+    enabled: online && Boolean(activeWorkspaceId),
+  });
   const [newIngestToken, setNewIngestToken] = useState<string | null>(null);
+  const [indexing, setIndexing] = useState(false);
 
   const saveGeneral = async () => {
     if (!db || !activeWorkspaceId) return;
@@ -223,6 +229,23 @@ export function SettingsView() {
       toast.success("Webhook setup copied");
     } catch {
       toast.error("Could not copy the setup");
+    }
+  };
+
+  const buildEmbeddingIndex = async () => {
+    setIndexing(true);
+    try {
+      const result = await client.ai.reindex();
+      await embeddingStatus.refetch();
+      if (result.ok) {
+        toast.success(`Indexed ${result.indexed} pages with ${result.model}`);
+      } else {
+        toast.error(result.reason);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not build the index");
+    } finally {
+      setIndexing(false);
     }
   };
 
@@ -865,6 +888,61 @@ export function SettingsView() {
                 <li>• AI never edits your notes without an explicit Apply action.</li>
                 <li>• Local mode uses token overlap and graph structure, not external calls.</li>
               </ul>
+            </SettingsCard>
+
+            <SettingsCard
+              title="Semantic index"
+              description="Embeds pages so Ask can retrieve by meaning, not just shared words."
+            >
+              {!online ? (
+                <OfflineNotice />
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span
+                      className={cn(
+                        "status-dot",
+                        embeddingStatus.data?.count ? "bg-moss" : "bg-saffron",
+                      )}
+                    />
+                    {embeddingStatus.data?.count
+                      ? `${embeddingStatus.data.count} pages indexed · ${embeddingStatus.data.model}`
+                      : "No pages indexed yet"}
+                  </div>
+                  {embeddingStatus.data?.lastIndexedAt ? (
+                    <p className="text-[8px] text-muted-foreground">
+                      Last indexed{" "}
+                      {new Date(embeddingStatus.data.lastIndexedAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px]"
+                      disabled={indexing || !embeddingStatus.data?.enabled}
+                      onClick={() => void buildEmbeddingIndex()}
+                    >
+                      {indexing ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="size-3" />
+                      )}{" "}
+                      {embeddingStatus.data?.count ? "Rebuild index" : "Build index"}
+                    </Button>
+                    <span className="text-[8px] text-muted-foreground">
+                      {embeddingStatus.data?.enabled
+                        ? "Uses AI_EMBEDDING_MODEL on the server."
+                        : "Add an AI provider to enable embeddings."}
+                    </span>
+                  </div>
+                  <p className="text-[8px] leading-relaxed text-muted-foreground">
+                    Ask uses the vector index when it exists and the provider can embed the question;
+                    otherwise it falls back to token retrieval. Rebuild after large imports or
+                    provider changes.
+                  </p>
+                </div>
+              )}
             </SettingsCard>
           </section>
         ) : null}
