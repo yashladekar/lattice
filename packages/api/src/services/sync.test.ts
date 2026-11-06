@@ -126,3 +126,89 @@ describeWithDatabase("document write origins", () => {
     expect(document?.plainText).toBe("accepted suggestion");
   });
 });
+
+describeWithDatabase("member role changes through sync", () => {
+  let db: Database;
+  const workspaces: TestWorkspace[] = [];
+
+  beforeAll(() => {
+    db = createTestDatabase();
+  });
+
+  afterAll(async () => {
+    for (const workspace of workspaces) {
+      await cleanupTestWorkspace(db, workspace.id);
+    }
+    await db.$disconnect();
+  });
+
+  const setup = async () => {
+    const workspace = await createTestWorkspace(db);
+    workspaces.push(workspace);
+    const adminId = `itest_admin_${randomUUID()}`;
+    await db.workspaceMember.create({
+      data: {
+        id: randomUUID(),
+        workspaceId: workspace.id,
+        userId: adminId,
+        role: "ADMIN",
+        status: "ACTIVE",
+      },
+    });
+    const memberId = async (userId: string) =>
+      (await db.workspaceMember.findFirst({ where: { workspaceId: workspace.id, userId } }))!.id;
+    const pushMember = (actorId: string, id: string, payload: Record<string, unknown>) =>
+      pushSync(db, {
+        workspaceId: workspace.id,
+        userId: actorId,
+        ops: [
+          {
+            opId: `m-${randomUUID()}`,
+            entity: "member",
+            entityId: id,
+            op: "UPSERT",
+            payload,
+          },
+        ],
+      });
+    return { workspace, adminId, memberId, pushMember };
+  };
+
+  it("refuses an admin promoting themselves to owner", async () => {
+    const { adminId, memberId, pushMember } = await setup();
+    const id = await memberId(adminId);
+    await expect(pushMember(adminId, id, { role: "OWNER" })).rejects.toThrow(/owner/i);
+    expect((await db.workspaceMember.findUnique({ where: { id } }))?.role).toBe("ADMIN");
+  });
+
+  it("refuses an admin promoting someone else to owner", async () => {
+    const { adminId, workspace, memberId, pushMember } = await setup();
+    const ownerMemberId = await memberId(workspace.ownerId);
+    await expect(pushMember(adminId, ownerMemberId, { role: "OWNER" })).rejects.toThrow();
+    expect((await db.workspaceMember.findUnique({ where: { id: ownerMemberId } }))?.role).toBe(
+      "OWNER",
+    );
+  });
+
+  it("lets the owner promote and demote a co-owner", async () => {
+    const { workspace, adminId, memberId, pushMember } = await setup();
+    const id = await memberId(adminId);
+    await pushMember(workspace.ownerId, id, { role: "OWNER" });
+    expect((await db.workspaceMember.findUnique({ where: { id } }))?.role).toBe("OWNER");
+    await pushMember(workspace.ownerId, id, { role: "ADMIN" });
+    expect((await db.workspaceMember.findUnique({ where: { id } }))?.role).toBe("ADMIN");
+  });
+
+  it("refuses removing an owner through sync", async () => {
+    const { workspace, memberId } = await setup();
+    const id = await memberId(workspace.ownerId);
+    await expect(
+      pushSync(db, {
+        workspaceId: workspace.id,
+        userId: workspace.ownerId,
+        ops: [{ opId: `d-${randomUUID()}`, entity: "member", entityId: id, op: "DELETE", payload: {} }],
+      }),
+    ).rejects.toThrow(/transferred/i);
+    expect((await db.workspaceMember.findUnique({ where: { id } }))?.deletedAt).toBeNull();
+  });
+});

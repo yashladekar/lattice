@@ -1599,7 +1599,16 @@ async function applyMember(
   if (existing.role === "OWNER" && role !== "OWNER") {
     throw new ORPCError("FORBIDDEN", { message: "Only the owner can change the owner" });
   }
+  // Assigning ownership is the owner's call, exactly as in workspace.updateMember.
+  if (stringValue(payload.role) === "OWNER" && role !== "OWNER") {
+    throw new ORPCError("FORBIDDEN", { message: "Only the owner can transfer ownership" });
+  }
   if (op.op === "DELETE") {
+    if (existing.role === "OWNER") {
+      throw new ORPCError("FORBIDDEN", {
+        message: "Ownership must be transferred before the owner can be removed",
+      });
+    }
     const deleted = await tx.workspaceMember.update({
       where: { id: existing.id },
       data: { deletedAt: new Date(), status: "SUSPENDED" },

@@ -78,14 +78,38 @@ app.use(
 );
 
 await mkdir(uploadRoot, { recursive: true });
+const INLINE_UPLOAD_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".avif",
+  ".mp3",
+  ".wav",
+  ".m4a",
+  ".ogg",
+  ".mp4",
+  ".webm",
+]);
 app.use(
   "/uploads",
   express.static(uploadRoot, {
     maxAge: "1y",
     immutable: true,
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
+    setHeaders: (res, filePath) => {
+      const extension = path.extname(filePath).toLowerCase();
+      // Never let a browser guess a type, so an uploaded .html cannot execute.
+      res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      if (INLINE_UPLOAD_EXTENSIONS.has(extension)) {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        return;
+      }
+      // Anything else is a download: no script execution on the API origin and
+      // no cross-origin read of potentially private documents.
+      res.setHeader("Content-Disposition", "attachment");
+      res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
     },
   }),
 );
