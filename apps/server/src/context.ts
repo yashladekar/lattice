@@ -56,7 +56,7 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     ai: aiConfig,
     headers,
     uploads: { read: readUpload },
-    sso: { secret: ENV.BETTER_AUTH_SECRET },
+    secrets: { keyMaterial: ENV.BETTER_AUTH_SECRET },
     collab: {
       isActive: (_workspaceId: string, pageId: string, userId: string) =>
         isCollaborating(pageId, userId),

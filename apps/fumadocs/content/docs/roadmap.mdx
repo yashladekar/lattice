@@ -76,9 +76,12 @@ description: What this implementation covers and which subsystems are deliberate
 - Export on demand builds an audited JSON bundle server-side that includes soft-deleted rows and the audit log but never credentials or token hashes, with caps and truncation reported.
 - Verified against the purge for each scope, including that a released hold lets the next purge remove the content.
 
-## Next: enterprise
+## Shipped: BYOK for AI
 
-- BYOK for AI: workspace-owned provider credentials, encrypted at rest and masked on read.
+- Workspace-owned OpenAI-compatible provider credentials (base URL, key, chat/embedding/transcription models) that win over the deployment configuration, with a visible source indicator and clean fallback when removed.
+- The key is encrypted at rest under a deployment-derived key, masked on read, and kept out of the audit log (the entry records the base URL, model, and rotation only).
+- The base URL is validated as https (http only for localhost) without credentials, query, or fragment; decryption failures fall back instead of breaking AI.
+- Verified end-to-end: a stored workspace key reached a provider as `Bearer <key>`, and a corrupted ciphertext fell back to the deployment config.
 
 ## Shipped: duplicate review
 

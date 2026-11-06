@@ -12,11 +12,14 @@ import {
   createWorkspaceInput,
   describeLegalHoldHolders,
   ensureWorkspaceInput,
+  maskApiKey,
+  normalizeAiBaseUrl,
+  normalizeModelName,
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
-import { discoverOidc, encryptSsoSecret } from "@notes-learning/auth";
+import { decryptAiKey, discoverOidc, encryptAiKey, encryptSsoSecret } from "@notes-learning/auth";
 
 import { createToken, hashToken, requireMembership, writeAudit } from "../authz";
 import { protectedProcedure, workspaceProcedure } from "../index";
@@ -942,8 +945,13 @@ export const workspaceRouter = {
       if (!existing && !input.clientSecret) {
         throw new ORPCError("BAD_REQUEST", { message: "A client secret is required." });
       }
+      if (!context.secrets) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "This server cannot store workspace secrets.",
+        });
+      }
       const secret = input.clientSecret
-        ? encryptSsoSecret(input.clientSecret, context.sso!.secret)
+        ? encryptSsoSecret(input.clientSecret, context.secrets.keyMaterial)
         : existing!.clientSecret;
       const connection = await context.db.ssoConnection.upsert({
         where: { workspaceId: context.workspaceId },
@@ -1131,6 +1139,122 @@ export const workspaceRouter = {
       metadata: { counts: bundle.counts, truncated: bundle.truncated },
     });
     return bundle;
+  }),
+
+  aiConfig: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const row = await context.db.workspaceAiConfig.findUnique({
+      where: { workspaceId: context.workspaceId },
+    });
+    let masked: string | null = null;
+    if (row && context.secrets) {
+      try {
+        masked = maskApiKey(decryptAiKey(row.apiKey, context.secrets.keyMaterial));
+      } catch {
+        masked = "••••";
+      }
+    } else if (row) {
+      masked = "••••";
+    }
+    return {
+      configured: Boolean(row),
+      baseUrl: row?.baseUrl ?? "",
+      model: row?.model ?? "",
+      embeddingModel: row?.embeddingModel ?? "",
+      transcribeModel: row?.transcribeModel ?? "",
+      apiKeyMasked: masked,
+      deploymentAvailable: Boolean(context.ai?.apiKey),
+      source: row ? "workspace" : context.ai?.apiKey ? "deployment" : "none",
+    };
+  }),
+
+  saveAiConfig: workspaceProcedure("ADMIN")
+    .input(
+      z.object({
+        baseUrl: z.string().trim().min(1).max(500),
+        apiKey: z.string().trim().max(500).optional(),
+        model: z.string().trim().min(1).max(120),
+        embeddingModel: z.string().trim().max(120).optional(),
+        transcribeModel: z.string().trim().max(120).optional(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const baseUrl = normalizeAiBaseUrl(input.baseUrl);
+      if (!baseUrl) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Use an https base URL without credentials or a query string.",
+        });
+      }
+      const model = normalizeModelName(input.model);
+      if (!model) throw new ORPCError("BAD_REQUEST", { message: "A model name is required." });
+      const embeddingModel = input.embeddingModel
+        ? normalizeModelName(input.embeddingModel)
+        : null;
+      const transcribeModel = input.transcribeModel
+        ? normalizeModelName(input.transcribeModel)
+        : null;
+      const existing = await context.db.workspaceAiConfig.findUnique({
+        where: { workspaceId: context.workspaceId },
+      });
+      const providedKey = input.apiKey?.trim();
+      if (!existing && !providedKey) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "An API key is required the first time you save provider credentials.",
+        });
+      }
+      if (!context.secrets) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "This server cannot store workspace secrets.",
+        });
+      }
+      const apiKey = providedKey
+        ? encryptAiKey(providedKey, context.secrets.keyMaterial)
+        : existing!.apiKey;
+      const config = await context.db.workspaceAiConfig.upsert({
+        where: { workspaceId: context.workspaceId },
+        create: {
+          workspaceId: context.workspaceId,
+          baseUrl,
+          apiKey,
+          model,
+          embeddingModel,
+          transcribeModel,
+          updatedById: context.userId,
+        },
+        update: {
+          baseUrl,
+          apiKey,
+          model,
+          embeddingModel,
+          transcribeModel,
+          updatedById: context.userId,
+        },
+      });
+      await writeAudit(context.db, {
+        workspaceId: context.workspaceId,
+        actorId: context.userId,
+        action: "ai_config.updated",
+        resourceType: "workspace_ai_config",
+        resourceId: config.workspaceId,
+        metadata: { baseUrl, model, rotatedKey: Boolean(providedKey) },
+      });
+      return { baseUrl: config.baseUrl, model: config.model };
+    }),
+
+  removeAiConfig: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const existing = await context.db.workspaceAiConfig.findUnique({
+      where: { workspaceId: context.workspaceId },
+      select: { workspaceId: true },
+    });
+    if (!existing) return { ok: true };
+    await context.db.workspaceAiConfig.delete({ where: { workspaceId: context.workspaceId } });
+    await writeAudit(context.db, {
+      workspaceId: context.workspaceId,
+      actorId: context.userId,
+      action: "ai_config.removed",
+      resourceType: "workspace_ai_config",
+      resourceId: context.workspaceId,
+    });
+    return { ok: true };
   }),
 
   audit: workspaceProcedure("ADMIN").handler(async ({ context }) => {

@@ -1,0 +1,15 @@
+/// Workspace-owned AI provider credentials. The API key is encrypted with a
+/// deployment-derived key and only ever returned masked.
+model WorkspaceAiConfig {
+  workspaceId     String   @id
+  baseUrl         String
+  apiKey          String
+  model           String
+  embeddingModel  String?
+  transcribeModel String?
+  updatedById     String
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("workspace_ai_config")
+}

@@ -8,6 +8,7 @@ import { createPolarClient } from "./lib/payments";
 import { createSsoPlugin } from "./lib/sso-plugin";
 
 export { decryptSsoSecret, discoverOidc, encryptSsoSecret } from "./lib/sso";
+export { decryptAiKey, encryptAiKey } from "./lib/sso";
 
 export type AuthConfig = {
   BETTER_AUTH_URL: string;

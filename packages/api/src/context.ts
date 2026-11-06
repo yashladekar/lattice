@@ -25,8 +25,8 @@ export type Context = {
   uploads?: {
     read(url: string): Promise<{ bytes: Uint8Array; filename: string; mime: string } | null>;
   };
-  /** Present when the host can encrypt workspace SSO client secrets. */
-  sso?: {
-    secret: string;
+  /** Present when the host can encrypt workspace secrets (SSO client secrets, AI keys). */
+  secrets?: {
+    keyMaterial: string;
   };
 };

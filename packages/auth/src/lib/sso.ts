@@ -1,7 +1,9 @@
-import { createCipheriv, createDecipheriv, createHash, createSecretKey, randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import { normalizeIssuer } from "@notes-learning/domain";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+
+import { decryptSecret, encryptSecret } from "./secrets";
 
 /**
  * OIDC plumbing for workspace single sign-on.
@@ -53,34 +55,20 @@ export async function discoverOidc(issuer: string): Promise<OidcDiscovery> {
   return value;
 }
 
-/** AES-256-GCM with a key derived from the deployment secret. */
-function keyFrom(secret: string) {
-  return createSecretKey(createHash("sha256").update(`lattice-sso:${secret}`).digest());
-}
-
 export function encryptSsoSecret(secret: string, keyMaterial: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", keyFrom(keyMaterial), iv);
-  const ciphertext = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `v1.${iv.toString("base64url")}.${tag.toString("base64url")}.${ciphertext.toString("base64url")}`;
+  return encryptSecret(secret, keyMaterial, "sso");
 }
 
 export function decryptSsoSecret(payload: string, keyMaterial: string): string {
-  const [version, iv, tag, ciphertext] = payload.split(".");
-  if (version !== "v1" || !iv || !tag || !ciphertext) {
-    throw new Error("The stored SSO secret is not in a readable format.");
-  }
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    keyFrom(keyMaterial),
-    Buffer.from(iv, "base64url"),
-  );
-  decipher.setAuthTag(Buffer.from(tag, "base64url"));
-  return Buffer.concat([
-    decipher.update(Buffer.from(ciphertext, "base64url")),
-    decipher.final(),
-  ]).toString("utf8");
+  return decryptSecret(payload, keyMaterial, "sso");
+}
+
+export function encryptAiKey(apiKey: string, keyMaterial: string): string {
+  return encryptSecret(apiKey, keyMaterial, "ai");
+}
+
+export function decryptAiKey(payload: string, keyMaterial: string): string {
+  return decryptSecret(payload, keyMaterial, "ai");
 }
 
 export interface PkcePair {

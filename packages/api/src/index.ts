@@ -2,6 +2,7 @@ import { hasRole, type Role } from "@notes-learning/domain";
 import { ORPCError, os } from "@orpc/server";
 
 import type { Context } from "./context";
+import { resolveAiConfig } from "./services/ai-config";
 
 export const o = os.$context<Context>();
 
@@ -60,4 +61,19 @@ export const workspaceProcedure = (minimumRole: Role = "VIEWER") =>
         membershipId: membership.id,
       },
     });
+  });
+
+/**
+ * Workspace procedures whose provider comes from the workspace's own AI
+ * credentials when it has them, falling back to the deployment configuration.
+ */
+export const aiWorkspaceProcedure = (minimumRole: Role = "VIEWER") =>
+  workspaceProcedure(minimumRole).use(async ({ context, next }) => {
+    const resolved = await resolveAiConfig(
+      context.db,
+      context.workspaceId,
+      context.ai,
+      context.secrets?.keyMaterial,
+    );
+    return next({ context: { ai: resolved.config } });
   });

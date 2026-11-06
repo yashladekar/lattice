@@ -27,7 +27,7 @@ import { z } from "zod";
 
 import { aiEnabled, chatCompletion, embedTexts, localAnswer, transcribeAudio } from "../ai/provider";
 import type { AiConfig } from "../context";
-import { workspaceProcedure } from "../index";
+import { aiWorkspaceProcedure } from "../index";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
 
 interface RetrievedPage {
@@ -229,7 +229,7 @@ async function saveThreadMessage(
 }
 
 export const aiRouter = {
-  status: workspaceProcedure("VIEWER").handler(({ context }) => {
+  status: aiWorkspaceProcedure("VIEWER").handler(({ context }) => {
     return {
       enabled: aiEnabled(context),
       mode: aiEnabled(context) ? "provider" : "local",
@@ -237,7 +237,7 @@ export const aiRouter = {
     };
   }),
 
-  embeddingStatus: workspaceProcedure("VIEWER").handler(async ({ context }) => {
+  embeddingStatus: aiWorkspaceProcedure("VIEWER").handler(async ({ context }) => {
     const [count, latest] = await Promise.all([
       context.db.pageEmbedding.count({ where: { workspaceId: context.workspaceId } }),
       context.db.pageEmbedding.findFirst({
@@ -254,7 +254,7 @@ export const aiRouter = {
     };
   }),
 
-  reindex: workspaceProcedure("EDITOR").handler(async ({ context }) => {
+  reindex: aiWorkspaceProcedure("EDITOR").handler(async ({ context }) => {
     if (!aiEnabled(context)) {
       return {
         ok: false as const,
@@ -338,7 +338,7 @@ export const aiRouter = {
     };
   }),
 
-  threads: workspaceProcedure("VIEWER").handler(async ({ context }) => {
+  threads: aiWorkspaceProcedure("VIEWER").handler(async ({ context }) => {
     return context.db.aiThread.findMany({
       where: {
         workspaceId: context.workspaceId,
@@ -350,7 +350,7 @@ export const aiRouter = {
     });
   }),
 
-  thread: workspaceProcedure("VIEWER")
+  thread: aiWorkspaceProcedure("VIEWER")
     .input(z.object({ threadId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
       const thread = await context.db.aiThread.findFirst({
@@ -365,7 +365,7 @@ export const aiRouter = {
       return thread;
     }),
 
-  ask: workspaceProcedure("VIEWER")
+  ask: aiWorkspaceProcedure("VIEWER")
     .input(
       z.object({
         question: z.string().trim().min(2).max(4000),
@@ -429,7 +429,7 @@ export const aiRouter = {
       return { answer, citations, provider, threadId, local: provider === "local" };
     }),
 
-  transcribe: workspaceProcedure("EDITOR")
+  transcribe: aiWorkspaceProcedure("EDITOR")
     .input(z.object({ captureId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
       if (!aiEnabled(context)) {
@@ -489,7 +489,7 @@ export const aiRouter = {
       return { text, content };
     }),
 
-  pageAction: workspaceProcedure("VIEWER")
+  pageAction: aiWorkspaceProcedure("VIEWER")
     .input(
       z.object({
         pageId: z.string().min(1),

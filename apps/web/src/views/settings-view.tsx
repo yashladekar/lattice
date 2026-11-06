@@ -183,6 +183,11 @@ export function SettingsView() {
     queryFn: async () => client.workspace.legalHolds(),
     enabled: online && Boolean(activeWorkspaceId),
   });
+  const aiConfig = useQuery({
+    queryKey: ["workspace-ai-config", activeWorkspaceId],
+    queryFn: async () => client.workspace.aiConfig(),
+    enabled: online && Boolean(activeWorkspaceId),
+  });
   const embeddingStatus = useQuery({
     queryKey: ["ai-embeddings", activeWorkspaceId],
     queryFn: async () => client.ai.embeddingStatus(),
@@ -199,6 +204,11 @@ export function SettingsView() {
   const [holdScope, setHoldScope] = useState<"WORKSPACE" | "NOTEBOOK" | "PAGE">("WORKSPACE");
   const [holdTarget, setHoldTarget] = useState("");
   const [holdReason, setHoldReason] = useState("");
+  const [aiBaseUrl, setAiBaseUrl] = useState("");
+  const [aiModel, setAiModel] = useState("");
+  const [aiEmbeddingModel, setAiEmbeddingModel] = useState("");
+  const [aiTranscribeModel, setAiTranscribeModel] = useState("");
+  const [aiKey, setAiKey] = useState("");
   const legalNotebooks = useWorkspaceNotebooks();
   const legalPages = useWorkspacePages();
   const [pendingRetention, setPendingRetention] = useState<number | null>(null);
@@ -382,6 +392,43 @@ export function SettingsView() {
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not build the export");
+    }
+  };
+
+  useEffect(() => {
+    const config = aiConfig.data;
+    if (!config) return;
+    setAiBaseUrl(config.baseUrl);
+    setAiModel(config.model);
+    setAiEmbeddingModel(config.embeddingModel);
+    setAiTranscribeModel(config.transcribeModel);
+    setAiKey("");
+  }, [aiConfig.data]);
+
+  const saveAiProvider = async () => {
+    try {
+      await client.workspace.saveAiConfig({
+        baseUrl: aiBaseUrl,
+        ...(aiKey.trim() ? { apiKey: aiKey.trim() } : {}),
+        model: aiModel,
+        embeddingModel: aiEmbeddingModel,
+        transcribeModel: aiTranscribeModel,
+      });
+      setAiKey("");
+      await Promise.all([aiConfig.refetch(), embeddingStatus.refetch()]);
+      toast.success("Workspace AI credentials saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the AI credentials");
+    }
+  };
+
+  const removeAiProvider = async () => {
+    try {
+      await client.workspace.removeAiConfig();
+      await Promise.all([aiConfig.refetch(), embeddingStatus.refetch()]);
+      toast.success("Workspace AI credentials removed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not remove the AI credentials");
     }
   };
 
@@ -1265,6 +1312,111 @@ export function SettingsView() {
                 <li>• Local mode uses token overlap and graph structure, not external calls.</li>
               </ul>
             </SettingsCard>
+
+            {["OWNER", "ADMIN"].includes(role ?? "") ? (
+              <SettingsCard
+                title="Workspace AI credentials"
+                description="Point this workspace at its own OpenAI-compatible provider. The key is encrypted before it is stored and only ever shown masked. Leave it blank to keep the current one."
+              >
+                <div className="flex items-center gap-2 text-[9px]">
+                  <span
+                    className={cn(
+                      "status-dot",
+                      aiConfig.data?.source === "workspace"
+                        ? "bg-moss"
+                        : aiConfig.data?.deploymentAvailable
+                          ? "bg-saffron"
+                          : "bg-border",
+                    )}
+                  />
+                  <span className="text-muted-foreground">
+                    {aiConfig.data?.source === "workspace"
+                      ? `Using workspace credentials${aiConfig.data.apiKeyMasked ? ` · ${aiConfig.data.apiKeyMasked}` : ""}`
+                      : aiConfig.data?.deploymentAvailable
+                        ? "Using the deployment's provider configuration"
+                        : "No provider configured — AI answers fall back to local retrieval"}
+                  </span>
+                </div>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <label className="block sm:col-span-2">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Base URL
+                    </span>
+                    <Input
+                      value={aiBaseUrl}
+                      onChange={(event) => setAiBaseUrl(event.target.value)}
+                      placeholder="https://api.openai.com/v1"
+                      spellCheck={false}
+                      className="h-8 rounded-md font-mono text-[10px]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      API key
+                    </span>
+                    <Input
+                      value={aiKey}
+                      onChange={(event) => setAiKey(event.target.value)}
+                      type="password"
+                      placeholder={aiConfig.data?.configured ? "Leave blank to keep" : "sk-…"}
+                      className="h-8 rounded-md text-[10px]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Chat model
+                    </span>
+                    <Input
+                      value={aiModel}
+                      onChange={(event) => setAiModel(event.target.value)}
+                      placeholder="gpt-4.1-mini"
+                      className="h-8 rounded-md font-mono text-[10px]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Embedding model
+                    </span>
+                    <Input
+                      value={aiEmbeddingModel}
+                      onChange={(event) => setAiEmbeddingModel(event.target.value)}
+                      placeholder="text-embedding-3-small"
+                      className="h-8 rounded-md font-mono text-[10px]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Transcription model
+                    </span>
+                    <Input
+                      value={aiTranscribeModel}
+                      onChange={(event) => setAiTranscribeModel(event.target.value)}
+                      placeholder="whisper-1"
+                      className="h-8 rounded-md font-mono text-[10px]"
+                    />
+                  </label>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => void saveAiProvider()}>
+                    Save credentials
+                  </Button>
+                  {aiConfig.data?.configured ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg text-[10px] text-destructive"
+                      onClick={() => void removeAiProvider()}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                  <span className="text-[8px] text-muted-foreground">
+                    Workspace credentials win over the deployment configuration.
+                  </span>
+                </div>
+              </SettingsCard>
+            ) : null}
 
             <SettingsCard
               title="Semantic index"

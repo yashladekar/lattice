@@ -134,11 +134,26 @@ a notebook hold its page, deck, card, and notebook survived while the rest were
 removed; a workspace hold purged nothing; and releasing the hold let the next
 purge remove everything.
 
-## Next: BYOK for AI
+## Shipped: BYOK for AI
 
-Workspace-owned provider credentials, encrypted at rest with a server key and
-masked on read, so an organization can point Lattice at its own AI account
-without editing deployment env vars.
+**Settings → Intelligence → Workspace AI credentials** stores a workspace's own
+OpenAI-compatible provider: base URL, API key, chat model, embedding model, and
+transcription model. The workspace key wins over the deployment's environment
+configuration; removing it falls back, and with neither, AI answers use local
+retrieval.
+
+- The key is encrypted at rest with AES-256-GCM under a key derived from the
+  deployment secret, is only ever returned masked, and never appears in the audit
+  log (the entry records the base URL, model, and whether the key was rotated).
+- The base URL is validated as https (http only for localhost) with no embedded
+  credentials, query, or fragment. It is admin-set by design, so an organization
+  can point at an internal gateway.
+- A ciphertext that cannot be decrypted falls back to the deployment provider
+  instead of breaking AI; the settings panel shows which source is active.
+
+Verified end-to-end: with a stored key, a chat completion left the server with
+`Authorization: Bearer <workspace key>`, and a corrupted ciphertext fell back to
+the deployment configuration.
 
 ## Not attempted: end-to-end encryption
 

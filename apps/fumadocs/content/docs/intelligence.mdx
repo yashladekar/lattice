@@ -16,13 +16,34 @@ The UI labels responses as **Local mode** or the configured model. It never pres
 
 ## Configuration
 
+The deployment can configure a provider through environment variables:
+
 ```dotenv
 AI_BASE_URL=https://api.openai.com/v1
 AI_API_KEY=...
 AI_MODEL=gpt-4.1-mini
 ```
 
-The base URL is server-controlled. User input never becomes an outbound AI endpoint, avoiding an SSRF surface.
+A workspace can instead store its own credentials in **Settings → Intelligence →
+Workspace AI credentials** (base URL, key, chat model, embedding model,
+transcription model). That is what bring-your-own-key means here:
+
+- The workspace key **wins over the deployment configuration**; removing it falls
+  back to the deployment provider, and with neither, AI answers use local
+  retrieval.
+- The key is encrypted with AES-256-GCM under a key derived from the deployment
+  secret and is only ever returned masked (`••••wxyz`). It is never written to the
+  audit log.
+- The base URL is admin-set, which is a deliberate capability: an organization can
+  point at its own gateway. It is validated as https (http only for localhost),
+  with no embedded credentials, query, or fragment.
+- A key that cannot be decrypted (for example after rotating the deployment
+  secret) falls back to the deployment configuration instead of breaking AI; the
+  settings panel shows which source is in effect.
+
+In both modes the provider is an OpenAI-compatible endpoint: the server sends
+chat, embedding, and transcription requests itself, and no note content reaches a
+provider until a member asks a question or an editor builds the semantic index.
 
 ## Retrieval
 

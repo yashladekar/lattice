@@ -38,3 +38,4 @@ export * from "./document-writes";
 export * from "./scim";
 export * from "./sso";
 export * from "./legal-hold";
+export * from "./ai-config";

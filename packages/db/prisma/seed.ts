@@ -226,6 +226,7 @@ async function resetWorkspace(workspaceId: string, db: ReturnType<typeof createP
   await db.ssoConnection.deleteMany({ where: { workspaceId } });
   await db.ssoLoginState.deleteMany({ where: { workspaceId } });
   await db.legalHold.deleteMany({ where: { workspaceId } });
+  await db.workspaceAiConfig.deleteMany({ where: { workspaceId } });
   await db.capture.deleteMany({ where: { workspaceId } });
   await db.template.deleteMany({ where: { workspaceId } });
   await db.page.deleteMany({ where: { workspaceId } });
