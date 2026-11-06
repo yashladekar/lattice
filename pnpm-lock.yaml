@@ -791,7 +791,7 @@ importers:
         version: 1.16.1(@orpc/contract@1.16.1)(@orpc/server@1.16.1(ws@8.22.1))(ws@8.22.1)(zod@4.6.7)
       unpdf:
         specifier: ^2.1.0
-        version: 2.1.0
+        version: 2.1.0(@napi-rs/canvas@1.1.0)
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -802,6 +802,9 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/auth:
     dependencies:

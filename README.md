@@ -169,12 +169,20 @@ pnpm dev:server          # API only
 pnpm dev:native          # Expo
 pnpm build               # all builds
 pnpm check-types         # TypeScript across packages
-pnpm test                # domain unit tests
+pnpm test                # domain unit tests + API integration tests
 pnpm db:start|stop|down  # Postgres lifecycle
 pnpm db:push|generate|migrate|studio
 pnpm db:seed             # demo workspace for local dev (--reset to rebuild)
 pnpm docker:build|up|down|logs
 ```
+
+`pnpm test` runs the domain suite everywhere and, when a database is reachable,
+the API integration suite. The integration tests read `DATABASE_URL` from the
+environment or `apps/server/.env`, each create a throwaway workspace, and clean
+it up afterwards; without a database they are skipped rather than failed. They
+cover the document write-origin rules, the purge's legal-hold coverage, the
+version timeline's link derivation and access filtering, workspace AI credential
+resolution, and the legal export bundle's contents.
 
 ## Verification
 

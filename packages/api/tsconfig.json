@@ -7,6 +7,6 @@
     "emitDeclarationOnly": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"],
   "references": [{ "path": "../db" }, { "path": "../auth" }, { "path": "../domain" }]
 }
