@@ -19,7 +19,7 @@ import express from "express";
 
 import { createContext } from "./context";
 import { attachCollaboration } from "./collaboration";
-import { scimRouter } from "./scim";
+import { createScimRouter } from "@notes-learning/api/scim-router";
 import { desktopOrigins, ENV, uploadRoot } from "./env.server";
 import { auth, db } from "./services";
 
@@ -133,7 +133,7 @@ app.post(
 
 app.all("/api/auth{/*path}", toNodeHandler(auth));
 
-app.use("/scim/v2", scimRouter);
+app.use("/scim/v2", createScimRouter(db));
 
 app.post("/ingest/email", express.json({ limit: "1mb" }), async (req, res) => {
   const token = String(req.headers["x-lattice-ingest-token"] ?? req.query.token ?? "").trim();
