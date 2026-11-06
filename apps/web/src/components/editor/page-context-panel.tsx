@@ -138,7 +138,7 @@ function PropertyRow({
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${name}`}
-        className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground/30 transition-opacity hover:bg-destructive/10 hover:text-destructive hover-reveal tap-target"
+        className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground transition-opacity hover:bg-destructive/10 hover:text-destructive hover-quiet tap-target"
       >
         <X className="size-2.5" />
       </button>
@@ -823,7 +823,7 @@ export function PageContextPanel({
                       type="button"
                       aria-label="Delete card"
                       onClick={() => db && void deleteFlashcardLocal(db, card.id)}
-                      className="hover:text-destructive hover-reveal"
+                      className="hover:text-destructive hover-quiet"
                     >
                       <Trash2 className="size-2.5" />
                     </button>

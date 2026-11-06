@@ -477,8 +477,8 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
     () =>
       selectedId
         ? graph.edges.filter(
-            (edge) => edge.sourceNodeId === selectedId || edge.targetNodeId === selectedId,
-          )
+          (edge) => edge.sourceNodeId === selectedId || edge.targetNodeId === selectedId,
+        )
         : [],
     [graph.edges, selectedId],
   );
@@ -829,7 +829,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               type="checkbox"
               checked={orphansOnly}
               onChange={(event) => setOrphansOnly(event.target.checked)}
-              className="size-3 accent-[var(--saffron)]"
+              className="size-3 accent-saffron"
             />
             Orphans only
           </label>
@@ -863,7 +863,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             <Clock className="size-3" /> Playback
           </button>
           {focusDepth > 0 && selectedNode ? (
-            <span className="inline-flex h-8 items-center gap-1 rounded-md border border-saffron/40 bg-saffron/[0.08] px-2 text-xs backdrop-blur">
+            <span className="inline-flex h-8 items-center gap-1 rounded-md border border-saffron/40 bg-saffron/8 px-2 text-xs backdrop-blur">
               <Focus className="size-3 text-saffron" />
               Local · depth {focusDepth} · {selectedNode.title}
               <button type="button" onClick={() => setFocusDepth(0)} aria-label="Exit local view">
@@ -900,7 +900,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             role="button"
             aria-label="Minimap — click to jump"
             title="Minimap — click to jump"
-            className="absolute right-3 top-12 z-20 h-[96px] w-[166px] cursor-crosshair rounded-lg border border-border/70 bg-popover/90 p-2 shadow-lg backdrop-blur"
+            className="absolute right-3 top-12 z-20 h-24 w-41.5 cursor-crosshair rounded-lg border border-border/70 bg-popover/90 p-2 shadow-lg backdrop-blur"
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               const padding = 8;
@@ -952,7 +952,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
               step={24 * 60 * 60 * 1000}
               value={playbackAt}
               onChange={(event) => setPlaybackAt(Number(event.target.value))}
-              className="min-w-0 flex-1 accent-[var(--saffron)]"
+              className="min-w-0 flex-1 accent-saffron"
               aria-label="Graph playback date"
             />
             <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
@@ -1145,7 +1145,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 </span>
                 <span className="min-w-0 flex flex-col">
                   <span className="max-w-40 truncate text-xs font-medium">{node.title}</span>
-                  <span className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                  <span className="text-xs uppercase tracking-widest text-muted-foreground">
                     {node.kind.toLowerCase()}
                     {page?.notebookId ? ` · ${notebookById.get(page.notebookId)?.name ?? ""}` : ""}
                   </span>
@@ -1174,7 +1174,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
       </div>
 
       {selectedNode ? (
-        <aside className="flex h-full w-[300px] shrink-0 flex-col border-l border-border/60 bg-background/50">
+        <aside className="flex h-full w-75 shrink-0 flex-col border-l border-border/60 bg-background/50">
           <div className="flex items-start gap-2 border-b border-border/60 p-3">
             <span
               className="grid size-7 shrink-0 place-items-center rounded-full text-background"
@@ -1325,7 +1325,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                 .filter((entry) => entry.sourceNodeId === selectedNode.id || entry.targetNodeId === selectedNode.id)
                 .slice(0, 4)
                 .map((entry) => (
-                  <div key={`${entry.sourceNodeId}-${entry.targetNodeId}`} className="rounded-md border border-saffron/20 bg-saffron/[0.04] px-2 py-1.5">
+                  <div key={`${entry.sourceNodeId}-${entry.targetNodeId}`} className="rounded-md border border-saffron/20 bg-saffron/4 px-2 py-1.5">
                     <div className="text-xs">
                       {entry.sourceNodeId === selectedNode.id ? entry.targetTitle : entry.sourceTitle}
                     </div>
@@ -1378,7 +1378,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
       ) : null}
 
       {creatingTopic ? (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/25 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 grid place-items-center bg-foreground/25 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="text-xs font-semibold">Create a topic</div>

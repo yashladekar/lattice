@@ -607,7 +607,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
-                  className="hover:text-destructive hover-reveal"
+                  className="hover:text-destructive hover-quiet"
                   aria-label="Delete row"
                 >
                   <Trash2 className="size-2.5" />

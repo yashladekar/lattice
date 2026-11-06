@@ -172,6 +172,25 @@ body {
   }
 }
 
+/* Actions that hold space in a row should not hold empty space: they sit at
+   rest as quiet glyphs, so the row reads as controls rather than a gap, and
+   come to full strength on hover or focus. Always legible, never hidden. */
+.hover-quiet {
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+
+.group:hover .hover-quiet,
+.group:focus-within .hover-quiet {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .hover-quiet {
+    opacity: 1;
+  }
+}
+
 .text-balance {
   text-wrap: balance;
 }

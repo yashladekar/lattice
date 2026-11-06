@@ -53,7 +53,7 @@ export function TabStrip({
           <div
             key={tab.key}
             className={cn(
-              "group flex h-7 shrink-0 items-center gap-1 rounded-md border border-transparent px-2 text-xs transition-colors",
+              "group flex h-7 shrink-0 items-center gap-0.5 rounded-md border border-transparent pl-2 pr-1 text-xs transition-colors",
               active
                 ? "border-border/70 bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -82,8 +82,8 @@ export function TabStrip({
                 onTogglePane(tab);
               }}
               className={cn(
-                "grid size-6 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground",
-                paneKey === tab.key ? "text-link opacity-100" : "text-muted-foreground/50 hover-reveal",
+                "grid size-5 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground",
+                paneKey === tab.key ? "text-link" : "text-muted-foreground/60 hover-quiet",
               )}
             >
               <Columns2 className="size-3" />
@@ -96,7 +96,7 @@ export function TabStrip({
                   event.stopPropagation();
                   onClose(tab.key);
                 }}
-                className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground/50 hover:bg-muted hover:text-foreground hover-reveal"
+                className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/60 hover:bg-muted hover:text-foreground hover-quiet"
               >
                 <X className="size-3" />
               </button>

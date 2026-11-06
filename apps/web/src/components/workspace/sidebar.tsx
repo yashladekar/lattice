@@ -515,7 +515,7 @@ export function WorkspaceSidebar({
                           <button
                             type="button"
                             aria-label={`Options for ${notebook.name}`}
-                            className="grid size-4 place-items-center rounded hover:bg-muted hover-reveal tap-target"
+                            className="grid size-4 place-items-center rounded hover:bg-muted hover-quiet tap-target"
                           />
                         }
                       >
@@ -580,7 +580,7 @@ export function WorkspaceSidebar({
                     <button
                       type="button"
                       onClick={() => void createPage(notebook.id)}
-                      className="grid size-4 place-items-center rounded hover:bg-muted hover-reveal tap-target"
+                      className="grid size-4 place-items-center rounded hover:bg-muted hover-quiet tap-target"
                       aria-label={`New page in ${notebook.name}`}
                     >
                       <Plus className="size-3" />
@@ -671,7 +671,7 @@ export function WorkspaceSidebar({
                       <button
                         type="button"
                         aria-label={`Options for ${canvas.title}`}
-                        className="grid size-4 place-items-center rounded hover:bg-muted hover-reveal tap-target"
+                        className="grid size-4 place-items-center rounded hover:bg-muted hover-quiet tap-target"
                       />
                     }
                   >
