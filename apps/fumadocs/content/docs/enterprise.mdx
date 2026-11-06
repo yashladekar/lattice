@@ -103,12 +103,36 @@ Details worth knowing:
   (`apps/server/src/fake-idp.ts`): start → authorize → callback → session, plus
   the unknown-workspace, replayed-state, redirect, and unprovisioned guards.
 
-## Next: legal hold and export on demand
+## Shipped: legal hold and export on demand
 
-A hold that blocks the retention purge for a workspace, notebook, or page, plus a
-server-generated export bundle that a legal request can be satisfied with. The
-retention scheduler already exists; this adds a guard it must respect and an
-audited export path.
+**Settings → Legal** places a hold on the whole workspace, a notebook, or a
+page. A hold outranks retention, so the scheduled purge skips every covered row
+it would otherwise remove — pages, comments, attachments, cards, decks, canvases,
+and graph nodes and edges — and a workspace hold stops the purge for that
+workspace entirely. Releasing a hold only affects future purges: nothing is
+deleted at release time, and the next purge can remove the content if it is still
+expired. (Page bodies and saved versions are not deleted by the purge path at
+all today, so they survive regardless of a hold.)
+
+Coverage is deliberately explicit:
+
+- **Workspace** — nothing in the workspace is purged.
+- **Notebook** — the notebook, its pages (and their comments, attachments, and
+  cards), its canvases, and its decks survive. A page's notebook is its direct
+  parent, so a page moved out of the notebook is no longer covered.
+- **Page** — that page and the rows attached to it survive.
+
+**Download legal export** builds the bundle server-side and writes an audit
+entry (`legal_export.created`) with the record counts. It includes soft-deleted
+rows and the audit log on purpose, and never includes SSO client secrets, webhook
+signing secrets, or ingest/SCIM token hashes. Lists are capped at 5,000 pages,
+5,000 versions, 10,000 comments, and 5,000 audit entries; the bundle records
+which lists were truncated.
+
+Verified against the purge itself: with a page hold only that page survived; with
+a notebook hold its page, deck, card, and notebook survived while the rest were
+removed; a workspace hold purged nothing; and releasing the hold let the next
+purge remove everything.
 
 ## Next: BYOK for AI
 

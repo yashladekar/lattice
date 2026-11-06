@@ -10,6 +10,7 @@ import {
   parseSsoDomains,
   updateMemberInput,
   createWorkspaceInput,
+  describeLegalHoldHolders,
   ensureWorkspaceInput,
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
@@ -20,6 +21,7 @@ import { discoverOidc, encryptSsoSecret } from "@notes-learning/auth";
 import { createToken, hashToken, requireMembership, writeAudit } from "../authz";
 import { protectedProcedure, workspaceProcedure } from "../index";
 import { appendChanges, toJsonSafe } from "../services/changes";
+import { buildLegalExport } from "../services/legal-export";
 
 function welcomeDocument(targetPageId: string | null) {
   return {
@@ -992,6 +994,143 @@ export const workspaceRouter = {
       resourceId: connection.id,
     });
     return { ok: true };
+  }),
+
+  legalHolds: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const holds = await context.db.legalHold.findMany({
+      where: { workspaceId: context.workspaceId },
+      orderBy: { createdAt: "desc" },
+    });
+    const notebookIds = holds
+      .filter((hold) => hold.scope === "NOTEBOOK" && hold.targetId)
+      .map((hold) => hold.targetId!);
+    const pageIds = holds
+      .filter((hold) => hold.scope === "PAGE" && hold.targetId)
+      .map((hold) => hold.targetId!);
+    const [notebooks, pages] = await Promise.all([
+      context.db.notebook.findMany({
+        where: { workspaceId: context.workspaceId, id: { in: notebookIds } },
+        select: { id: true, name: true },
+      }),
+      context.db.page.findMany({
+        where: { workspaceId: context.workspaceId, id: { in: pageIds } },
+        select: { id: true, title: true },
+      }),
+    ]);
+    const notebookNames = new Map(notebooks.map((notebook) => [notebook.id, notebook.name]));
+    const pageNames = new Map(pages.map((page) => [page.id, page.title]));
+    return {
+      holds: holds.map((hold) => ({
+        ...hold,
+        createdAt: hold.createdAt.toISOString(),
+        releasedAt: hold.releasedAt?.toISOString() ?? null,
+        targetLabel:
+          hold.scope === "WORKSPACE"
+            ? "Entire workspace"
+            : hold.scope === "NOTEBOOK"
+              ? (notebookNames.get(hold.targetId ?? "") ?? "Deleted notebook")
+              : (pageNames.get(hold.targetId ?? "") ?? "Deleted page"),
+      })),
+      summary: describeLegalHoldHolders(holds, {
+        notebook: notebookNames,
+        page: pageNames,
+      }),
+    };
+  }),
+
+  createLegalHold: workspaceProcedure("ADMIN")
+    .input(
+      z.object({
+        scope: z.enum(["WORKSPACE", "NOTEBOOK", "PAGE"]),
+        targetId: z.string().min(1).nullable().optional(),
+        reason: z.string().trim().min(3).max(500),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const targetId = input.scope === "WORKSPACE" ? null : (input.targetId ?? null);
+      if (input.scope !== "WORKSPACE" && !targetId) {
+        throw new ORPCError("BAD_REQUEST", { message: "Choose what the hold covers." });
+      }
+      if (input.scope === "NOTEBOOK") {
+        const notebook = await context.db.notebook.findFirst({
+          where: { id: targetId!, workspaceId: context.workspaceId },
+          select: { id: true },
+        });
+        if (!notebook) throw new ORPCError("NOT_FOUND", { message: "Notebook not found" });
+      }
+      if (input.scope === "PAGE") {
+        const page = await context.db.page.findFirst({
+          where: { id: targetId!, workspaceId: context.workspaceId },
+          select: { id: true },
+        });
+        if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
+      }
+      const existing = await context.db.legalHold.findFirst({
+        where: {
+          workspaceId: context.workspaceId,
+          scope: input.scope,
+          targetId,
+          releasedAt: null,
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ORPCError("CONFLICT", { message: "That scope is already under hold." });
+      }
+      const hold = await context.db.legalHold.create({
+        data: {
+          id: createId(),
+          workspaceId: context.workspaceId,
+          scope: input.scope,
+          targetId,
+          reason: input.reason.trim(),
+          createdById: context.userId,
+        },
+      });
+      await writeAudit(context.db, {
+        workspaceId: context.workspaceId,
+        actorId: context.userId,
+        action: "legal_hold.created",
+        resourceType: "legal_hold",
+        resourceId: hold.id,
+        metadata: { scope: hold.scope, targetId: hold.targetId, reason: hold.reason },
+      });
+      return { id: hold.id };
+    }),
+
+  releaseLegalHold: workspaceProcedure("ADMIN")
+    .input(z.object({ id: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      const hold = await context.db.legalHold.findFirst({
+        where: { id: input.id, workspaceId: context.workspaceId, releasedAt: null },
+        select: { id: true },
+      });
+      if (!hold) throw new ORPCError("NOT_FOUND", { message: "Hold not found" });
+      await context.db.legalHold.update({
+        where: { id: hold.id },
+        data: { releasedAt: new Date(), releasedById: context.userId },
+      });
+      await writeAudit(context.db, {
+        workspaceId: context.workspaceId,
+        actorId: context.userId,
+        action: "legal_hold.released",
+        resourceType: "legal_hold",
+        resourceId: hold.id,
+      });
+      return { ok: true };
+    }),
+
+  legalExport: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+    const bundle = await buildLegalExport(context.db, context.workspaceId);
+    await writeAudit(context.db, {
+      workspaceId: context.workspaceId,
+      actorId: context.userId,
+      action: "legal_export.created",
+      resourceType: "workspace",
+      resourceId: context.workspaceId,
+      metadata: { counts: bundle.counts, truncated: bundle.truncated },
+    });
+    return bundle;
   }),
 
   audit: workspaceProcedure("ADMIN").handler(async ({ context }) => {

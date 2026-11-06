@@ -68,9 +68,16 @@ description: What this implementation covers and which subsystems are deliberate
 - Sign-in requires an active, provisioned membership; unverified emails are refused. Verified end-to-end against a local test provider, including the replayed-state, unknown-workspace, open-redirect, and unprovisioned guards.
 - SAML is not implemented; OIDC covers the common providers.
 
+## Shipped: legal hold
+
+- Workspace, notebook, and page holds that outrank retention: the purge skips every covered row, and a workspace hold stops it entirely.
+- Coverage expands from the hold scope to the rows the purge would remove: pages, comments, attachments, cards, decks, canvases, and graph nodes and edges; released holds stop protecting anything. Page bodies and versions are not in the purge path today.
+- **Settings → Legal** lists active and released holds with their reason, places new ones, and releases them.
+- Export on demand builds an audited JSON bundle server-side that includes soft-deleted rows and the audit log but never credentials or token hashes, with caps and truncation reported.
+- Verified against the purge for each scope, including that a released hold lets the next purge remove the content.
+
 ## Next: enterprise
 
-- Legal hold scoped to a workspace, notebook, or page, with a server-generated export bundle.
 - BYOK for AI: workspace-owned provider credentials, encrypted at rest and masked on read.
 
 ## Shipped: duplicate review

@@ -25,6 +25,8 @@ import {
   Palette,
   Plus,
   RefreshCw,
+  RotateCcw,
+  Scale,
   Shapes,
   Shield,
   Sparkles,
@@ -52,6 +54,7 @@ import { WebhookManager } from "@/components/workspace/webhook-manager";
 import { authClient } from "@/lib/auth-client";
 import { getApiBaseUrl } from "@/lib/config";
 import { downloadBytes, downloadTextFile } from "@/lib/download";
+import { useWorkspaceNotebooks, useWorkspacePages } from "@/hooks/use-local-data";
 import {
   exportWorkspaceLocal,
   importWorkspaceLocal,
@@ -71,6 +74,7 @@ type SettingsTab =
   | "ai"
   | "webhooks"
   | "devices"
+  | "legal"
   | "audit"
   | "query"
   | "plugins"
@@ -86,6 +90,7 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
   { id: "ai", label: "Intelligence", icon: Brain },
   { id: "webhooks", label: "Automations", icon: Webhook },
   { id: "devices", label: "Devices", icon: Monitor },
+  { id: "legal", label: "Legal", icon: Scale },
   { id: "audit", label: "Audit log", icon: Shield },
   { id: "query", label: "Query", icon: Database },
   { id: "plugins", label: "Plugins", icon: Boxes },
@@ -173,6 +178,11 @@ export function SettingsView() {
     queryFn: async () => client.workspace.ssoConnection(),
     enabled: online && Boolean(activeWorkspaceId),
   });
+  const legalHolds = useQuery({
+    queryKey: ["workspace-legal-holds", activeWorkspaceId],
+    queryFn: async () => client.workspace.legalHolds(),
+    enabled: online && Boolean(activeWorkspaceId),
+  });
   const embeddingStatus = useQuery({
     queryKey: ["ai-embeddings", activeWorkspaceId],
     queryFn: async () => client.ai.embeddingStatus(),
@@ -186,6 +196,11 @@ export function SettingsView() {
   const [ssoSecret, setSsoSecret] = useState("");
   const [ssoDomains, setSsoDomains] = useState("");
   const [ssoEnabled, setSsoEnabled] = useState(true);
+  const [holdScope, setHoldScope] = useState<"WORKSPACE" | "NOTEBOOK" | "PAGE">("WORKSPACE");
+  const [holdTarget, setHoldTarget] = useState("");
+  const [holdReason, setHoldReason] = useState("");
+  const legalNotebooks = useWorkspaceNotebooks();
+  const legalPages = useWorkspacePages();
   const [pendingRetention, setPendingRetention] = useState<number | null>(null);
   const [pendingMember, setPendingMember] = useState<{ id: string; name: string } | null>(null);
   const [indexing, setIndexing] = useState(false);
@@ -325,6 +340,48 @@ export function SettingsView() {
       toast.success("Single sign-on removed");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not remove the SSO connection");
+    }
+  };
+
+  const createLegalHold = async () => {
+    try {
+      await client.workspace.createLegalHold({
+        scope: holdScope,
+        targetId: holdScope === "WORKSPACE" ? null : holdTarget || null,
+        reason: holdReason,
+      });
+      setHoldReason("");
+      setHoldTarget("");
+      await legalHolds.refetch();
+      toast.success("Legal hold created — the purge will skip this content");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create the hold");
+    }
+  };
+
+  const releaseLegalHold = async (id: string) => {
+    try {
+      await client.workspace.releaseLegalHold({ id });
+      await legalHolds.refetch();
+      toast.success("Hold released");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not release the hold");
+    }
+  };
+
+  const downloadLegalExport = async () => {
+    try {
+      const bundle = await client.workspace.legalExport();
+      downloadTextFile(
+        `lattice-legal-export-${new Date().toISOString().slice(0, 10)}.json`,
+        JSON.stringify(bundle, null, 2),
+      );
+      const total = Object.values(bundle.counts).reduce((sum, count) => sum + count, 0);
+      toast.success(
+        `Exported ${total.toLocaleString()} records${bundle.truncated.length ? ` (${bundle.truncated.join(", ")} truncated)` : ""}`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not build the export");
     }
   };
 
@@ -1310,6 +1367,146 @@ export function SettingsView() {
                 <Button size="sm" className="h-8 rounded-md text-[9px]" onClick={() => void registerDevice()}>
                   Register
                 </Button>
+              </div>
+            </SettingsCard>
+          </section>
+        ) : null}
+
+        {tab === "legal" ? (
+          <section className="space-y-4">
+            <SettingsCard
+              title="Legal hold"
+              description="An active hold outranks retention: the purge never removes content a hold covers. Deletes are the only path that removes rows, so a hold preserves them until it is released."
+            >
+              {!online ? (
+                <OfflineNotice />
+              ) : (
+                <>
+                  <p className="text-[9px] text-muted-foreground">
+                    {legalHolds.data?.summary ?? "Loading…"}
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    {(legalHolds.data?.holds ?? []).map((hold) => (
+                      <div
+                        key={hold.id}
+                        className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-[9px]"
+                      >
+                        <span className="rounded border border-border px-1.5 py-0.5 text-[7px] uppercase tracking-wide">
+                          {hold.scope.toLowerCase()}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{hold.targetLabel}</span>
+                        <span className="truncate text-muted-foreground" title={hold.reason}>
+                          {hold.reason}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {hold.releasedAt
+                            ? `released ${formatRelative(hold.releasedAt)}`
+                            : `since ${formatRelative(hold.createdAt)}`}
+                        </span>
+                        {hold.releasedAt ? null : (
+                          <button
+                            type="button"
+                            aria-label={`Release hold on ${hold.targetLabel}`}
+                            onClick={() => void releaseLegalHold(hold.id)}
+                            className="grid size-5 place-items-center rounded text-muted-foreground/50 hover:bg-muted hover:text-foreground"
+                          >
+                            <RotateCcw className="size-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {legalHolds.data && !legalHolds.data.holds.length ? (
+                      <p className="text-[9px] text-muted-foreground">
+                        No holds. Expired trash is purged on the workspace schedule.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {["OWNER", "ADMIN"].includes(role ?? "") ? (
+                    <div className="mt-3 flex flex-wrap items-end gap-2">
+                      <label className="block">
+                        <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                          Scope
+                        </span>
+                        <select
+                          value={holdScope}
+                          onChange={(event) => {
+                            setHoldScope(event.target.value as typeof holdScope);
+                            setHoldTarget("");
+                          }}
+                          className="h-8 rounded-md border border-border bg-background px-1.5 text-[10px]"
+                        >
+                          <option value="WORKSPACE">Workspace</option>
+                          <option value="NOTEBOOK">Notebook</option>
+                          <option value="PAGE">Page</option>
+                        </select>
+                      </label>
+                      {holdScope !== "WORKSPACE" ? (
+                        <label className="block min-w-40 flex-1">
+                          <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Target
+                          </span>
+                          <select
+                            value={holdTarget}
+                            onChange={(event) => setHoldTarget(event.target.value)}
+                            className="h-8 w-full rounded-md border border-border bg-background px-1.5 text-[10px]"
+                          >
+                            <option value="">Choose…</option>
+                            {(holdScope === "NOTEBOOK"
+                              ? legalNotebooks
+                                  .filter((notebook) => !notebook.deletedAt)
+                                  .map((notebook) => ({ id: notebook.id, label: notebook.name }))
+                              : legalPages
+                                  .filter((page) => !page.deletedAt)
+                                  .map((page) => ({ id: page.id, label: page.title }))
+                            ).map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+                      <label className="block min-w-48 flex-[2]">
+                        <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                          Reason
+                        </span>
+                        <Input
+                          value={holdReason}
+                          onChange={(event) => setHoldReason(event.target.value)}
+                          placeholder="Matter reference or request"
+                          className="h-8 rounded-md text-[10px]"
+                        />
+                      </label>
+                      <Button
+                        size="sm"
+                        className="h-8 rounded-lg text-[10px]"
+                        onClick={() => void createLegalHold()}
+                      >
+                        Place hold
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </SettingsCard>
+
+            <SettingsCard
+              title="Export on demand"
+              description="A self-contained JSON bundle for a legal request: every record in the workspace including soft-deleted rows, plus the audit log and holds. Credentials, SSO secrets, and token hashes are never included."
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  className="h-8 rounded-lg text-[10px]"
+                  onClick={() => void downloadLegalExport()}
+                >
+                  Download legal export
+                </Button>
+                <span className="text-[8px] leading-relaxed text-muted-foreground">
+                  Capped at 5,000 pages, 5,000 versions, 10,000 comments, and 5,000 audit entries;
+                  truncation is reported inside the file.
+                </span>
               </div>
             </SettingsCard>
           </section>

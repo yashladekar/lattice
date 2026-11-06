@@ -37,3 +37,4 @@ export * from "./comment-threads";
 export * from "./document-writes";
 export * from "./scim";
 export * from "./sso";
+export * from "./legal-hold";

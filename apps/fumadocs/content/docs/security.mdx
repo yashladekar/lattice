@@ -60,13 +60,13 @@ Manifest-declared **blocks** and **canvasTools** only describe where a plugin ca
 
 Deletes are soft deletes. Each workspace can set a trash window (30/90/180/365 days, or keep forever) in Settings → General. A scheduled server job then permanently removes soft-deleted rows older than that window and appends tombstone changes, so clients converge on the same result. There is intentionally no manual purge button; an instant purge needs its own op semantic to stay consistent with local-first clients.
 
+**Legal holds outrank retention.** A workspace, notebook, or page hold (Settings → Legal) makes the purge skip every covered row it would otherwise remove — pages, comments, attachments, cards, decks, canvases, and graph nodes and edges — and a workspace hold stops the purge for that workspace entirely. Releasing a hold only affects future purges; nothing is deleted at release time. Page bodies and saved versions are not part of the purge path today. **Settings → Legal → Download legal export** produces an audited JSON bundle that includes soft-deleted rows on purpose and never includes credentials or token hashes.
+
 ## Explicitly deferred
 
 The schema and service boundaries include hooks for, but this release does not claim:
 
 - end-to-end encryption,
-- SSO / SCIM,
-- legally binding enterprise retention or legal hold,
-- a full audit-grade compliance program.
+- a full audit-grade compliance program (certification, evidence collection, retention attestations).
 
-Those are product-level programs, not UI states. See [Roadmap](/docs/roadmap).
+SCIM provisioning, OIDC single sign-on, legal hold, and export on demand are implemented; see [Enterprise](/docs/enterprise). The two items above are product-level programs, not UI states. See [Roadmap](/docs/roadmap).

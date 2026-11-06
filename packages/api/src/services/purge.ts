@@ -1,5 +1,13 @@
 import type { Database } from "@notes-learning/db";
-import { retentionCutoff, type SyncEntity } from "@notes-learning/domain";
+import {
+  expandHeldCanvases,
+  expandHeldDecks,
+  expandHeldNodes,
+  expandHeldPages,
+  holdCoverage,
+  retentionCutoff,
+  type SyncEntity,
+} from "@notes-learning/domain";
 
 import { appendChanges, type PendingChange } from "./changes";
 
@@ -11,6 +19,9 @@ import { appendChanges, type PendingChange } from "./changes";
  * need its own op semantic and apply path, because a client that simply
  * dropped rows locally would disagree with the server and resurrect content on
  * the next pull.
+ *
+ * A legal hold outranks retention: rows covered by an active hold are left
+ * alone, and a workspace hold stops the purge entirely.
  */
 export async function purgeWorkspaceTrash(
   db: Database,
@@ -20,9 +31,34 @@ export async function purgeWorkspaceTrash(
   const cutoff = retentionCutoff(retentionDays);
   if (!cutoff) return { purged: 0 };
 
+  const holds = await db.legalHold.findMany({
+    where: { workspaceId, releasedAt: null },
+    select: { scope: true, targetId: true, releasedAt: true },
+  });
+  const coverage = holdCoverage(holds);
+  if (coverage.workspace) return { purged: 0 };
+
+  const [pages, canvases, nodes, decks] = await Promise.all([
+    db.page.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
+    db.canvas.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
+    db.knowledgeNode.findMany({
+      where: { workspaceId },
+      select: { id: true, pageId: true, canvasId: true },
+    }),
+    db.deck.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
+  ]);
+  const heldPages = expandHeldPages(coverage, pages);
+  const heldCanvases = expandHeldCanvases(coverage, canvases);
+  const heldNodes = expandHeldNodes(nodes, heldPages, heldCanvases);
+  const heldDecks = expandHeldDecks(decks, coverage);
+
   return db.$transaction(async (tx) => {
     const changes: PendingChange[] = [];
     let purged = 0;
+
+    /** Prisma filter that skips held rows, or nothing when none are held. */
+    const exclusions = (field: "id" | "pageId" | "deckId", held: Set<string>) =>
+      held.size ? { NOT: { [field]: { in: [...held] } } } : {};
 
     const purgeRows = async (
       entity: SyncEntity,
@@ -49,27 +85,63 @@ export async function purgeWorkspaceTrash(
 
     await purgeRows(
       "comment",
-      await tx.comment.findMany({ where: staleWhere, select }),
+      await tx.comment.findMany({
+        where: { ...staleWhere, ...exclusions("pageId", heldPages) },
+        select,
+      }),
       (ids) => tx.comment.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
       "edge",
-      await tx.knowledgeEdge.findMany({ where: staleWhere, select }),
+      await tx.knowledgeEdge.findMany({
+        where: {
+          ...staleWhere,
+          ...(heldNodes.size
+            ? {
+                NOT: {
+                  OR: [
+                    { sourceNodeId: { in: [...heldNodes] } },
+                    { targetNodeId: { in: [...heldNodes] } },
+                  ],
+                },
+              }
+            : {}),
+        },
+        select,
+      }),
       (ids) => tx.knowledgeEdge.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
       "flashcard",
-      await tx.flashcard.findMany({ where: staleWhere, select }),
+      await tx.flashcard.findMany({
+        where: {
+          ...staleWhere,
+          ...(heldPages.size || heldDecks.size
+            ? {
+                NOT: {
+                  OR: [
+                    ...(heldPages.size ? [{ pageId: { in: [...heldPages] } }] : []),
+                    ...(heldDecks.size ? [{ deckId: { in: [...heldDecks] } }] : []),
+                  ],
+                },
+              }
+            : {}),
+        },
+        select,
+      }),
       (ids) => tx.flashcard.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
       "deck",
-      await tx.deck.findMany({ where: staleWhere, select }),
+      await tx.deck.findMany({ where: { ...staleWhere, ...exclusions("id", heldDecks) }, select }),
       (ids) => tx.deck.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
       "attachment",
-      await tx.attachment.findMany({ where: staleWhere, select }),
+      await tx.attachment.findMany({
+        where: { ...staleWhere, ...exclusions("pageId", heldPages) },
+        select,
+      }),
       (ids) => tx.attachment.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
@@ -84,22 +156,28 @@ export async function purgeWorkspaceTrash(
     );
     await purgeRows(
       "node",
-      await tx.knowledgeNode.findMany({ where: staleWhere, select }),
+      await tx.knowledgeNode.findMany({ where: { ...staleWhere, ...exclusions("id", heldNodes) }, select }),
       (ids) => tx.knowledgeNode.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
       "page",
-      await tx.page.findMany({ where: staleWhere, select }),
+      await tx.page.findMany({ where: { ...staleWhere, ...exclusions("id", heldPages) }, select }),
       (ids) => tx.page.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
       "canvas",
-      await tx.canvas.findMany({ where: staleWhere, select }),
+      await tx.canvas.findMany({
+        where: { ...staleWhere, ...exclusions("id", heldCanvases) },
+        select,
+      }),
       (ids) => tx.canvas.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(
       "notebook",
-      await tx.notebook.findMany({ where: staleWhere, select }),
+      await tx.notebook.findMany({
+        where: { ...staleWhere, ...exclusions("id", coverage.notebookIds) },
+        select,
+      }),
       (ids) => tx.notebook.deleteMany({ where: { id: { in: ids } } }),
     );
     await purgeRows(

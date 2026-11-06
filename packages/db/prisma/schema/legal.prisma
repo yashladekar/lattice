@@ -1,0 +1,16 @@
+/// A hold that preserves content past the retention window. Scoped to the
+/// whole workspace, a notebook (its pages and canvases), or one page.
+model LegalHold {
+  id           String    @id
+  workspaceId  String
+  scope        String
+  targetId     String?
+  reason       String
+  createdById  String
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  releasedAt   DateTime? @db.Timestamptz(3)
+  releasedById String?
+
+  @@index([workspaceId, releasedAt])
+  @@map("legal_hold")
+}
