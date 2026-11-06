@@ -31,9 +31,11 @@ description: What this implementation covers and which subsystems are deliberate
 - Presence and live cursors on the whiteboard, at canvas coordinates.
 - The document is persisted per resource and flushed when the last peer leaves, so a session outlives its room and an edit made just before a tab closes is not lost.
 
-## Next: collaboration depth
+## Shipped: discussion at scale
 
-- Granular block-level comments and discussion resolution at scale.
+- Discuss filters locally with pure domain helpers (`comment-threads.ts`): status chips with counts, body/author search that also matches replies, block-anchored narrowing, and grouping by block with the biggest group first.
+- Threads collapse replies after two with a "show more" control, lists page 20 at a time, and each block group jumps the editor to its anchor — so a page with a hundred discussions stays readable.
+- Open threads sort first and then newest first, so a new reply never reorders the list under the reader.
 
 ## Shipped: object types
 

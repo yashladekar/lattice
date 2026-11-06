@@ -45,6 +45,23 @@ Admins create an invite for an email and role. The invite stores a SHA-256 token
   (never the commenter), and notifications appear in the topbar bell.
 - Comments sync through the same change log; presence is online-only and ephemeral.
 
+### Reading a long discussion
+
+The Discuss tab filters locally, from the same helpers that decide what the
+server would return, so typing does not cost a round trip:
+
+- Status chips show counts and switch between **Open**, **Resolved**, and **All**.
+  Open threads come first, then newest first, so replies never reorder the list.
+- Search matches thread and reply bodies plus author names, case-insensitively.
+- **Block-anchored** narrows to threads that have an anchor, and opening a
+  discussion from a block scopes the tab to that block.
+- **Group by block** collapses the list into per-block groups, biggest first with
+  page-level discussion last; each group has a **Jump** chip that scrolls the
+  editor to its block.
+- Long threads collapse their replies after two with a *Show N more replies*
+  control, and lists page in 20 threads at a time. The tab badge counts open
+  threads, not replies.
+
 ## Suggested edits
 
 Editors of a workspace can still prefer review over direct writes:

@@ -1,7 +1,16 @@
 "use client";
 
 import type { OutlineItem, PropertyValue, Visibility } from "@notes-learning/domain";
-import { coercePropertyValue, formatRelative, parsePropertyDefinitions } from "@notes-learning/domain";
+import {
+  coercePropertyValue,
+  commentStats,
+  filterCommentThreads,
+  formatRelative,
+  groupThreadsByBlock,
+  parsePropertyDefinitions,
+  threadReplies,
+  type CommentStatusFilter,
+} from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import {
   DropdownMenu,
@@ -56,7 +65,7 @@ import {
   updatePageLocal,
   updatePagePropertiesLocal,
 } from "@/lib/local/repository";
-import type { LocalPage } from "@/lib/local/types";
+import type { LocalComment, LocalPage } from "@/lib/local/types";
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
@@ -153,7 +162,12 @@ export function PageContextPanel({
   const { db, user, activeWorkspaceId } = useAppData();
   const [tab, setTab] = useState<Tab>("info");
   const [commentText, setCommentText] = useState("");
-  const [showResolved, setShowResolved] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<CommentStatusFilter>("open");
+  const [search, setSearch] = useState("");
+  const [anchoredOnly, setAnchoredOnly] = useState(false);
+  const [grouped, setGrouped] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const [tagText, setTagText] = useState("");
   const [propertyKey, setPropertyKey] = useState("");
   const [propertyValue, setPropertyValue] = useState("");
@@ -189,12 +203,23 @@ export function PageContextPanel({
     return map;
   }, [membersQuery.data]);
 
-  const roots = comments.filter((comment) => !comment.parentId && !comment.resolvedAt);
-  const resolvedRoots = comments.filter((comment) => !comment.parentId && comment.resolvedAt);
-  const repliesFor = (parentId: string) =>
-    comments.filter((comment) => comment.parentId === parentId && !comment.resolvedAt);
+  const stats = commentStats(comments);
+  const threads = filterCommentThreads(comments, {
+    status: statusFilter,
+    query: search,
+    blockId: focusBlockId ?? undefined,
+    anchoredOnly,
+  });
+  const visibleThreads = threads.slice(0, visibleCount);
+  const threadGroups = grouped
+    ? groupThreadsByBlock(visibleThreads)
+    : [{ blockId: null, threads: visibleThreads }];
   const authorName = (authorId: string) =>
     authorId === user?.id ? "You" : (memberNames.get(authorId) ?? "Teammate");
+
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [statusFilter, search, anchoredOnly, grouped, focusBlockId]);
 
   const addComment = async () => {
     if (!db || !user || !activeWorkspaceId || !commentText.trim()) return;
@@ -292,6 +317,148 @@ export function PageContextPanel({
     );
   };
 
+  const jumpToBlock = (blockId: string) => {
+    window.dispatchEvent(
+      new CustomEvent("lattice:scroll-to-block", { detail: { blockId } }),
+    );
+  };
+
+  const renderThread = (thread: LocalComment) => {
+    const replies = threadReplies(comments, thread.id);
+    const expanded = expandedReplies.has(thread.id);
+    const shown = expanded ? replies : replies.slice(0, 2);
+    return (
+      <div
+        key={thread.id}
+        className={cn(
+          "rounded-lg border p-2.5",
+          thread.resolvedAt ? "border-border/50 bg-background/40" : "border-border/60 bg-card/45",
+        )}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="grid size-4 place-items-center rounded-full bg-moss/20 text-[7px] font-semibold text-moss">
+            {authorName(thread.authorId).slice(0, 1)}
+          </span>
+          <span
+            className={cn("text-[9px] font-medium", thread.resolvedAt && "text-muted-foreground")}
+          >
+            {authorName(thread.authorId)}
+          </span>
+          {thread.resolvedAt ? (
+            <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[7px] text-muted-foreground">
+              resolved
+            </span>
+          ) : null}
+          <span className="ml-auto text-[8px] text-muted-foreground">
+            {formatRelative(thread.createdAt)}
+          </span>
+        </div>
+        <p
+          className={cn(
+            "mt-1.5 whitespace-pre-wrap text-[10px] leading-relaxed",
+            thread.resolvedAt && "text-muted-foreground",
+          )}
+        >
+          {thread.body}
+        </p>
+        {thread.blockId ? (
+          <button
+            type="button"
+            onClick={() => jumpToBlock(thread.blockId!)}
+            className="mt-1 inline-flex items-center gap-1 rounded-full border border-saffron/30 px-1.5 py-0.5 text-[7px] text-saffron hover:bg-saffron/10"
+          >
+            <CircleDot className="size-2" /> Jump to block
+          </button>
+        ) : null}
+        <div className="mt-1.5 flex items-center gap-2 text-[8px] text-muted-foreground">
+          {thread.resolvedAt ? (
+            <button
+              type="button"
+              onClick={() =>
+                db &&
+                void resolveCommentLocal(db, thread.id, false).then(() =>
+                  toast.success("Thread reopened"),
+                )
+              }
+              className="inline-flex items-center gap-0.5 hover:text-foreground"
+            >
+              <RotateCcw className="size-2.5" /> Reopen
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  db &&
+                  void resolveCommentLocal(db, thread.id, true).then(() =>
+                    toast.success("Thread resolved"),
+                  )
+                }
+                className="inline-flex items-center gap-0.5 hover:text-moss"
+              >
+                <Check className="size-2.5" /> Resolve
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!db || !user || !activeWorkspaceId) return;
+                  const reply = window.prompt("Reply");
+                  if (!reply?.trim()) return;
+                  void createCommentLocal(db, {
+                    workspaceId: activeWorkspaceId,
+                    userId: user.id,
+                    pageId: page.id,
+                    parentId: thread.id,
+                    body: reply.trim(),
+                  });
+                }}
+                className="hover:text-foreground"
+              >
+                Reply
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => db && void deleteCommentLocal(db, thread.id)}
+            className="ml-auto hover:text-destructive"
+          >
+            <Trash2 className="size-2.5" />
+          </button>
+        </div>
+        {shown.map((reply) => (
+          <div key={reply.id} className="mt-2 border-l border-border/70 pl-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[8px] font-medium">{authorName(reply.authorId)}</span>
+              <span className="text-[7px] text-muted-foreground">
+                {formatRelative(reply.createdAt)}
+              </span>
+            </div>
+            <p className="mt-0.5 whitespace-pre-wrap text-[9px] leading-relaxed text-muted-foreground">
+              {reply.body}
+            </p>
+          </div>
+        ))}
+        {replies.length > 2 ? (
+          <button
+            type="button"
+            onClick={() =>
+              setExpandedReplies((current) => {
+                const next = new Set(current);
+                if (next.has(thread.id)) next.delete(thread.id);
+                else next.add(thread.id);
+                return next;
+              })
+            }
+            className="mt-1.5 text-[8px] text-muted-foreground hover:text-foreground"
+          >
+            {expanded ? "Show fewer replies" : `Show ${replies.length - 2} more replies`}
+          </button>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <aside className="flex h-full w-[286px] shrink-0 flex-col border-l border-border/60 bg-background/45">
       <div className="flex h-9 items-center gap-0.5 border-b border-border/60 px-2">
@@ -313,8 +480,8 @@ export function PageContextPanel({
           >
             <Icon className="size-3" />
             {label}
-            {value === "comments" && roots.length ? (
-              <span className="rounded-full bg-saffron/20 px-1 text-[8px] text-saffron">{roots.length}</span>
+            {value === "comments" && stats.open ? (
+              <span className="rounded-full bg-saffron/20 px-1 text-[8px] text-saffron">{stats.open}</span>
             ) : null}
           </button>
         ))}
@@ -767,141 +934,109 @@ export function PageContextPanel({
                 </button>
               </div>
             ) : null}
+            <div className="flex flex-wrap items-center gap-1">
+              {(["open", "resolved", "all"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStatusFilter(value)}
+                  className={cn(
+                    "rounded-full border px-1.5 py-0.5 text-[8px]",
+                    statusFilter === value
+                      ? "border-moss/40 bg-moss/10 text-moss"
+                      : "border-border/60 text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {value === "open"
+                    ? `Open ${stats.open}`
+                    : value === "resolved"
+                      ? `Resolved ${stats.resolved}`
+                      : `All ${stats.open + stats.resolved}`}
+                </button>
+              ))}
+              {stats.replies ? (
+                <span className="ml-auto text-[8px] text-muted-foreground">
+                  {stats.replies} repl{stats.replies === 1 ? "y" : "ies"}
+                </span>
+              ) : null}
+            </div>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search discussion…"
+              className="h-7 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
+            />
+            <div className="flex flex-wrap items-center gap-3 text-[8px] text-muted-foreground">
+              <label className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={anchoredOnly}
+                  onChange={(event) => setAnchoredOnly(event.target.checked)}
+                  className="size-3 accent-[var(--moss)]"
+                />
+                Block-anchored ({stats.anchored})
+              </label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={grouped}
+                  onChange={(event) => setGrouped(event.target.checked)}
+                  className="size-3 accent-[var(--moss)]"
+                />
+                Group by block
+              </label>
+              {threads.length > visibleThreads.length ? (
+                <span className="ml-auto">
+                  {visibleThreads.length} of {threads.length}
+                </span>
+              ) : null}
+            </div>
             <div className="space-y-2">
-              {roots.map((thread) => (
-                <div key={thread.id} className="rounded-lg border border-border/60 bg-card/45 p-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="grid size-4 place-items-center rounded-full bg-moss/20 text-[7px] font-semibold text-moss">
-                      {authorName(thread.authorId).slice(0, 1)}
-                    </span>
-                    <span className="text-[9px] font-medium">{authorName(thread.authorId)}</span>
-                    <span className="ml-auto text-[8px] text-muted-foreground">
-                      {formatRelative(thread.createdAt)}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 whitespace-pre-wrap text-[10px] leading-relaxed">{thread.body}</p>
-                  {thread.blockId ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        window.dispatchEvent(
-                          new CustomEvent("lattice:scroll-to-block", {
-                            detail: { blockId: thread.blockId },
-                          }),
-                        )
-                      }
-                      className="mt-1 inline-flex items-center gap-1 rounded-full border border-saffron/30 px-1.5 py-0.5 text-[7px] text-saffron hover:bg-saffron/10"
-                    >
-                      <CircleDot className="size-2" /> Jump to block
-                    </button>
-                  ) : null}
-                  <div className="mt-1.5 flex items-center gap-2 text-[8px] text-muted-foreground">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        db &&
-                        void resolveCommentLocal(db, thread.id, true).then(() =>
-                          toast.success("Thread resolved"),
-                        )
-                      }
-                      className="inline-flex items-center gap-0.5 hover:text-moss"
-                    >
-                      <Check className="size-2.5" /> Resolve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!db || !user || !activeWorkspaceId) return;
-                        const reply = window.prompt("Reply");
-                        if (!reply?.trim()) return;
-                        void createCommentLocal(db, {
-                          workspaceId: activeWorkspaceId,
-                          userId: user.id,
-                          pageId: page.id,
-                          parentId: thread.id,
-                          body: reply.trim(),
-                        });
-                      }}
-                      className="hover:text-foreground"
-                    >
-                      Reply
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => db && void deleteCommentLocal(db, thread.id)}
-                      className="ml-auto hover:text-destructive"
-                    >
-                      <Trash2 className="size-2.5" />
-                    </button>
-                  </div>
-                  {repliesFor(thread.id).map((reply) => (
-                    <div key={reply.id} className="mt-2 border-l border-border/70 pl-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[8px] font-medium">{authorName(reply.authorId)}</span>
-                        <span className="text-[7px] text-muted-foreground">
-                          {formatRelative(reply.createdAt)}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 whitespace-pre-wrap text-[9px] leading-relaxed text-muted-foreground">
-                        {reply.body}
-                      </p>
+              {threadGroups.map((group) => (
+                <div key={group.blockId ?? "page"} className="space-y-2">
+                  {grouped ? (
+                    <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground">
+                      <CircleDot className="size-2.5" />
+                      {group.blockId
+                        ? `${group.threads.length} on one block`
+                        : `${group.threads.length} page-level`}
+                      {group.blockId ? (
+                        <button
+                          type="button"
+                          onClick={() => jumpToBlock(group.blockId!)}
+                          className="rounded-full border border-saffron/30 px-1.5 py-0.5 text-[7px] text-saffron hover:bg-saffron/10"
+                        >
+                          Jump
+                        </button>
+                      ) : null}
                     </div>
-                  ))}
+                  ) : null}
+                  {group.threads.map(renderThread)}
                 </div>
               ))}
-              {resolvedRoots.length ? (
-                <div className="mt-2 border-t border-border/60 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowResolved((current) => !current)}
-                    className="text-[8.5px] text-muted-foreground hover:text-foreground"
-                  >
-                    {showResolved ? "Hide" : "Show"} {resolvedRoots.length} resolved
-                  </button>
-                  {showResolved ? (
-                    <div className="mt-2 space-y-2">
-                      {resolvedRoots.map((thread) => (
-                        <div
-                          key={thread.id}
-                          className="rounded-lg border border-border/60 bg-background/40 px-2.5 py-2"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-medium text-muted-foreground">
-                              {authorName(thread.authorId)}
-                            </span>
-                            <span className="ml-auto text-[8px] text-muted-foreground">
-                              {formatRelative(thread.createdAt)}
-                            </span>
-                          </div>
-                          <p className="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-muted-foreground">
-                            {thread.body}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              db &&
-                              void resolveCommentLocal(db, thread.id, false).then(() =>
-                                toast.success("Thread reopened"),
-                              )
-                            }
-                            className="mt-1.5 inline-flex items-center gap-0.5 text-[8px] text-muted-foreground hover:text-foreground"
-                          >
-                            <RotateCcw className="size-2.5" /> Reopen
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {!roots.length ? (
+              {!threads.length ? (
                 <div className="py-8 text-center">
                   <MessageSquare className="mx-auto size-5 text-muted-foreground/40" />
-                  <p className="mt-2 text-[10px] text-muted-foreground">No open discussions.</p>
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    {search || anchoredOnly || focusBlockId
+                      ? "No discussions match these filters."
+                      : statusFilter === "resolved"
+                        ? "Nothing resolved yet."
+                        : "No open discussions."}
+                  </p>
                   <p className="mt-1 text-[8px] text-muted-foreground">
                     Comments sync asynchronously with your team.
                   </p>
                 </div>
+              ) : null}
+              {threads.length > visibleThreads.length ? (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((current) => current + 20)}
+                  className="w-full rounded-md border border-border/60 py-1.5 text-[9px] text-muted-foreground hover:bg-muted"
+                >
+                  Show 20 more
+                </button>
               ) : null}
             </div>
             <div className="sticky bottom-0 bg-background/80 pt-2 backdrop-blur">
