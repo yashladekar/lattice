@@ -26,6 +26,11 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["lattice"]
+      }
+    },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFGRUE2MTAyRTRCNkUwQjcKUldTMzRMYmtBbUhxSDVkejR2WnRCUFF4T3ozcExhdDB6aGI1ZDFpTFcrYTNKRFVPUUl4REl5ZFQK",
       "endpoints": ["https://updates.lattice.app/latest.json"]
