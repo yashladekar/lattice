@@ -1,0 +1,210 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Geist";
+      src: url("assets/fonts/geist-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("assets/fonts/geist-mono-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+      font-display: block;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: var(--color-ground);
+      font-family: "Geist", ui-sans-serif, sans-serif;
+      color: var(--color-ink);
+    }
+    #s1-glow {
+      position: absolute;
+      left: 50%;
+      top: 44%;
+      width: 1700px;
+      height: 1050px;
+      margin-left: -850px;
+      margin-top: -525px;
+      background: radial-gradient(
+        ellipse at center,
+        rgba(229, 124, 32, 0.2) 0%,
+        rgba(229, 124, 32, 0.08) 38%,
+        rgba(229, 124, 32, 0) 70%
+      );
+    }
+    #s1-net {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    #s1-copy {
+      position: absolute;
+      left: 0;
+      top: 296px;
+      width: 1920px;
+      text-align: center;
+    }
+    .s1-line {
+      font-size: 104px;
+      font-weight: 700;
+      letter-spacing: -0.032em;
+      line-height: 1.12;
+      white-space: nowrap;
+    }
+    .s1-line .w {
+      display: inline-block;
+    }
+    .s1-serif {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-style: italic;
+      font-weight: 400;
+      font-size: 126px;
+      color: #bc6318;
+      letter-spacing: -0.01em;
+      padding-right: 10px;
+    }
+    .s1-ulwrap {
+      position: relative;
+      display: inline-block;
+    }
+    #s1-underline {
+      position: absolute;
+      left: -10px;
+      top: 92%;
+      width: calc(100% + 26px);
+      height: 20px;
+    }
+    #s1-underline path {
+      stroke: #bc6318;
+      stroke-width: 6;
+      stroke-linecap: round;
+      fill: none;
+    }
+  </style>
+
+  <div id="root" data-composition-id="s1-hook" data-width="1920" data-height="1080">
+    <div id="s1-glow" data-layout-allow-overflow></div>
+
+    <svg id="s1-net" viewBox="0 0 1920 1080" fill="none" aria-hidden="true">
+      <g stroke="#e2ddd5" stroke-width="1.5">
+        <path d="M150 220 L300 340 L120 520 L280 700 L140 880" />
+        <path d="M300 340 L280 700" />
+        <path d="M380 180 L150 220" />
+        <path d="M380 180 L300 340" />
+        <path d="M420 960 L280 700" />
+        <path d="M420 960 L140 880" />
+        <path d="M1770 240 L1620 360 L1800 540 L1650 720 L1790 900" />
+        <path d="M1620 360 L1650 720" />
+        <path d="M1530 170 L1770 240" />
+        <path d="M1530 170 L1620 360" />
+        <path d="M1480 950 L1650 720" />
+        <path d="M1480 950 L1790 900" />
+        <path d="M1250 120 L1620 360" />
+      </g>
+      <g fill="#ffdba7">
+        <circle cx="150" cy="220" r="7" />
+        <circle cx="280" cy="700" r="6" />
+        <circle cx="1770" cy="240" r="7" />
+        <circle cx="1650" cy="720" r="6" />
+      </g>
+      <g fill="#b9e4c6">
+        <circle cx="300" cy="340" r="6" />
+        <circle cx="1790" cy="900" r="6" />
+        <circle cx="1530" cy="170" r="5" />
+      </g>
+      <g fill="#b8e1fa">
+        <circle cx="120" cy="520" r="6" />
+        <circle cx="1620" cy="360" r="6" />
+        <circle cx="420" cy="960" r="5" />
+      </g>
+      <g fill="#e6d5fc">
+        <circle cx="380" cy="180" r="5" />
+        <circle cx="1800" cy="540" r="6" />
+      </g>
+      <g fill="#ffd1d1">
+        <circle cx="140" cy="880" r="5" />
+        <circle cx="1480" cy="950" r="5" />
+        <circle cx="1250" cy="120" r="5" />
+      </g>
+      <g fill="#e57c20">
+        <circle cx="300" cy="340" r="3.4" />
+        <circle cx="1770" cy="240" r="3.4" />
+        <circle cx="120" cy="520" r="3.4" />
+      </g>
+      <g
+        fill="#6f685e"
+        font-family="'Geist Mono', monospace"
+        font-size="17"
+        letter-spacing="0.02em"
+      >
+        <text x="170" y="226">note</text>
+        <text x="1792" y="246">idea</text>
+        <text x="116" y="500">question</text>
+      </g>
+    </svg>
+
+    <div id="s1-copy" class="clip" data-start="0" data-duration="3.18">
+      <h1 class="s1-line">
+        <span class="w">Your</span> <span class="w">ideas</span> <span class="w">deserve</span>
+      </h1>
+      <h1 class="s1-line">
+        <span class="w">a</span> <span class="w">place</span> <span class="w">to</span>
+        <span class="s1-ulwrap"
+          ><span class="w s1-serif">connect.</span
+          ><svg id="s1-underline" viewBox="0 0 300 20" preserveAspectRatio="none">
+            <path
+              id="s1-underline-path"
+              d="M4 13 C 44 6, 96 4, 148 8 C 200 12, 250 12, 296 5"
+              pathLength="1"
+              stroke-dasharray="1"
+              stroke-dashoffset="1"
+            />
+          </svg>
+        </span>
+      </h1>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    tl.fromTo("#s1-glow", { opacity: 0 }, { opacity: 1, duration: 0.7, ease: "power2.out" }, 0);
+    tl.fromTo("#s1-net", { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "power2.out" }, 0.05);
+
+    tl.fromTo(
+      "#s1-copy .s1-line:nth-of-type(1) .w",
+      { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out", stagger: 0.067 },
+      0.3,
+    );
+    tl.fromTo(
+      "#s1-copy .s1-line:nth-of-type(2) .w",
+      { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out", stagger: 0.067 },
+      0.52,
+    );
+
+    // beat-locked: 1.60s — hand-drawn underline lands on the strong cue
+    tl.fromTo(
+      "#s1-underline-path",
+      { strokeDashoffset: 1 },
+      { strokeDashoffset: 0, duration: 0.45, ease: "power3.inOut" },
+      1.6,
+    );
+
+    window.__timelines["s1-hook"] = tl;
+  </script>
+</template>

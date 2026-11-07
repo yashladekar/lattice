@@ -1,0 +1,447 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Geist";
+      src: url("assets/fonts/geist-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("assets/fonts/geist-mono-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: var(--color-ground);
+      font-family: "Geist", ui-sans-serif, sans-serif;
+      color: var(--color-ink);
+    }
+    #s3-grid {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      background-image: radial-gradient(circle, #ddd7ca 1.6px, transparent 1.7px);
+      background-size: 36px 36px;
+      background-position: 18px 18px;
+    }
+    #s3-glow {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      background: radial-gradient(
+        ellipse at 52% 46%,
+        rgba(229, 124, 32, 0.1) 0%,
+        rgba(229, 124, 32, 0) 60%
+      );
+    }
+    #s3-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 92px;
+      border-bottom: 1.5px solid var(--l-hairline);
+      background: rgba(252, 249, 242, 0.92);
+    }
+    #s3-find {
+      position: absolute;
+      left: 40px;
+      top: 26px;
+      width: 268px;
+      height: 40px;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+      background: #ffffff;
+    }
+    #s3-find-glyph {
+      position: absolute;
+      left: 16px;
+      top: 12px;
+      width: 13px;
+      height: 13px;
+      border: 2px solid var(--l-muted);
+      border-radius: 999px;
+    }
+    #s3-find-text {
+      position: absolute;
+      left: 42px;
+      top: 9px;
+      font-size: 17px;
+      color: var(--l-muted);
+    }
+    .s3-chip {
+      position: absolute;
+      top: 26px;
+      height: 40px;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+      background: #ffffff;
+      font-size: 17px;
+      color: var(--color-ink);
+      line-height: 37px;
+      padding: 0 18px;
+    }
+    #s3-chip-2 {
+      left: 1180px;
+    }
+    #s3-chip-3 {
+      left: 1372px;
+    }
+    #s3-chip-4 {
+      left: 1548px;
+    }
+    #s3-edges {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    .s3-edge {
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+    }
+    #s3-edge-new {
+      stroke: #0089a7;
+      stroke-width: 4;
+    }
+    .s3-node {
+      position: absolute;
+      width: 302px;
+      height: 78px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(23, 19, 14, 0.08);
+    }
+    .s3-dot {
+      position: absolute;
+      left: 20px;
+      top: 22px;
+      width: 13px;
+      height: 13px;
+      border-radius: 4px;
+    }
+    .s3-title {
+      position: absolute;
+      left: 46px;
+      top: 13px;
+      font-size: 25px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+    }
+    .s3-sub {
+      position: absolute;
+      left: 46px;
+      top: 47px;
+      font-size: 16px;
+      color: var(--l-muted);
+    }
+    #s3-label {
+      position: absolute;
+      left: 880px;
+      top: 336px;
+      height: 38px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+      box-shadow: 0 8px 22px rgba(23, 19, 14, 0.1);
+      padding: 0 16px 0 14px;
+      font-size: 17px;
+      line-height: 35px;
+      color: var(--color-ink);
+      white-space: nowrap;
+    }
+    #s3-label-dot {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #0089a7;
+      margin-right: 9px;
+    }
+    #s3-minimap {
+      position: absolute;
+      left: 1560px;
+      top: 838px;
+      width: 312px;
+      height: 166px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 12px;
+      box-shadow: 0 10px 26px rgba(23, 19, 14, 0.08);
+      overflow: hidden;
+    }
+    #s3-mini-view {
+      position: absolute;
+      left: 58px;
+      top: 40px;
+      width: 168px;
+      height: 86px;
+      border: 2px solid var(--color-accent);
+      border-radius: 6px;
+    }
+    #s3-counter {
+      position: absolute;
+      left: 40px;
+      top: 962px;
+      font-family: "Geist Mono", monospace;
+      font-size: 17px;
+      color: var(--l-muted);
+    }
+    #s3-legend {
+      position: absolute;
+      left: 660px;
+      top: 954px;
+      height: 36px;
+    }
+    .s3-leg {
+      position: absolute;
+      top: 0;
+      height: 36px;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+      background: #ffffff;
+      font-size: 16px;
+      color: var(--color-ink);
+      line-height: 33px;
+      padding: 0 16px 0 14px;
+      white-space: nowrap;
+    }
+    .s3-leg-swatch {
+      display: inline-block;
+      width: 16px;
+      height: 3px;
+      border-radius: 999px;
+      vertical-align: middle;
+      margin-right: 9px;
+    }
+  </style>
+
+  <div id="root" data-composition-id="s3-graph" data-width="1920" data-height="1080">
+    <div id="s3-grid"></div>
+    <div id="s3-glow"></div>
+
+    <svg id="s3-edges" viewBox="0 0 1920 1080" fill="none" aria-hidden="true">
+      <defs>
+        <marker
+          id="s3-arrow-dim"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path d="M0 1 L9 5 L0 9 z" fill="#8c7659" />
+        </marker>
+        <marker
+          id="s3-arrow-new"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path d="M0 1 L9 5 L0 9 z" fill="#0089a7" />
+        </marker>
+      </defs>
+      <g stroke="#d9d3c7" stroke-width="2.5" fill="none" opacity="0.9">
+        <path d="M540 596 C 592 566, 626 520, 672 470" marker-end="url(#s3-arrow-dim)" />
+        <path d="M1188 786 C 1116 800, 1040 800, 972 786" marker-end="url(#s3-arrow-dim)" />
+        <path d="M1424 646 C 1372 706, 1318 752, 1258 796" marker-end="url(#s3-arrow-dim)" />
+        <path d="M1362 300 C 1452 258, 1530 236, 1616 224" />
+        <path d="M1520 580 C 1600 596, 1668 616, 1730 646" />
+        <path d="M652 466 C 592 500, 540 540, 508 578" />
+      </g>
+      <path id="s3-edge-new" class="s3-edge" d="M1148 372 C 1082 412, 1024 430, 962 452"
+        pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#s3-arrow-new)" />
+    </svg>
+
+    <div class="s3-node" id="s3-node-e" style="left: 372px; top: 560px; opacity: 0.55">
+      <div class="s3-dot" style="background: #e07a2e"></div>
+      <div class="s3-title">Active recall</div>
+      <div class="s3-sub">page · Learning lab</div>
+    </div>
+    <div class="s3-node" id="s3-node-f" style="left: 1180px; top: 748px; opacity: 0.55">
+      <div class="s3-dot" style="background: #e07a2e"></div>
+      <div class="s3-title">How memory works</div>
+      <div class="s3-sub">page · Learning lab</div>
+    </div>
+
+    <div class="s3-node" id="s3-node-a" style="left: 660px; top: 420px">
+      <div class="s3-dot" style="background: #e07a2e"></div>
+      <div class="s3-title">Feedback loops</div>
+      <div class="s3-sub">page · Systems notes</div>
+    </div>
+    <div class="s3-node" id="s3-node-b" style="left: 1090px; top: 290px">
+      <div class="s3-dot" style="background: #e07a2e"></div>
+      <div class="s3-title">Systems thinking</div>
+      <div class="s3-sub">page · Systems notes</div>
+    </div>
+    <div class="s3-node" id="s3-node-c" style="left: 1400px; top: 560px">
+      <div class="s3-dot" style="background: #2f6b4f"></div>
+      <div class="s3-title">Systems</div>
+      <div class="s3-sub">topic · 5 links</div>
+    </div>
+    <div class="s3-node" id="s3-node-d" style="left: 680px; top: 720px">
+      <div class="s3-dot" style="background: #e07a2e"></div>
+      <div class="s3-title">Spaced repetition</div>
+      <div class="s3-sub">page · Learning lab</div>
+    </div>
+
+    <div id="s3-label">
+      <span id="s3-label-dot"></span>Prerequisite of
+    </div>
+
+    <div id="s3-bar">
+      <div id="s3-find">
+        <div id="s3-find-glyph"></div>
+        <div id="s3-find-text">Find a node&#8230;</div>
+      </div>
+      <div class="s3-chip" id="s3-chip-2">All relations</div>
+      <div class="s3-chip" id="s3-chip-3">Orphans only</div>
+      <div class="s3-chip" id="s3-chip-4">Clusters</div>
+    </div>
+
+    <div id="s3-minimap">
+      <svg viewBox="0 0 312 166" width="312" height="166">
+        <g fill="#cdc7bb">
+          <circle cx="52" cy="42" r="4" />
+          <circle cx="112" cy="30" r="4" />
+          <circle cx="164" cy="58" r="4" />
+          <circle cx="96" cy="88" r="4" />
+          <circle cx="212" cy="36" r="4" />
+          <circle cx="246" cy="76" r="4" />
+          <circle cx="188" cy="110" r="4" />
+          <circle cx="62" cy="122" r="4" />
+          <circle cx="132" cy="132" r="4" />
+          <circle cx="262" cy="126" r="4" />
+          <circle cx="30" cy="80" r="4" />
+          <circle cx="226" cy="140" r="4" />
+        </g>
+        <g stroke="#d9d3c7" stroke-width="1.5" fill="none">
+          <path d="M52 42 L112 30 L164 58 L96 88" />
+          <path d="M212 36 L246 76 L188 110 L132 132" />
+          <path d="M62 122 L30 80 L52 42" />
+        </g>
+        <circle cx="164" cy="58" r="5.5" fill="#e07a2e" />
+        <circle cx="212" cy="36" r="5.5" fill="#e07a2e" />
+      </svg>
+      <div id="s3-mini-view"></div>
+    </div>
+
+    <div id="s3-counter">12 nodes &#183; 9 edges &#183; 2 orphans &#183; 3 clusters</div>
+    <div id="s3-legend">
+      <div class="s3-leg" style="left: 0px">
+        <span class="s3-leg-swatch" style="background: #8c7659"></span>Related to
+      </div>
+      <div class="s3-leg" style="left: 172px">
+        <span class="s3-leg-swatch" style="background: #4b8a63"></span>Part of
+      </div>
+      <div class="s3-leg" style="left: 302px">
+        <span class="s3-leg-swatch" style="background: #347ec4"></span>Explains
+      </div>
+      <div class="s3-leg" style="left: 452px">
+        <span class="s3-leg-swatch" style="background: #0089a7"></span>Prerequisite of
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    tl.fromTo("#s3-grid", { opacity: 0 }, { opacity: 1, duration: 0.34, ease: "power2.out" }, 0);
+    tl.fromTo("#s3-glow", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
+    tl.fromTo(
+      "#s3-bar",
+      { opacity: 0, y: -12 },
+      { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" },
+      0.06,
+    );
+    tl.fromTo(
+      "#s3-minimap",
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.34, ease: "power3.out" },
+      0.28,
+    );
+    tl.fromTo(
+      "#s3-counter",
+      { opacity: 0 },
+      { opacity: 1, duration: 0.3, ease: "power2.out" },
+      0.3,
+    );
+    tl.fromTo(
+      "#s3-legend .s3-leg",
+      { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: 0.28, ease: "power3.out", stagger: 0.04 },
+      0.34,
+    );
+    tl.fromTo(
+      "#s3-node-e, #s3-node-f",
+      { opacity: 0, scale: 0.94 },
+      { opacity: 0.55, scale: 1, duration: 0.34, ease: "power3.out", stagger: 0.06 },
+      0.16,
+    );
+
+    // beat-grid: node 1 at 6.86s, node 2 at 7.38s, node 3 at 7.91s, node 4 at 8.44s
+    tl.fromTo(
+      "#s3-node-a",
+      { opacity: 0, scale: 0.86, filter: "blur(6px)" },
+      { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.38, ease: "power4.out" },
+      0.52,
+    );
+    tl.fromTo(
+      "#s3-node-b",
+      { opacity: 0, scale: 0.86, filter: "blur(6px)" },
+      { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.38, ease: "power4.out" },
+      1.04,
+    );
+    tl.fromTo(
+      "#s3-node-c",
+      { opacity: 0, scale: 0.86, filter: "blur(6px)" },
+      { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.38, ease: "power4.out" },
+      1.57,
+    );
+    tl.fromTo(
+      "#s3-node-d",
+      { opacity: 0, scale: 0.86, filter: "blur(6px)" },
+      { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.38, ease: "power4.out" },
+      2.1,
+    );
+
+    // beat-locked: 9.50s — the typed relation completes on the strong cue
+    tl.fromTo(
+      "#s3-edge-new",
+      { strokeDashoffset: 1 },
+      { strokeDashoffset: 0, duration: 0.52, ease: "power2.inOut" },
+      2.62,
+    );
+    tl.fromTo(
+      "#s3-node-a, #s3-node-b",
+      { borderColor: "#e2ddd5" },
+      { borderColor: "#0089a7", duration: 0.24, ease: "power2.out" },
+      3.12,
+    );
+    tl.fromTo(
+      "#s3-label",
+      { opacity: 0, scale: 0.9 },
+      { opacity: 1, scale: 1, duration: 0.26, ease: "power3.out" },
+      3.14,
+    );
+
+    window.__timelines["s3-graph"] = tl;
+  </script>
+</template>

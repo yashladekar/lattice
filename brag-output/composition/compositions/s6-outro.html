@@ -1,0 +1,246 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Geist";
+      src: url("assets/fonts/geist-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("assets/fonts/geist-mono-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: block;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: var(--color-ground);
+      font-family: "Geist", ui-sans-serif, sans-serif;
+      color: var(--color-ink);
+    }
+    #s6-glow {
+      position: absolute;
+      left: 50%;
+      top: 46%;
+      width: 1700px;
+      height: 1050px;
+      margin-left: -850px;
+      margin-top: -525px;
+      background: radial-gradient(
+        ellipse at center,
+        rgba(229, 124, 32, 0.2) 0%,
+        rgba(229, 124, 32, 0.07) 40%,
+        rgba(229, 124, 32, 0) 70%
+      );
+    }
+    #s6-net {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    #s6-head {
+      position: absolute;
+      left: 0;
+      top: 396px;
+      width: 1920px;
+      text-align: center;
+      font-size: 78px;
+      font-weight: 700;
+      letter-spacing: -0.032em;
+      line-height: 1.16;
+    }
+    #s6-head .w {
+      display: inline-block;
+    }
+    #s6-lockup {
+      position: absolute;
+      left: 0;
+      top: 548px;
+      width: 1920px;
+      text-align: center;
+    }
+    #s6-lockup-inner {
+      display: inline-block;
+      position: relative;
+      height: 96px;
+    }
+    #s6-mark {
+      display: inline-block;
+      vertical-align: middle;
+      width: 96px;
+      height: 96px;
+    }
+    #s6-word {
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 30px;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 96px;
+      line-height: 96px;
+      letter-spacing: -0.012em;
+      color: var(--color-ink);
+    }
+    #s6-tagline {
+      position: absolute;
+      left: 0;
+      top: 682px;
+      width: 1920px;
+      text-align: center;
+      font-size: 24px;
+      color: var(--l-muted);
+      letter-spacing: 0.005em;
+    }
+    #s6-status {
+      position: absolute;
+      left: 0;
+      top: 934px;
+      width: 1920px;
+      text-align: center;
+      font-family: "Geist Mono", monospace;
+      font-size: 17px;
+      color: var(--l-muted);
+    }
+    #s6-status-dot {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: var(--l-moss);
+      margin-right: 10px;
+      vertical-align: -1px;
+    }
+  </style>
+
+  <div id="root" data-composition-id="s6-outro" data-width="1920" data-height="1080">
+    <div id="s6-glow" data-layout-allow-overflow></div>
+
+    <svg id="s6-net" viewBox="0 0 1920 1080" fill="none" aria-hidden="true">
+      <g stroke="#e6e1d6" stroke-width="1.5">
+        <path d="M120 300 L260 400 L100 560 L240 720 L110 900" />
+        <path d="M260 400 L240 720" />
+        <path d="M420 200 L120 300" />
+        <path d="M420 200 L260 400" />
+        <path d="M1800 320 L1660 420 L1820 580 L1680 740 L1800 920" />
+        <path d="M1660 420 L1680 740" />
+        <path d="M1560 210 L1800 320" />
+        <path d="M1560 210 L1660 420" />
+        <path d="M1460 960 L1680 740" />
+      </g>
+      <g fill="#ffdba7">
+        <circle cx="120" cy="300" r="6" />
+        <circle cx="240" cy="720" r="5" />
+        <circle cx="1800" cy="320" r="6" />
+        <circle cx="1680" cy="740" r="5" />
+      </g>
+      <g fill="#b9e4c6">
+        <circle cx="260" cy="400" r="5" />
+        <circle cx="1800" cy="920" r="5" />
+        <circle cx="1560" cy="210" r="4" />
+      </g>
+      <g fill="#b8e1fa">
+        <circle cx="100" cy="560" r="5" />
+        <circle cx="1660" cy="420" r="5" />
+        <circle cx="450" cy="900" r="4" />
+      </g>
+      <g fill="#e6d5fc">
+        <circle cx="420" cy="200" r="4" />
+        <circle cx="1820" cy="580" r="5" />
+      </g>
+      <g fill="#ffd1d1">
+        <circle cx="110" cy="900" r="4" />
+        <circle cx="1460" cy="960" r="4" />
+      </g>
+      <g fill="#e57c20">
+        <circle cx="260" cy="400" r="3" />
+        <circle cx="1800" cy="320" r="3" />
+      </g>
+    </svg>
+
+    <div id="s6-head" class="clip" data-start="0" data-duration="4.73">
+      <span class="w">Everything</span> <span class="w">shares</span> <span class="w">one</span>
+      <span class="w">knowledge</span> <span class="w">model.</span>
+    </div>
+
+    <div id="s6-lockup">
+      <div id="s6-lockup-inner">
+        <svg id="s6-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <rect width="64" height="64" rx="14" fill="#1d1d1a" />
+          <path
+            d="M20 20L44 20M20 20L20 44M44 20L44 44M20 44L44 44M20 20L44 44M44 20L20 44"
+            stroke="#3a3a34"
+            stroke-width="1.5"
+          />
+          <circle cx="20" cy="20" r="6" fill="#e8892f" />
+          <circle cx="44" cy="20" r="4.5" fill="#f4efe4" />
+          <circle cx="20" cy="44" r="4.5" fill="#f4efe4" />
+          <circle cx="44" cy="44" r="6" fill="#6f9c7d" />
+        </svg>
+        <span id="s6-word">lattice</span>
+      </div>
+    </div>
+
+    <div id="s6-tagline">a local-first knowledge OS</div>
+
+    <div id="s6-status"><span id="s6-status-dot"></span>All changes local &#183; No conflicts</div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    tl.fromTo("#s6-glow", { opacity: 0 }, { opacity: 1, duration: 0.36, ease: "power2.out" }, 0);
+    tl.fromTo("#s6-net", { opacity: 0 }, { opacity: 1, duration: 0.44, ease: "power2.out" }, 0);
+
+    tl.fromTo(
+      "#s6-head .w",
+      { opacity: 0, filter: "blur(7px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out", stagger: 0.067 },
+      0.08,
+    );
+
+    // beat-locked: 17.91s — the wordmark lands on the strong cue as the line hands off
+    tl.to(
+      "#s6-head .w",
+      { opacity: 0, filter: "blur(7px)", duration: 0.18, ease: "power2.in", stagger: 0.04 },
+      2.1,
+    );
+    tl.fromTo(
+      "#s6-mark",
+      { opacity: 0, scale: 0.68 },
+      { opacity: 1, scale: 1, duration: 0.45, ease: "power4.out" },
+      2.1,
+    );
+    tl.fromTo(
+      "#s6-word",
+      { opacity: 0, x: -22, filter: "blur(8px)" },
+      { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.5, ease: "power4.out" },
+      2.2,
+    );
+
+    tl.fromTo(
+      "#s6-tagline",
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.38, ease: "power3.out" },
+      2.44,
+    );
+    tl.fromTo(
+      "#s6-status",
+      { opacity: 0 },
+      { opacity: 1, duration: 0.36, ease: "power2.out" },
+      2.6,
+    );
+
+    window.__timelines["s6-outro"] = tl;
+  </script>
+</template>

@@ -1,0 +1,368 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Geist";
+      src: url("assets/fonts/geist-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("assets/fonts/geist-mono-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: var(--color-ground);
+      font-family: "Geist", ui-sans-serif, sans-serif;
+      color: var(--color-ink);
+    }
+    #s4-grid {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      background-image: radial-gradient(circle, #ded8cc 1.8px, transparent 1.9px);
+      background-size: 44px 44px;
+      background-position: 22px 22px;
+    }
+    #s4-glow {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      background: radial-gradient(
+        ellipse at 47% 58%,
+        rgba(229, 124, 32, 0.09) 0%,
+        rgba(229, 124, 32, 0) 62%
+      );
+    }
+    #s4-titlecard {
+      position: absolute;
+      left: 44px;
+      top: 44px;
+      width: 320px;
+    }
+    #s4-title {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    #s4-saved {
+      margin-top: 8px;
+      font-family: "Geist Mono", monospace;
+      font-size: 15px;
+      color: var(--l-muted);
+    }
+    #s4-toolbar {
+      position: absolute;
+      left: 640px;
+      top: 40px;
+      width: 640px;
+      height: 60px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+      box-shadow: 0 14px 34px rgba(23, 19, 14, 0.1);
+    }
+    .s4-tool {
+      position: absolute;
+      top: 13px;
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      border: 2px solid #b8b1a4;
+    }
+    #s4-tool-note {
+      background: var(--l-sticky-saffron);
+      border-color: #d9a75f;
+    }
+    #s4-frame {
+      position: absolute;
+      left: 490px;
+      top: 300px;
+      width: 1180px;
+      height: 560px;
+      border: 2.5px dashed #c2bbad;
+      border-radius: 14px;
+    }
+    #s4-frame-label {
+      position: absolute;
+      left: 18px;
+      top: -40px;
+      height: 34px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+      padding: 0 16px;
+      font-size: 17px;
+      line-height: 31px;
+      color: var(--color-ink);
+      white-space: nowrap;
+    }
+    .s4-sticky {
+      position: absolute;
+      width: 300px;
+      height: 200px;
+      border-radius: 6px;
+      box-shadow: 0 14px 34px rgba(23, 19, 14, 0.13);
+      padding: 26px 26px 0;
+      font-size: 25px;
+      line-height: 1.34;
+      letter-spacing: -0.012em;
+      color: var(--color-ink);
+    }
+    #s4-sticky-1 {
+      left: 550px;
+      top: 620px;
+      background: var(--l-sticky-saffron);
+    }
+    #s4-sticky-2 {
+      left: 580px;
+      top: 356px;
+      background: var(--l-sticky-moss);
+    }
+    #s4-shape-rect {
+      position: absolute;
+      left: 972px;
+      top: 372px;
+      width: 288px;
+      height: 128px;
+      background: #ffffff;
+      border: 2.5px solid #b8b1a4;
+      border-radius: 14px;
+      text-align: center;
+      font-size: 25px;
+      line-height: 124px;
+    }
+    #s4-shape-ellipse {
+      position: absolute;
+      left: 1192px;
+      top: 596px;
+      width: 340px;
+      height: 152px;
+      background: #ffffff;
+      border: 2.5px solid #b8b1a4;
+      border-radius: 50%;
+      text-align: center;
+      font-size: 23px;
+      line-height: 148px;
+    }
+    #s4-livecard {
+      position: absolute;
+      left: 860px;
+      top: 630px;
+      width: 316px;
+      height: 116px;
+      background: #ffffff;
+      border: 2.5px solid var(--l-saffron);
+      border-radius: 12px;
+      box-shadow: 0 12px 28px rgba(23, 19, 14, 0.09);
+    }
+    #s4-livecard-dot {
+      position: absolute;
+      left: 18px;
+      top: 22px;
+      width: 13px;
+      height: 13px;
+      border-radius: 4px;
+      background: #e07a2e;
+    }
+    #s4-livecard-title {
+      position: absolute;
+      left: 44px;
+      top: 16px;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    #s4-livecard-sub {
+      position: absolute;
+      left: 18px;
+      top: 76px;
+      font-family: "Geist Mono", monospace;
+      font-size: 16px;
+      color: var(--l-muted);
+    }
+    #s4-conn {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    #s4-conn-path {
+      fill: none;
+      stroke: #8c7659;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+    }
+    #s4-conn-label {
+      position: absolute;
+      left: 1246px;
+      top: 508px;
+      height: 38px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+      padding: 0 16px;
+      font-size: 17px;
+      line-height: 35px;
+      color: var(--color-ink);
+      white-space: nowrap;
+      box-shadow: 0 8px 20px rgba(23, 19, 14, 0.08);
+    }
+  </style>
+
+  <div id="root" data-composition-id="s4-canvas" data-width="1920" data-height="1080">
+    <div id="s4-grid"></div>
+    <div id="s4-glow" data-layout-allow-overflow></div>
+
+    <svg id="s4-conn" viewBox="0 0 1920 1080" fill="none" aria-hidden="true">
+      <defs>
+        <marker
+          id="s4-arrow"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M0 1 L9 5 L0 9 z" fill="#8c7659" />
+        </marker>
+      </defs>
+      <path
+        id="s4-conn-path"
+        d="M1230 506 C 1256 556, 1270 600, 1276 646"
+        pathLength="1"
+        stroke-dasharray="1"
+        stroke-dashoffset="1"
+        marker-end="url(#s4-arrow)"
+      />
+    </svg>
+
+    <div id="s4-frame">
+      <div id="s4-frame-label">The review loop</div>
+    </div>
+
+    <div class="s4-sticky" id="s4-sticky-1">Retrieval beats re-reading&#8230;</div>
+    <div class="s4-sticky" id="s4-sticky-2">Space the sessions&#8230;</div>
+    <div id="s4-shape-rect">Practice</div>
+    <div id="s4-shape-ellipse">Long-term memory</div>
+
+    <div id="s4-livecard">
+      <div id="s4-livecard-dot"></div>
+      <div id="s4-livecard-title">Spaced repetition</div>
+      <div id="s4-livecard-sub">LIVE &#183; FROM LEARNING LAB</div>
+    </div>
+
+    <div id="s4-conn-label">builds</div>
+
+    <div id="s4-titlecard">
+      <div id="s4-title">Learning map</div>
+      <div id="s4-saved">Saved locally &#183; 6 elements</div>
+    </div>
+
+    <div id="s4-toolbar">
+      <div class="s4-tool" style="left: 20px"></div>
+      <div class="s4-tool" style="left: 62px"></div>
+      <div class="s4-tool" id="s4-tool-note" style="left: 104px"></div>
+      <div class="s4-tool" style="left: 146px; border-radius: 50%"></div>
+      <div class="s4-tool" style="left: 188px"></div>
+      <div class="s4-tool" style="left: 230px"></div>
+      <div class="s4-tool" style="left: 272px"></div>
+      <div class="s4-tool" style="left: 314px"></div>
+      <div class="s4-tool" style="left: 356px"></div>
+      <div class="s4-tool" style="left: 398px"></div>
+      <div class="s4-tool" style="left: 440px"></div>
+      <div class="s4-tool" style="left: 482px"></div>
+      <div class="s4-tool" style="left: 524px"></div>
+      <div class="s4-tool" style="left: 566px"></div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    tl.fromTo("#s4-grid", { opacity: 0 }, { opacity: 1, duration: 0.32, ease: "power2.out" }, 0);
+    tl.fromTo("#s4-glow", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
+    tl.fromTo(
+      "#s4-titlecard",
+      { opacity: 0, x: -14 },
+      { opacity: 1, x: 0, duration: 0.34, ease: "power3.out" },
+      0.06,
+    );
+    tl.fromTo(
+      "#s4-toolbar",
+      { opacity: 0, y: -14 },
+      { opacity: 1, y: 0, duration: 0.34, ease: "power3.out" },
+      0.1,
+    );
+    tl.fromTo(
+      "#s4-frame",
+      { opacity: 0, scale: 1.03 },
+      { opacity: 1, scale: 1, duration: 0.36, ease: "power3.out" },
+      0.06,
+    );
+    tl.fromTo(
+      "#s4-frame-label",
+      { opacity: 0, scale: 0.94 },
+      { opacity: 1, scale: 1, duration: 0.3, ease: "power3.out" },
+      0.2,
+    );
+
+    // beat-grid: sticky 1 at 10.54s, sticky 2 at 11.06s, live card at 11.60s
+    tl.fromTo(
+      "#s4-sticky-1",
+      { opacity: 0, scale: 0.72, rotation: -7 },
+      { opacity: 1, scale: 1, rotation: -1.4, duration: 0.4, ease: "power4.out" },
+      0.53,
+    );
+    tl.fromTo(
+      "#s4-sticky-2",
+      { opacity: 0, scale: 0.72, rotation: 5 },
+      { opacity: 1, scale: 1, rotation: 1.1, duration: 0.4, ease: "power4.out" },
+      1.05,
+    );
+    tl.fromTo(
+      "#s4-shape-rect",
+      { opacity: 0, scale: 0.88 },
+      { opacity: 1, scale: 1, duration: 0.36, ease: "power4.out" },
+      1.59,
+    );
+    tl.fromTo(
+      "#s4-shape-ellipse",
+      { opacity: 0, scale: 0.9 },
+      { opacity: 1, scale: 1, duration: 0.36, ease: "power4.out" },
+      1.59,
+    );
+    tl.fromTo(
+      "#s4-livecard",
+      { opacity: 0, scale: 0.92, y: 12 },
+      { opacity: 1, scale: 1, y: 0, duration: 0.36, ease: "power4.out" },
+      1.59,
+    );
+
+    tl.fromTo(
+      "#s4-conn-path",
+      { strokeDashoffset: 1 },
+      { strokeDashoffset: 0, duration: 0.34, ease: "power2.inOut" },
+      1.92,
+    );
+    tl.fromTo(
+      "#s4-conn-label",
+      { opacity: 0, scale: 0.92 },
+      { opacity: 1, scale: 1, duration: 0.24, ease: "power3.out" },
+      2.04,
+    );
+
+    window.__timelines["s4-canvas"] = tl;
+  </script>
+</template>

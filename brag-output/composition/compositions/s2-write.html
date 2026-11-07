@@ -1,0 +1,505 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Geist";
+      src: url("assets/fonts/geist-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("assets/fonts/geist-mono-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: var(--color-ground);
+      font-family: "Geist", ui-sans-serif, sans-serif;
+      color: var(--color-ink);
+    }
+    #s2-glow {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      background: radial-gradient(
+        ellipse at 50% 28%,
+        rgba(229, 124, 32, 0.1) 0%,
+        rgba(229, 124, 32, 0) 62%
+      );
+    }
+    #s2-window {
+      position: absolute;
+      left: 60px;
+      top: 60px;
+      width: 1800px;
+      height: 960px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 34px 90px rgba(23, 19, 14, 0.14);
+    }
+    #s2-topbar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1800px;
+      height: 58px;
+      border-bottom: 1.5px solid var(--l-hairline);
+      background: #fffdfa;
+    }
+    #s2-search {
+      position: absolute;
+      left: 20px;
+      top: 11px;
+      width: 436px;
+      height: 36px;
+      background: var(--l-soft);
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 999px;
+    }
+    #s2-search-label {
+      position: absolute;
+      left: 44px;
+      top: 7px;
+      font-size: 18px;
+      color: var(--l-muted);
+    }
+    #s2-search-glyph {
+      position: absolute;
+      left: 17px;
+      top: 10px;
+      width: 15px;
+      height: 15px;
+      border: 2px solid var(--l-muted);
+      border-radius: 999px;
+    }
+    #s2-search-key {
+      position: absolute;
+      right: 13px;
+      top: 8px;
+      font-family: "Geist Mono", monospace;
+      font-size: 14px;
+      color: var(--l-muted);
+      letter-spacing: 0.04em;
+    }
+    #s2-avatar {
+      position: absolute;
+      right: 22px;
+      top: 14px;
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: var(--l-sticky-saffron);
+    }
+    #s2-sidebar {
+      position: absolute;
+      left: 0;
+      top: 58px;
+      width: 280px;
+      height: 902px;
+      background: var(--l-sidebar);
+      border-right: 1.5px solid var(--l-hairline);
+    }
+    .s2-nav {
+      position: absolute;
+      left: 18px;
+      width: 244px;
+      height: 42px;
+      border-radius: 10px;
+    }
+    .s2-nav-label {
+      position: absolute;
+      left: 40px;
+      top: 10px;
+      font-size: 19px;
+      color: var(--color-ink);
+    }
+    .s2-nav-dot {
+      position: absolute;
+      left: 14px;
+      top: 15px;
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      background: #cdc7bb;
+    }
+    .s2-nav-badge {
+      position: absolute;
+      right: 12px;
+      top: 11px;
+      font-family: "Geist Mono", monospace;
+      font-size: 14px;
+      color: var(--l-muted);
+    }
+    #s2-nav-active {
+      background: #efe7d9;
+    }
+    #s2-sidehead {
+      position: absolute;
+      left: 32px;
+      top: 262px;
+      font-family: "Geist Mono", monospace;
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      color: var(--l-muted);
+    }
+    .s2-nb {
+      position: absolute;
+      left: 18px;
+      width: 244px;
+      height: 38px;
+    }
+    .s2-nb-label {
+      position: absolute;
+      left: 40px;
+      top: 7px;
+      font-size: 18px;
+      color: var(--color-ink);
+    }
+    .s2-nb-dot {
+      position: absolute;
+      left: 14px;
+      top: 13px;
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+    }
+    #s2-breadcrumb {
+      position: absolute;
+      left: 336px;
+      top: 100px;
+      font-size: 17px;
+      color: var(--l-muted);
+    }
+    #s2-title {
+      position: absolute;
+      left: 336px;
+      top: 132px;
+      font-size: 46px;
+      font-weight: 700;
+      letter-spacing: -0.028em;
+    }
+    #s2-body {
+      position: absolute;
+      left: 336px;
+      top: 224px;
+      width: 880px;
+      font-size: 23px;
+      line-height: 1.62;
+      color: var(--color-ink);
+    }
+    #s2-body-2 {
+      position: absolute;
+      left: 336px;
+      top: 384px;
+      width: 880px;
+      font-size: 23px;
+      line-height: 1.62;
+      color: var(--color-ink);
+    }
+    #s2-typed .c {
+      display: inline-block;
+      opacity: 0;
+    }
+    #s2-caret {
+      display: inline-block;
+      width: 2.5px;
+      height: 25px;
+      margin-left: 2px;
+      vertical-align: -4px;
+      background: var(--color-ink);
+      opacity: 0;
+    }
+    #s2-status {
+      position: absolute;
+      left: 0;
+      top: 918px;
+      width: 1800px;
+      height: 42px;
+      border-top: 1.5px solid var(--l-hairline);
+      background: #fffdfa;
+    }
+    .s2-status-text {
+      position: absolute;
+      top: 12px;
+      font-family: "Geist Mono", monospace;
+      font-size: 15px;
+      color: var(--l-muted);
+    }
+    #s2-status-local {
+      left: 22px;
+    }
+    #s2-status-conflicts {
+      left: 252px;
+    }
+    #s2-status-dot {
+      position: absolute;
+      left: 208px;
+      top: 16px;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--l-moss);
+    }
+    #s2-menu {
+      position: absolute;
+      left: 396px;
+      top: 500px;
+      width: 430px;
+      height: 336px;
+    }
+    #s2-menu-panel {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 430px;
+      height: 336px;
+      background: #ffffff;
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(23, 19, 14, 0.18);
+    }
+    #s2-menu-head {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 430px;
+      height: 46px;
+      border-bottom: 1.5px solid #ece7dd;
+    }
+    #s2-menu-head-glyph {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      width: 13px;
+      height: 13px;
+      border: 2px solid var(--l-muted);
+      border-radius: 999px;
+    }
+    #s2-menu-head-text {
+      position: absolute;
+      left: 40px;
+      top: 13px;
+      font-size: 17px;
+      color: var(--l-muted);
+    }
+    #s2-menu-esc {
+      position: absolute;
+      right: 14px;
+      top: 12px;
+      font-family: "Geist Mono", monospace;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: var(--color-ink);
+      background: var(--l-soft);
+      border: 1.5px solid var(--l-hairline);
+      border-radius: 6px;
+      padding: 3px 7px 4px;
+    }
+    #s2-menu-group {
+      position: absolute;
+      left: 18px;
+      top: 54px;
+      font-family: "Geist Mono", monospace;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      color: var(--l-muted);
+    }
+    .s2-row {
+      position: absolute;
+      left: 8px;
+      width: 414px;
+      height: 62px;
+      border-radius: 10px;
+    }
+    .s2-row-icon {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      width: 28px;
+      height: 28px;
+      border: 1.5px solid var(--l-hairline);
+      background: #fdfbf7;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 15px;
+      line-height: 26px;
+      color: var(--l-muted);
+    }
+    .s2-row-label {
+      position: absolute;
+      left: 48px;
+      top: 9px;
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--color-ink);
+    }
+    .s2-row-desc {
+      position: absolute;
+      left: 48px;
+      top: 35px;
+      font-size: 15px;
+      color: var(--l-muted);
+    }
+  </style>
+
+  <div id="root" data-composition-id="s2-write" data-width="1920" data-height="1080">
+    <div id="s2-glow"></div>
+
+    <div id="s2-window">
+      <div id="s2-topbar">
+        <div id="s2-search">
+          <div id="s2-search-glyph"></div>
+          <div id="s2-search-label">Search or ask</div>
+          <div id="s2-search-key">&#8984;K</div>
+        </div>
+        <div id="s2-avatar"></div>
+      </div>
+
+      <div id="s2-sidebar">
+        <div class="s2-nav" id="s2-nav-active" style="top: 22px">
+          <div class="s2-nav-dot"></div>
+          <div class="s2-nav-label">Home</div>
+        </div>
+        <div class="s2-nav" style="top: 70px">
+          <div class="s2-nav-dot"></div>
+          <div class="s2-nav-label">Inbox</div>
+          <div class="s2-nav-badge">3</div>
+        </div>
+        <div class="s2-nav" style="top: 118px">
+          <div class="s2-nav-dot"></div>
+          <div class="s2-nav-label">Knowledge graph</div>
+        </div>
+        <div class="s2-nav" style="top: 166px">
+          <div class="s2-nav-dot"></div>
+          <div class="s2-nav-label">Learning</div>
+        </div>
+        <div id="s2-sidehead">NOTEBOOKS</div>
+        <div class="s2-nb" style="top: 292px">
+          <div class="s2-nb-dot" style="background: #2f6b4f"></div>
+          <div class="s2-nb-label">Learning lab</div>
+        </div>
+        <div class="s2-nb" style="top: 334px">
+          <div class="s2-nb-dot" style="background: #4a6fa5"></div>
+          <div class="s2-nb-label">Systems notes</div>
+        </div>
+      </div>
+
+      <div id="s2-breadcrumb">Systems notes / Feedback loops</div>
+      <div id="s2-title">Feedback loops</div>
+      <div id="s2-body">A note is not valuable in isolation.</div>
+      <div id="s2-body-2">
+        <span id="s2-typed"
+          ><span class="c">S</span><span class="c">e</span><span class="c">e</span
+          ><span class="c">&nbsp;</span><span class="c">[</span><span class="c">[</span
+          ><span id="s2-caret"></span
+        ></span>
+      </div>
+
+      <div id="s2-status">
+        <div class="s2-status-text" id="s2-status-local">All changes local</div>
+        <div id="s2-status-dot"></div>
+        <div class="s2-status-text" id="s2-status-conflicts">No conflicts</div>
+      </div>
+    </div>
+
+    <div id="s2-menu">
+      <div id="s2-menu-panel"></div>
+      <div id="s2-menu-head">
+        <div id="s2-menu-head-glyph"></div>
+        <div id="s2-menu-head-text">Link a page</div>
+        <div id="s2-menu-esc">esc</div>
+      </div>
+      <div id="s2-menu-group">PAGES</div>
+      <div class="s2-row" id="s2-row-1" style="top: 84px; background: #f9e8d2">
+        <div class="s2-row-icon">&#9671;</div>
+        <div class="s2-row-label">Spaced repetition</div>
+        <div class="s2-row-desc">Page</div>
+      </div>
+      <div class="s2-row" id="s2-row-2" style="top: 148px">
+        <div class="s2-row-icon">&#9671;</div>
+        <div class="s2-row-label">Active recall</div>
+        <div class="s2-row-desc">Page</div>
+      </div>
+      <div class="s2-row" id="s2-row-3" style="top: 212px">
+        <div class="s2-row-icon">&#9671;</div>
+        <div class="s2-row-label" id="s2-row-3-label">Systems thinking</div>
+        <div class="s2-row-desc" id="s2-row-3-desc">Page</div>
+      </div>
+      <div class="s2-row" id="s2-row-4" style="top: 276px">
+        <div class="s2-row-icon">&#9671;</div>
+        <div class="s2-row-label">How memory works</div>
+        <div class="s2-row-desc">Page</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    tl.fromTo("#s2-glow", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
+    tl.fromTo(
+      "#s2-window",
+      { opacity: 0, scale: 1.035 },
+      { opacity: 1, scale: 1, duration: 0.34, ease: "power3.out" },
+      0,
+    );
+
+    tl.set("#s2-caret", { opacity: 1 }, 0.44);
+    tl.fromTo(
+      "#s2-typed .c",
+      { opacity: 0, filter: "blur(5px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.1, ease: "power2.out", stagger: 0.14 },
+      0.52,
+    );
+
+    tl.fromTo(
+      "#s2-menu",
+      { opacity: 0, y: -16, scale: 0.985 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.2, ease: "power3.out" },
+      1.55,
+    );
+
+    tl.to("#s2-row-1", { backgroundColor: "rgba(249,232,210,0)", duration: 0.14 }, 2.08);
+    tl.fromTo(
+      "#s2-row-3",
+      { backgroundColor: "rgba(249,232,210,0)" },
+      { backgroundColor: "#f9e8d2", duration: 0.14, ease: "power2.out" },
+      2.08,
+    );
+
+    tl.to("#s2-row-3", { scale: 1.04, duration: 0.08, ease: "power2.out" }, 2.6);
+    tl.to("#s2-caret", { opacity: 0, duration: 0.1 }, 2.66);
+
+    tl.to("#s2-row-3-label", { opacity: 0, duration: 0.14, ease: "power2.in" }, 2.78);
+    tl.to("#s2-row-3-desc", { opacity: 0, duration: 0.14, ease: "power2.in" }, 2.78);
+    tl.to("#s2-menu-panel", { opacity: 0, duration: 0.2, ease: "power2.in" }, 2.8);
+    tl.to("#s2-menu-head", { opacity: 0, duration: 0.16, ease: "power2.in" }, 2.78);
+    tl.to("#s2-menu-group", { opacity: 0, duration: 0.16, ease: "power2.in" }, 2.78);
+    tl.to(".s2-row:not(#s2-row-3)", { opacity: 0, duration: 0.18, ease: "power2.in" }, 2.8);
+    tl.to("#s2-window", { opacity: 0, duration: 0.3, ease: "power2.in" }, 2.82);
+
+    tl.fromTo(
+      "#s2-row-3",
+      { scale: 1.04, borderRadius: 10 },
+      { scale: 26, borderRadius: 0, duration: 0.46, ease: "power3.in" },
+      2.7,
+    );
+    tl.fromTo(
+      "#s2-row-3",
+      { backgroundColor: "#f9e8d2" },
+      { backgroundColor: "#fcf9f2", duration: 0.3, ease: "power2.in", immediateRender: false },
+      2.74,
+    );
+
+    window.__timelines["s2-write"] = tl;
+  </script>
+</template>

@@ -1,0 +1,1 @@
+Lattice: a local-first knowledge OS. Write, draw, link, and learn in one workspace — a page, a whiteboard, a topic and a flashcard are the same idea, not five disconnected tools. Your device is the source of truth.
