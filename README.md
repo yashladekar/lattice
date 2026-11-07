@@ -146,6 +146,38 @@ pnpm --filter web desktop:build
 
 The static export is loaded by Tauri. `apps/web/public/config.js` can point the desktop bundle at a self-hosted API without rebuilding.
 
+The shell adds a native menu, a system tray (closing the window hides it; use **Quit** from the tray or app menu to exit), remembered window size/position, native save dialogs for every export, auto-update checks on launch, and the `lattice://` deep-link scheme.
+
+### Desktop release
+
+`desktop:build` produces `.dmg`/`.app` on macOS and `.msi`/`.exe` on Windows. Pushing a `v*` tag runs `.github/workflows/desktop-release.yml`, which builds both platforms and opens a draft release.
+
+Signing and update secrets (repository secrets):
+
+| Secret | Purpose |
+| --- | --- |
+| `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD` | base64 Developer ID `.p12` and its password |
+| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Acme (TEAMID)` |
+| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarization |
+| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | updater artifact signing |
+
+The updater public key lives in `apps/web/src-tauri/tauri.conf.json`. Generate the pair with `pnpm --filter web tauri signer generate`; losing the private key breaks future updates. Host a `latest.json` at the configured endpoint:
+
+```json
+{
+  "version": "0.1.1",
+  "notes": "…",
+  "pub_date": "2026-11-07T00:00:00Z",
+  "platforms": {
+    "darwin-aarch64": { "signature": "…", "url": "https://…/Lattice.app.tar.gz" },
+    "darwin-x86_64": { "signature": "…", "url": "https://…/Lattice.app.tar.gz" },
+    "windows-x86_64": { "signature": "…", "url": "https://…/Lattice-setup.exe" }
+  }
+}
+```
+
+Logs go to the OS log directory (macOS `~/Library/Logs/app.lattice.desktop`, Windows `%LOCALAPPDATA%\app.lattice.desktop\logs`). Windows Authenticode signing is not configured yet.
+
 ### Mobile (Expo)
 
 ```bash
@@ -198,6 +230,7 @@ pnpm db:seed            # optional demo workspace
 pnpm --filter @notes-learning/domain test
 pnpm check-types
 pnpm --filter web build
+pnpm --filter web desktop:build  # requires Rust; produces an installer
 pnpm --filter server build
 pnpm --filter fumadocs build
 pnpm --filter native check-types

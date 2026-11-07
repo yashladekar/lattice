@@ -108,7 +108,23 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_process::init())
-    .plugin(tauri_plugin_deep_link::init());
+    .plugin(tauri_plugin_deep_link::init())
+    .plugin(
+      tauri_plugin_log::Builder::default()
+        .level(log::LevelFilter::Info)
+        .max_file_size(5_000_000)
+        .build(),
+    )
+    .on_window_event(|window, event| {
+      #[cfg(desktop)]
+      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        // Closing hides to the tray; Quit from the tray or the app menu exits.
+        api.prevent_close();
+        let _ = window.hide();
+      }
+      #[cfg(not(desktop))]
+      let _ = (window, event);
+    });
 
   #[cfg(desktop)]
   let builder = builder
@@ -129,13 +145,6 @@ pub fn run() {
         }
       }
 
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
       Ok(())
     })
     .run(tauri::generate_context!())
