@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' https:; connect-src 'self' ipc: http://ipc.localhost https: wss: ws: http://localhost:*"
     }
   },
   "bundle": {
@@ -35,6 +35,15 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist"
+    },
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

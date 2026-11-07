@@ -5,6 +5,9 @@ import { toast } from "sonner";
 
 export default function PwaRegistration() {
   useEffect(() => {
+    // The Tauri desktop shell has its own updater path; a service worker there
+    // would only cache the bundled shell and mask the installed version.
+    if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) return;
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production") {
       // A worker left over from a production build would keep serving the
