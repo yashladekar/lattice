@@ -244,6 +244,516 @@ body {
   animation: pulse-soft 2.4s ease-in-out infinite;
 }
 
+/* ---------- Landing interaction ---------- */
+
+/* Word-by-word hero entrance; each word's delay is set inline. */
+.word-rise {
+  display: inline-block;
+  animation: rise 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-rise-delay-3 {
+  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) 620ms both;
+}
+
+.animate-rise-delay-4 {
+  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) 780ms both;
+}
+
+/* Self-drawing scribble under the hero keyword. */
+.draw-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-stroke 950ms cubic-bezier(0.16, 1, 0.3, 1) 1200ms both;
+}
+
+@keyframes draw-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.hero-connect:hover .underline-scribble {
+  filter: drop-shadow(0 0 7px color-mix(in oklch, var(--saffron) 60%, transparent));
+  animation: scribble-wiggle 1.5s ease-in-out infinite;
+}
+
+@keyframes scribble-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(-0.8deg);
+  }
+  70% {
+    transform: rotate(0.8deg);
+  }
+}
+
+/* Scroll reveal (components/marketing/reveal.tsx). */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 820ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms),
+    transform 820ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms);
+}
+
+.reveal[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Constellation graph behind the hero. Edges draw in; groups take the glow. */
+.constellation-edge {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-opacity 450ms ease;
+  animation: draw-stroke 1500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.constellation-node-group {
+  transition: opacity 450ms ease;
+}
+
+.constellation-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-drift 7s ease-in-out infinite;
+}
+
+@keyframes node-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Shared edge draw-in for the small inline graphs. */
+.edge-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-stroke 1300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Marching dashes for connectors. */
+.dash-flow {
+  stroke-dasharray: 3 5;
+  animation: dash-flow 1.6s linear infinite;
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+.node-breathe {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-breathe 3.4s ease-in-out infinite;
+}
+
+@keyframes node-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.88;
+  }
+  50% {
+    transform: scale(1.16);
+    opacity: 1;
+  }
+}
+
+/* Cards floating above the product preview. */
+.float-soft {
+  transform: rotate(var(--tilt, 0deg));
+  animation: float-soft 8s ease-in-out infinite;
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-9px) rotate(var(--tilt, 0deg));
+  }
+}
+
+/* Expanding halo on status dots. */
+.pulse-ring {
+  position: relative;
+}
+
+.pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: inherit;
+  animation: pulse-ring 2.8s cubic-bezier(0, 0.4, 0.4, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  70%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* The preview's slash hint types itself in. */
+.type-line {
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  animation: type-line 5.6s steps(30, end) 1600ms infinite alternate;
+}
+
+@keyframes type-line {
+  from {
+    width: 0;
+  }
+  to {
+    width: 30ch;
+  }
+}
+
+/* Demo cursor walking through the product preview (md and up). */
+.preview-cursor {
+  animation: preview-cursor 15s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+@keyframes preview-cursor {
+  0% {
+    left: 54%;
+    top: 24px;
+    opacity: 0;
+    transform: scale(1);
+  }
+  4% {
+    left: 54%;
+    top: 24px;
+    opacity: 1;
+    transform: scale(1);
+  }
+  10% {
+    left: 54%;
+    top: 24px;
+    transform: scale(0.8);
+  }
+  14% {
+    left: 54%;
+    top: 24px;
+    transform: scale(1);
+  }
+  30% {
+    left: 9%;
+    top: 92px;
+    transform: scale(1);
+  }
+  36% {
+    left: 9%;
+    top: 92px;
+    transform: scale(0.8);
+  }
+  40% {
+    left: 9%;
+    top: 92px;
+    transform: scale(1);
+  }
+  56% {
+    left: 44%;
+    top: 218px;
+    transform: scale(1);
+  }
+  62% {
+    left: 44%;
+    top: 218px;
+    transform: scale(0.8);
+  }
+  66% {
+    left: 44%;
+    top: 218px;
+    transform: scale(1);
+  }
+  82% {
+    left: 88%;
+    top: 246px;
+    transform: scale(1);
+  }
+  88% {
+    left: 88%;
+    top: 246px;
+    transform: scale(0.8);
+  }
+  92% {
+    left: 88%;
+    top: 246px;
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    left: 88%;
+    top: 246px;
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* Command-palette highlight cycling the menu. */
+.palette-cursor {
+  animation: palette-cursor 5.5s ease-in-out infinite alternate;
+}
+
+@keyframes palette-cursor {
+  0%,
+  24% {
+    transform: translateY(0);
+  }
+  39%,
+  61% {
+    transform: translateY(22px);
+  }
+  76%,
+  100% {
+    transform: translateY(44px);
+  }
+}
+
+/* Slash-menu rows lighting up in sequence. */
+.slash-cycle {
+  animation: slash-cycle 5.4s ease-in-out infinite;
+  animation-delay: var(--cycle-delay, 0ms);
+}
+
+@keyframes slash-cycle {
+  0%,
+  94%,
+  100% {
+    background-color: transparent;
+  }
+  6%,
+  16% {
+    background-color: color-mix(in oklch, var(--saffron) 16%, transparent);
+  }
+}
+
+/* Flashcard flip. */
+.flip-scene {
+  perspective: 900px;
+}
+
+.flip-card {
+  transform-style: preserve-3d;
+  transition: transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+.flip-scene:hover .flip-card,
+.flip-scene:focus-within .flip-card,
+.flip-scene:active .flip-card {
+  transform: rotateY(180deg);
+}
+
+/* Interactive mini graph. */
+.fg-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 260ms ease;
+}
+
+.fg-edge {
+  transition: stroke-opacity 260ms ease;
+}
+
+/* Sync packet traveling the device rail. */
+.sync-packet {
+  position: absolute;
+  top: 50%;
+  left: 12%;
+  height: 5px;
+  width: 5px;
+  margin-top: -2.5px;
+  border-radius: 999px;
+  background: var(--saffron);
+  box-shadow: 0 0 10px color-mix(in oklch, var(--saffron) 75%, transparent);
+  animation: sync-packet 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+}
+
+@keyframes sync-packet {
+  0% {
+    left: 12%;
+    opacity: 0.15;
+  }
+  14%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    left: 88%;
+    opacity: 0.15;
+  }
+}
+
+/* Local-first op log: the active step breathes. */
+.log-line {
+  animation: log-cycle 6s ease-in-out infinite;
+}
+
+@keyframes log-cycle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Demo task checking itself off. */
+.check-pop {
+  animation: check-pop 560ms cubic-bezier(0.16, 1, 0.3, 1) 2300ms both;
+}
+
+@keyframes check-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.task-strike {
+  background-image: linear-gradient(to right, currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 55%;
+  background-size: 0% 1px;
+  animation: task-strike 560ms cubic-bezier(0.16, 1, 0.3, 1) 2600ms both;
+}
+
+@keyframes task-strike {
+  to {
+    background-size: 100% 1px;
+  }
+}
+
+/* Lattice mark breathing. */
+.mark-live circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mark-dot 3.6s ease-in-out infinite;
+}
+
+.mark-live circle:nth-of-type(2) {
+  animation-delay: 180ms;
+}
+
+.mark-live circle:nth-of-type(3) {
+  animation-delay: 360ms;
+}
+
+.mark-live circle:nth-of-type(4) {
+  animation-delay: 540ms;
+}
+
+@keyframes mark-dot {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-rise-delay,
+  .animate-rise-delay-2,
+  .animate-rise-delay-3,
+  .animate-rise-delay-4,
+  .pulse-soft,
+  .word-rise,
+  .constellation-node,
+  .node-breathe,
+  .pulse-ring::after,
+  .slash-cycle,
+  .log-line,
+  .sync-packet,
+  .palette-cursor,
+  .check-pop,
+  .task-strike {
+    animation: none !important;
+  }
+
+  .reveal,
+  .reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .draw-stroke,
+  .edge-draw,
+  .constellation-edge {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none !important;
+  }
+
+  .type-line {
+    animation: none !important;
+    width: auto;
+  }
+
+  .preview-cursor,
+  .sync-packet {
+    display: none;
+  }
+
+  .task-strike {
+    background-size: 100% 1px;
+  }
+
+  .flip-card {
+    transition: none;
+  }
+
+  .float-soft {
+    transform: rotate(var(--tilt, 0deg));
+  }
+
+  .hero-connect:hover .underline-scribble {
+    animation: none !important;
+  }
+}
+
 /* ---------- Editor ---------- */
 
 .tiptap {
