@@ -2,6 +2,7 @@
 
 import {
   collectBlockIds,
+  createId,
   createMindMap as buildMindMap,
   docToMarkdown,
   extractOutline,
@@ -10,6 +11,7 @@ import {
   liveWriteWouldClobber,
   outlineToMermaid,
   safeDoc,
+  withUniqueBlockIds,
   type CanvasDocument,
   type OutlineItem,
   type PluginToolDefinition,
@@ -35,6 +37,7 @@ import type { Editor, Range } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { generateJSON } from "@tiptap/html";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import {
   Bold,
   Blocks,
@@ -169,6 +172,22 @@ function validateInsert(kind: InsertKind | "link", value: string): string | null
   } catch {
     return "Use a full link, starting with https://";
   }
+}
+
+/**
+ * A duplicated block must not keep its source's block id: two nodes sharing an
+ * id break outline jumps, block embeds, and list identity. Every copied node
+ * gets a fresh id, exactly like pasted content.
+ */
+function cloneWithFreshBlockIds(node: ProseMirrorNode): ProseMirrorNode {
+  if (node.isText) return node;
+  const children: ProseMirrorNode[] = [];
+  node.forEach((child) => {
+    children.push(cloneWithFreshBlockIds(child));
+  });
+  const attrs =
+    "blockId" in node.attrs ? { ...node.attrs, blockId: createId() } : node.attrs;
+  return node.type.create(attrs, children, node.marks);
 }
 
 const PAGE_ICONS = ["✦", "◇", "◈", "◫", "◒", "⌘", "⌁", "▦", "◎", "☀", "☾", "❖", "✎", "♧", "⌂", "♢"];
@@ -571,18 +590,21 @@ export function PageEditor({
     const local = await db.pageDocuments.get(pageId);
     const content = local?.content;
     if (!content?.content?.length) return;
+    // Repair duplicate block ids on the way into the Yjs document; a live
+    // session never runs the load effect above.
+    const seeded = withUniqueBlockIds(content);
     // Seeding an empty body leaves a bare paragraph in the fragment, which the
     // position tracker cannot map. Let the binding initialize those instead.
-    const hasBody = content.content.some(
+    const hasBody = seeded.content.some(
       (node) =>
         node.type !== "paragraph" ||
         (Array.isArray(node.content) && node.content.length > 0),
     );
     if (!hasBody) return;
     const schema = getSchema(extensions);
-    const seeded = prosemirrorJSONToYDoc(schema, content as never, "default");
-    Y.applyUpdate(collab.doc, Y.encodeStateAsUpdate(seeded), "seed");
-    seeded.destroy();
+    const doc = prosemirrorJSONToYDoc(schema, seeded as never, "default");
+    Y.applyUpdate(collab.doc, Y.encodeStateAsUpdate(doc), "seed");
+    doc.destroy();
   }, [collab, db, pageId, extensions]);
 
   useEffect(() => {
@@ -684,10 +706,15 @@ export function PageEditor({
     // keeps that flush out of React's own commit phase.
     queueMicrotask(() => {
       if (editor.isDestroyed) return;
-      editor.commands.setContent(document.content, { emitUpdate: false });
+      const content = withUniqueBlockIds(document.content);
+      editor.commands.setContent(content, { emitUpdate: false });
+      // Older documents can carry the same block id twice (a block duplicated
+      // before copies got fresh ids). Persist the repaired body so outline
+      // jumps and embeds resolve again.
+      if (content !== document.content) void persist(content);
       setSaveStatus("saved");
     });
-  }, [editor, document, collab]);
+  }, [editor, document, collab, persist]);
 
   useEffect(() => {
     if (!page) return;
@@ -922,7 +949,8 @@ export function PageEditor({
     if (!editor || !target) return;
     const node = editor.state.doc.nodeAt(target.pos);
     if (!node) return;
-    editor.view.dispatch(editor.state.tr.insert(target.pos + node.nodeSize, node));
+    const copy = cloneWithFreshBlockIds(node);
+    editor.view.dispatch(editor.state.tr.insert(target.pos + node.nodeSize, copy));
     toast.success("Block duplicated");
   };
 
@@ -1088,14 +1116,16 @@ export function PageEditor({
         versionId,
       });
       if (result.document) {
+        const content = withUniqueBlockIds(result.document.content);
         const restoredDocument = {
           ...result.document,
+          content,
           updatedAt: new Date(result.document.updatedAt).toISOString(),
           localUpdatedAt: new Date().toISOString(),
         };
         await db.pageDocuments.put(restoredDocument as never);
         if (editor && !editor.isDestroyed) {
-          editor.commands.setContent(restoredDocument.content);
+          editor.commands.setContent(content);
         }
         lastRev.current = restoredDocument.rev;
       }

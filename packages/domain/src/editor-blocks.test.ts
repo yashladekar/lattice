@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { docToMarkdown, extractPlainText, nodePlainText, stripUnsafeHrefs } from "./editor";
+import {
+  docToMarkdown,
+  extractOutline,
+  extractPlainText,
+  nodePlainText,
+  stripUnsafeHrefs,
+  withUniqueBlockIds,
+} from "./editor";
 import type { TipTapDoc, TipTapNode } from "./types";
 
 const request = (attrs: Record<string, unknown>): TipTapNode => ({
@@ -102,5 +109,60 @@ describe("stripUnsafeHrefs", () => {
 
   it("returns an empty doc for junk", () => {
     expect(stripUnsafeHrefs("nope").content).toEqual([{ type: "paragraph" }]);
+  });
+});
+
+describe("block id integrity", () => {
+  const heading = (text: string, blockId?: string): TipTapNode => ({
+    type: "heading",
+    attrs: { level: 2, ...(blockId ? { blockId } : {}) },
+    content: [{ type: "text", text }],
+  });
+
+  const duplicated: TipTapDoc = {
+    type: "doc",
+    content: [
+      heading("First", "b1"),
+      {
+        type: "blockquote",
+        attrs: { blockId: "q1" },
+        content: [
+          {
+            type: "paragraph",
+            attrs: { blockId: "p1" },
+            content: [{ type: "text", text: "quoted" }],
+          },
+        ],
+      },
+      heading("Second", "b1"),
+    ],
+  };
+
+  it("keeps the document untouched when every id is unique", () => {
+    const unique: TipTapDoc = {
+      type: "doc",
+      content: [heading("Only", "a1"), heading("Also", "a2")],
+    };
+    expect(withUniqueBlockIds(unique)).toBe(unique);
+  });
+
+  it("gives later occurrences of a duplicate id a fresh one", () => {
+    const repaired = withUniqueBlockIds(duplicated);
+    expect(repaired).not.toBe(duplicated);
+    // the original doc keeps its shape — the repair returns a new tree
+    expect(duplicated.content[2]?.attrs?.blockId).toBe("b1");
+    expect(repaired.content[0]?.attrs?.blockId).toBe("b1");
+    const second = repaired.content[2]?.attrs?.blockId;
+    expect(typeof second).toBe("string");
+    expect(second).not.toBe("b1");
+    // nested ids are visited too, but unique ones stay as they are
+    const quote = repaired.content[1]?.content?.[0];
+    expect(quote?.attrs?.blockId).toBe("p1");
+  });
+
+  it("drops phantom outline entries for an id that appears twice", () => {
+    const outline = extractOutline(duplicated);
+    expect(outline.map((item) => item.id)).toEqual(["b1"]);
+    expect(outline[0]?.text).toBe("First");
   });
 });

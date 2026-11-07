@@ -1,3 +1,4 @@
+import { createId } from "./ids";
 import type { OutlineItem, PageLinkInfo, TipTapDoc, TipTapNode } from "./types";
 
 const BLOCK_TYPES = new Set([
@@ -163,27 +164,27 @@ export function extractOutline(doc: TipTapDoc | null | undefined): OutlineItem[]
   const out: OutlineItem[] = [];
   if (!doc?.content) return out;
   let index = 0;
+  const seen = new Set<string>();
+  const push = (node: TipTapNode, level: number, text: string) => {
+    const id = blockIdOf(node) ?? `outline-${index++}`;
+    // A block id can appear twice in documents written before duplicated
+    // blocks got fresh ids. An outline entry must resolve to one node, so
+    // the first occurrence wins instead of emitting a dead duplicate.
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push({ id, level, text, pos: out.length });
+  };
   const visit = (node: TipTapNode, inheritedLevel = 0) => {
     if (node.type === "heading") {
       const level = typeof node.attrs?.level === "number" ? node.attrs.level : 2;
-      out.push({
-        id: blockIdOf(node) ?? `outline-${index++}`,
-        level,
-        text: nodePlainText(node).trim(),
-        pos: out.length,
-      });
+      push(node, level, nodePlainText(node).trim());
       return;
     }
     if (node.type === "bulletList" || node.type === "orderedList" || node.type === "taskList") {
       for (const item of node.content ?? []) {
         const text = nodePlainText(item).trim();
         if (text) {
-          out.push({
-            id: blockIdOf(item) ?? `outline-${index++}`,
-            level: Math.max(3, inheritedLevel + 3),
-            text,
-            pos: out.length,
-          });
+          push(item, Math.max(3, inheritedLevel + 3), text);
         }
       }
       return;
@@ -224,6 +225,44 @@ export function collectBlockIds(doc: TipTapDoc | null | undefined): string[] {
     if (id) ids.push(id);
   });
   return ids;
+}
+
+/**
+ * Repairs documents where a block id appears more than once — a block that was
+ * duplicated in-place keeps the attrs it was copied from. Later occurrences get
+ * fresh ids so outline jumps, block embeds, and list keys each resolve to one
+ * node. Returns the same doc reference when every id is already unique, so
+ * callers can use identity to decide whether a write-back is needed.
+ */
+export function withUniqueBlockIds(doc: TipTapDoc): TipTapDoc {
+  const seen = new Set<string>();
+  const visit = (node: TipTapNode): TipTapNode => {
+    const id = node.attrs?.blockId;
+    let attrs = node.attrs;
+    if (typeof id === "string" && id.length > 0) {
+      if (seen.has(id)) {
+        attrs = { ...node.attrs, blockId: createId() };
+      } else {
+        seen.add(id);
+      }
+    }
+    let content = node.content;
+    let contentChanged = false;
+    if (node.content) {
+      content = node.content.map(visit);
+      contentChanged = content.some((child, index) => child !== node.content?.[index]);
+    }
+    if (attrs === node.attrs && !contentChanged) return node;
+    return {
+      ...node,
+      ...(attrs !== node.attrs ? { attrs } : {}),
+      ...(contentChanged ? { content } : {}),
+    };
+  };
+  const content = doc.content.map(visit);
+  const changed = content.some((node, index) => node !== doc.content[index]);
+  if (!changed) return doc;
+  return { ...doc, content };
 }
 
 export function walk(
