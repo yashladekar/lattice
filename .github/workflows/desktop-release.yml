@@ -23,11 +23,11 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: --target aarch64-apple-darwin
+            args: "--target aarch64-apple-darwin --config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'"
           - platform: macos-latest
-            args: --target x86_64-apple-darwin
+            args: "--target x86_64-apple-darwin --config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'"
           - platform: windows-latest
-            args: ""
+            args: "--config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -74,6 +74,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Updater signing. Generate once with `pnpm --filter web tauri signer generate`
+          # and keep the private key + password as repository secrets. The public key
+          # in apps/web/src-tauri/tauri.conf.json must match this private key.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # Windows Authenticode signing is not wired up yet: import the PFX
           # into Cert:\CurrentUser\My and point bundle.windows.certificateThumbprint
           # at it (or use a signCommand). Until then Windows artifacts are unsigned.

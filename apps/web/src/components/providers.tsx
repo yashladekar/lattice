@@ -8,6 +8,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { getQueryClient } from "@/utils/orpc";
 
 import { AppDataProvider } from "./app-data-provider";
+import { DesktopUpdater } from "./desktop-updater";
 import { ExternalLinkHandler } from "./external-links";
 import { ThemeProvider } from "./theme-provider";
 
@@ -23,6 +24,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <ReactQueryDevtools />
       </QueryClientProvider>
       <ExternalLinkHandler />
+      <DesktopUpdater />
       <Toaster richColors position="bottom-right" />
     </ThemeProvider>
   );
