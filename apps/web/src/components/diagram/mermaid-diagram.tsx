@@ -125,7 +125,7 @@ export function MermaidDiagram({
     return (
       <div
         className={cn(
-          "diagram-surface flex items-center justify-center gap-2 text-xs text-muted-foreground",
+          "diagram-surface flex items-center justify-center gap-2 text-[10px] text-muted-foreground",
           className,
         )}
       >
@@ -138,11 +138,11 @@ export function MermaidDiagram({
   if (error) {
     return (
       <div className={cn("diagram-surface diagram-surface-error", className)}>
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-destructive">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive">
           Diagram error
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{error}</p>
-        <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-background/60 p-2 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{error}</p>
+        <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-background/60 p-2 text-[10px] leading-relaxed text-muted-foreground">
           <code>{source}</code>
         </pre>
       </div>

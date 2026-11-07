@@ -86,7 +86,7 @@ export default function NativeHome() {
             </View>
             <View>
               <Text className="text-lg font-semibold tracking-tight text-foreground">lattice</Text>
-              <Text className="text-xs text-muted">{workspace?.name ?? "Workspace"}</Text>
+              <Text className="text-[10px] text-muted">{workspace?.name ?? "Workspace"}</Text>
             </View>
           </View>
           <View className="flex-row items-center gap-1">
@@ -126,7 +126,7 @@ export default function NativeHome() {
                   >
                     <Text className="text-[11px]">{membership.workspace.icon ?? "◇"}</Text>
                     <Text
-                      className={`text-xs font-medium ${active ? "text-neutral-900" : "text-muted"}`}
+                      className={`text-[10px] font-medium ${active ? "text-neutral-900" : "text-muted"}`}
                     >
                       {membership.workspace.name}
                     </Text>
@@ -158,7 +158,7 @@ export default function NativeHome() {
           >
             <Ionicons name="add-circle-outline" size={20} color="#1d1d1a" />
             <Text className="mt-2 text-sm font-semibold text-neutral-900">Quick capture</Text>
-            <Text className="mt-0.5 text-xs text-neutral-800/70">Inbox first, organize later</Text>
+            <Text className="mt-0.5 text-[10px] text-neutral-800/70">Inbox first, organize later</Text>
           </Pressable>
           <Pressable
             onPress={() => router.push("/learn")}
@@ -168,7 +168,7 @@ export default function NativeHome() {
             <Text className="mt-2 text-sm font-semibold text-foreground">
               {stats.data?.dueCount ?? 0} cards due
             </Text>
-            <Text className="mt-0.5 text-xs text-muted">
+            <Text className="mt-0.5 text-[10px] text-muted">
               {stats.data?.streak ?? 0} day streak
             </Text>
           </Pressable>
@@ -178,7 +178,7 @@ export default function NativeHome() {
           <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
             Continue
           </Text>
-          <Text className="text-xs text-muted">{recent.data?.length ?? 0} notes</Text>
+          <Text className="text-[10px] text-muted">{recent.data?.length ?? 0} notes</Text>
         </View>
 
         <View className="mt-3 gap-2">
@@ -200,7 +200,7 @@ export default function NativeHome() {
                   <Text numberOfLines={1} className="text-sm font-medium text-foreground">
                     {page.title}
                   </Text>
-                  <Text className="mt-0.5 text-xs text-muted">
+                  <Text className="mt-0.5 text-[10px] text-muted">
                     Edited {relative(page.updatedAt)}
                   </Text>
                 </View>
@@ -224,7 +224,7 @@ export default function NativeHome() {
             Notebooks
           </Text>
           <Pressable onPress={() => router.push("/notebooks")}>
-            <Text className="text-xs text-amber-500">View all</Text>
+            <Text className="text-[10px] text-amber-500">View all</Text>
           </Pressable>
         </View>
         <View className="mt-3 gap-2">
@@ -236,15 +236,15 @@ export default function NativeHome() {
             >
               <Text className="text-sm">{notebook.icon ?? "◫"}</Text>
               <Text className="min-w-0 flex-1 text-xs text-foreground">{notebook.name}</Text>
-              <Text className="text-xs text-muted">{notebook.pageCount ?? 0}</Text>
+              <Text className="text-[9px] text-muted">{notebook.pageCount ?? 0}</Text>
             </Pressable>
           ))}
         </View>
 
         <View className="mt-7 rounded-2xl border border-border bg-surface p-4">
-          <Text className="text-xs uppercase tracking-widest text-muted">Workspace</Text>
+          <Text className="text-[10px] uppercase tracking-widest text-muted">Workspace</Text>
           <Text className="mt-1 text-sm font-medium text-foreground">{workspace?.name}</Text>
-          <Text className="mt-1 text-xs leading-5 text-muted">
+          <Text className="mt-1 text-[10px] leading-5 text-muted">
             Mobile is the capture, reading, and review companion. The full editor, whiteboard, and graph
             live in the web and desktop app, sharing the same synced knowledge model.
           </Text>

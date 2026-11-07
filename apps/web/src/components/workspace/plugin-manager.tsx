@@ -323,12 +323,12 @@ export function PluginManager() {
       <div className="rounded-xl border border-border/70 bg-card/35 p-4">
         <div className="flex items-center gap-2">
           <Boxes className="size-3.5 text-muted-foreground" />
-          <h3 className="text-xs font-medium">Plugins</h3>
-          <span className="ml-auto text-xs text-muted-foreground">
+          <h3 className="text-[11px] font-medium">Plugins</h3>
+          <span className="ml-auto text-[8.5px] text-muted-foreground">
             {plugins.length} installed · device only
           </span>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
           Plugins run in a worker with no network and no access to the local database. Everything they
           touch goes through the permissions you grant below, and each page write is saved as a new
           revision.
@@ -342,20 +342,20 @@ export function PluginManager() {
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-medium">{plugin.manifest.name}</span>
-                  <span className="font-mono text-xs text-muted-foreground">
+                  <span className="text-[11px] font-medium">{plugin.manifest.name}</span>
+                  <span className="font-mono text-[8.5px] text-muted-foreground">
                     {plugin.manifest.version}
                   </span>
                   {risk === "high" ? (
-                    <span className="inline-flex items-center gap-0.5 text-xs text-destructive">
+                    <span className="inline-flex items-center gap-0.5 text-[8.5px] text-destructive">
                       <ShieldAlert className="size-2.5" /> high risk
                     </span>
                   ) : null}
                 </div>
-                <div className="text-xs text-muted-foreground">{plugin.manifest.description}</div>
-                <div className="font-mono text-xs text-muted-foreground">{plugin.manifest.id}</div>
+                <div className="text-[9px] text-muted-foreground">{plugin.manifest.description}</div>
+                <div className="font-mono text-[8.5px] text-muted-foreground">{plugin.manifest.id}</div>
                 {plugin.manifest.blocks?.length || plugin.manifest.canvasTools?.length ? (
-                  <div className="mt-0.5 text-xs text-moss">
+                  <div className="mt-0.5 text-[8.5px] text-moss">
                     {plugin.manifest.blocks?.length
                       ? `${plugin.manifest.blocks.length} editor block${plugin.manifest.blocks.length === 1 ? "" : "s"}`
                       : ""}
@@ -371,7 +371,7 @@ export function PluginManager() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 rounded-md text-xs"
+                className="h-6 rounded-md text-[9px]"
                 disabled={!plugin.enabled || Boolean(running)}
                 onClick={() => void runPluginOn(plugin)}
               >
@@ -385,7 +385,7 @@ export function PluginManager() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 rounded-md text-xs"
+                className="h-6 rounded-md text-[9px]"
                 onClick={() =>
                   update(
                     plugins.map((entry) =>
@@ -401,7 +401,7 @@ export function PluginManager() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 rounded-md text-xs text-destructive"
+                className="h-6 rounded-md text-[9px] text-destructive"
                 onClick={() =>
                   update(plugins.filter((entry) => entry.manifest.id !== plugin.manifest.id))
                 }
@@ -422,7 +422,7 @@ export function PluginManager() {
                     onClick={() => toggleCapability(plugin, capability)}
                     title={CAPABILITY_INFO[capability].description}
                     className={cn(
-                      "rounded border px-1.5 py-0.5 font-mono text-xs transition-colors",
+                      "rounded border px-1.5 py-0.5 font-mono text-[8.5px] transition-colors",
                       granted
                         ? CAPABILITY_INFO[capability].risk === "high"
                           ? "border-destructive/50 text-destructive"
@@ -437,13 +437,13 @@ export function PluginManager() {
                 );
               })}
             </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
+            <p className="mt-1.5 text-[8.5px] text-muted-foreground">
               {describeRecord({ manifest: plugin.manifest, granted: plugin.granted, enabled: plugin.enabled })}
             </p>
 
             {result?.pluginId === plugin.manifest.id ? (
               <div className="mt-2 rounded-lg border border-border/60 bg-background/60 p-2.5">
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-[9px]">
                   <span className={result.run.ok ? "text-moss" : "text-destructive"}>
                     {result.run.ok ? "Finished" : "Failed"}
                   </span>
@@ -455,17 +455,17 @@ export function PluginManager() {
                   ) : null}
                 </div>
                 {result.run.error ? (
-                  <p className="mt-1 font-mono text-xs text-destructive">{result.run.error}</p>
+                  <p className="mt-1 font-mono text-[10px] text-destructive">{result.run.error}</p>
                 ) : null}
                 {result.run.value !== undefined ? (
-                  <pre className="mt-1 overflow-x-auto font-mono text-xs">
+                  <pre className="mt-1 overflow-x-auto font-mono text-[10px]">
                     {JSON.stringify(result.run.value, null, 2)}
                   </pre>
                 ) : null}
                 {result.run.logs.length ? (
                   <div className="mt-1 space-y-0.5">
                     {result.run.logs.map((line, index) => (
-                      <div key={index} className="font-mono text-xs text-muted-foreground">
+                      <div key={index} className="font-mono text-[9px] text-muted-foreground">
                         {line}
                       </div>
                     ))}
@@ -478,8 +478,8 @@ export function PluginManager() {
       })}
 
       <div className="rounded-xl border border-border/70 bg-card/35 p-4">
-        <h3 className="text-xs font-medium">Directory</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <h3 className="text-[11px] font-medium">Directory</h3>
+        <p className="mt-1 text-[9px] text-muted-foreground">
           Small, audited plugins that ship with Lattice. They run in the same sandbox and ask for the
           same consent as anything from a URL.
         </p>
@@ -495,16 +495,16 @@ export function PluginManager() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-xs font-medium">
+                    <div className="text-[10px] font-medium">
                       {entry.manifest.name}{" "}
-                      <span className="font-mono text-xs text-muted-foreground">
+                      <span className="font-mono text-[8px] text-muted-foreground">
                         v{entry.manifest.version}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    <p className="mt-0.5 text-[9px] leading-relaxed text-muted-foreground">
                       {entry.manifest.description}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-[8px] text-muted-foreground">
                       {describeRecord({
                         manifest: entry.manifest,
                         granted: initialGrant(entry.manifest),
@@ -515,7 +515,7 @@ export function PluginManager() {
                   <Button
                     size="sm"
                     variant={installed ? "outline" : "default"}
-                    className="h-8 shrink-0 rounded-md text-xs"
+                    className="h-7 shrink-0 rounded-md text-[9px]"
                     disabled={installed}
                     onClick={() => installDirectoryPlugin(entry)}
                   >
@@ -537,14 +537,14 @@ export function PluginManager() {
       </div>
 
       <div className="rounded-xl border border-border/70 bg-card/35 p-4">
-        <h3 className="text-xs font-medium">Install</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <h3 className="text-[11px] font-medium">Install</h3>
+        <p className="mt-1 text-[9px] text-muted-foreground">
           Only install code you trust. The sandbox withholds the network and the local database, but it
           is a containment boundary, not a defence against hostile code.
         </p>
 
         <div className="mt-3 rounded-lg border border-border/60 bg-background/40 p-2.5">
-          <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+          <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
             Install from URL
           </div>
           <div className="mt-1.5 flex gap-1.5">
@@ -554,12 +554,12 @@ export function PluginManager() {
               placeholder="https://example.com/lattice-plugin.json"
               spellCheck={false}
               aria-label="Plugin bundle URL"
-              className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 font-mono text-xs outline-none focus:border-primary/40"
+              className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 font-mono text-[10px] outline-none focus:border-primary/40"
             />
             <Button
               variant="outline"
               size="sm"
-              className="h-8 rounded-md text-xs"
+              className="h-8 rounded-md text-[9px]"
               disabled={remoteBusy || !remoteUrl.trim()}
               onClick={() => void fetchRemotePlugin()}
             >
@@ -567,25 +567,25 @@ export function PluginManager() {
               Fetch
             </Button>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-[8px] leading-relaxed text-muted-foreground">
             Expects JSON: <span className="font-mono">{'{ "manifest": …, "source": … }'}</span>. HTTPS
             only, 256 KB maximum. Nothing installs until you review the requested permissions.
           </p>
           {pendingRemote ? (
             <div className="mt-2 rounded-md border border-saffron/40 bg-saffron/[0.06] p-2">
-              <div className="text-xs font-medium">
+              <div className="text-[10px] font-medium">
                 {pendingRemote.manifest.name}{" "}
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="font-mono text-[8px] text-muted-foreground">
                   v{pendingRemote.manifest.version}
                 </span>
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 text-[9px] text-muted-foreground">
                 {pendingRemote.manifest.description}
               </p>
               <div className="mt-1.5 space-y-1">
                 {pendingRemote.manifest.permissions.length ? (
                   pendingRemote.manifest.permissions.map((capability) => (
-                    <div key={capability} className="flex items-start gap-1.5 text-xs">
+                    <div key={capability} className="flex items-start gap-1.5 text-[8.5px]">
                       <ShieldAlert className="mt-0.5 size-2.5 shrink-0 text-saffron" />
                       <span>
                         <span className="font-medium">{CAPABILITY_INFO[capability].label}</span> —{" "}
@@ -594,19 +594,19 @@ export function PluginManager() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[8.5px] text-muted-foreground">
                     Needs no access to your notes.
                   </p>
                 )}
               </div>
               <div className="mt-1.5 flex items-center gap-2">
-                <Button size="sm" className="h-8 rounded-md text-xs" onClick={installPendingRemote}>
+                <Button size="sm" className="h-7 rounded-md text-[9px]" onClick={installPendingRemote}>
                   Install with these permissions
                 </Button>
                 <button
                   type="button"
                   onClick={() => setPendingRemote(null)}
-                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  className="text-[8px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
                 >
                   Cancel
                 </button>
@@ -616,7 +616,7 @@ export function PluginManager() {
         </div>
 
         <label className="mt-2 block">
-          <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
             Manifest (JSON)
           </span>
           <textarea
@@ -626,12 +626,12 @@ export function PluginManager() {
             spellCheck={false}
             aria-label="Plugin manifest"
             placeholder='{ "id": "com.you.plugin", "name": "…", "version": "1.0.0", "description": "…", "permissions": ["page:read"] }'
-            className="w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-xs outline-none focus:border-primary/40"
+            className="w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-[10px] outline-none focus:border-primary/40"
           />
         </label>
 
         <label className="mt-2 block">
-          <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
             Source — define <span className="font-mono">async function run(ctx)</span>
           </span>
           <textarea
@@ -641,19 +641,19 @@ export function PluginManager() {
             spellCheck={false}
             aria-label="Plugin source"
             placeholder="async function run(ctx) { return await ctx.readPage(); }"
-            className="w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-xs outline-none focus:border-primary/40"
+            className="w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-[10px] outline-none focus:border-primary/40"
           />
         </label>
 
         {pages.length ? (
           <label className="mt-2 block">
-            <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
               Page used for a run
             </span>
             <select
               value={pageId}
               onChange={(event) => setPageId(event.target.value)}
-              className="h-8 w-full rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
+              className="h-8 w-full rounded-lg border border-border bg-background px-2 text-[11px] outline-none focus:border-primary/40"
             >
               {pages.map((page) => (
                 <option key={page.id} value={page.id}>
@@ -665,7 +665,7 @@ export function PluginManager() {
         ) : null}
 
         {error ? (
-          <p className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 font-mono text-xs leading-relaxed text-destructive">
+          <p className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 font-mono text-[10px] leading-relaxed text-destructive">
             {error}
           </p>
         ) : null}
@@ -674,7 +674,7 @@ export function PluginManager() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 rounded-md text-xs"
+            className="h-7 rounded-md text-[9px]"
             onClick={() => {
               setManifestText(JSON.stringify(SAMPLE.manifest, null, 2));
               setSourceText(SAMPLE.source);
@@ -683,7 +683,7 @@ export function PluginManager() {
           >
             Load sample plugin
           </Button>
-          <Button size="sm" className="h-8 rounded-md text-xs" onClick={install}>
+          <Button size="sm" className="h-7 rounded-md text-[9px]" onClick={install}>
             <Plus className="size-3" /> Install
           </Button>
         </div>

@@ -108,16 +108,16 @@ export function QuickCaptureDialog({
       description="Get it out of your head. Organize it later."
       footer={
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[9px] text-muted-foreground">
             Saved locally first · sync is optional
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs" onClick={onClose}>
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-[11px]" onClick={onClose}>
               Cancel
             </Button>
             <Button
               size="sm"
-              className="h-8 rounded-lg text-xs"
+              className="h-8 rounded-lg text-[11px]"
               disabled={saving}
               onClick={() => void save()}
             >
@@ -139,7 +139,7 @@ export function QuickCaptureDialog({
               type="button"
               onClick={() => setKind(option.value)}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors",
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] transition-colors",
                 kind === option.value
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
@@ -152,7 +152,7 @@ export function QuickCaptureDialog({
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[9px] text-muted-foreground">
             Paste text, or attach a file to the inbox.
           </span>
           <input
@@ -180,7 +180,7 @@ export function QuickCaptureDialog({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg text-xs"
+            className="h-7 rounded-lg text-[9px]"
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
           >
@@ -236,7 +236,7 @@ export function QuickCaptureDialog({
         />
 
         {kind === "BOOKMARK" && url ? (
-          <div className="rounded-lg border border-border/60 bg-muted/25 p-3 text-xs text-muted-foreground">
+          <div className="rounded-lg border border-border/60 bg-muted/25 p-3 text-[10px] text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Link2 className="size-3 text-sky" />
               {title || url}

@@ -82,18 +82,18 @@ export function PageEmbedView({ node, selected }: NodeViewProps) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-xs font-medium">{page?.title ?? "Missing page"}</span>
-            <span className="rounded-full border border-border px-1.5 py-0.5 text-xs uppercase tracking-[0.1em] text-muted-foreground">
+            <span className="truncate text-[12px] font-medium">{page?.title ?? "Missing page"}</span>
+            <span className="rounded-full border border-border px-1.5 py-0.5 text-[8px] uppercase tracking-[0.1em] text-muted-foreground">
               embedded
             </span>
           </div>
-          <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-1 line-clamp-3 text-[10.5px] leading-relaxed text-muted-foreground">
             {excerpt || "This page has no text yet."}
           </p>
           <button
             type="button"
             onClick={() => pageId && router.push(appRouteObject({ view: "page", id: pageId }))}
-            className="mt-2 inline-flex items-center gap-1 text-xs text-link hover:underline"
+            className="mt-2 inline-flex items-center gap-1 text-[9px] text-link hover:underline"
           >
             Open page <ArrowUpRight className="size-2.5" />
           </button>
@@ -117,10 +117,10 @@ export function LiveBlockView({ node, selected }: NodeViewProps) {
       )}
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <span className="text-[8px] uppercase tracking-[0.15em] text-muted-foreground">
           Live from {page?.title ?? "a page"}
         </span>
-        <span className="inline-flex size-4 items-center justify-center rounded-full border border-moss/40 text-xs text-moss">
+        <span className="inline-flex size-4 items-center justify-center rounded-full border border-moss/40 text-[8px] text-moss">
           ↺
         </span>
       </div>
@@ -131,7 +131,7 @@ export function LiveBlockView({ node, selected }: NodeViewProps) {
           className="[&_.tiptap]:min-h-0"
         />
       ) : (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[10px] text-muted-foreground">
           This block was removed from its source page.
         </p>
       )}
@@ -168,13 +168,13 @@ export function BookmarkView({ node, selected }: NodeViewProps) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="truncate text-xs font-medium text-foreground">{title}</span>
+            <span className="truncate text-[12px] font-medium text-foreground">{title}</span>
             <ExternalLink className="size-3 shrink-0 text-muted-foreground/50" />
           </span>
-          <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
+          <span className="mt-1 line-clamp-2 block text-[10.5px] leading-relaxed text-muted-foreground">
             {description || url}
           </span>
-          <span className="mt-1 block text-xs text-muted-foreground/60">{hostname}</span>
+          <span className="mt-1 block text-[9px] text-muted-foreground/60">{hostname}</span>
         </span>
       </a>
     </NodeViewWrapper>
@@ -380,7 +380,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
         <select
           value={value}
           onChange={(event) => setCell(row.id, field, event.target.value)}
-          className="h-7 w-full rounded border border-transparent bg-transparent px-1 text-xs outline-none hover:border-border focus:border-ring"
+          className="h-6 w-full rounded border border-transparent bg-transparent px-1 text-[10px] outline-none hover:border-border focus:border-ring"
         >
           <option value="">—</option>
           {(field.options ?? []).map((option) => (
@@ -402,7 +402,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
             field.type === "number" ? Number(event.target.value) : event.target.value,
           )
         }
-        className="h-7 w-full rounded border border-transparent bg-transparent px-1 text-xs outline-none hover:border-border focus:border-ring"
+        className="h-6 w-full rounded border border-transparent bg-transparent px-1 text-[10px] outline-none hover:border-border focus:border-ring"
         placeholder={field.type === "date" ? "" : "Empty"}
       />
     );
@@ -425,7 +425,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
         <div className="flex items-center gap-1">
-          <span className="mr-2 text-xs font-medium">{title}</span>
+          <span className="mr-2 text-[11px] font-medium">{title}</span>
           {viewButtons.map((entry) => (
             <button
               key={entry.id}
@@ -442,7 +442,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
           ))}
         </div>
         <div className="flex items-center gap-1">
-          <span className="mr-1 text-xs text-muted-foreground">{rows.length} rows</span>
+          <span className="mr-1 text-[9px] text-muted-foreground">{rows.length} rows</span>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -467,7 +467,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
           <button
             type="button"
             onClick={() => addRow()}
-            className="inline-flex h-7 items-center gap-1 rounded bg-foreground px-2 text-xs text-background hover:opacity-85"
+            className="inline-flex h-6 items-center gap-1 rounded bg-foreground px-2 text-[9px] text-background hover:opacity-85"
           >
             <Plus className="size-2.5" /> New row
           </button>
@@ -480,7 +480,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
             <thead>
               <tr className="border-b border-border/60 bg-muted/25">
                 {fields.map((field) => (
-                  <th key={field.id} className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  <th key={field.id} className="px-2 py-1.5 text-[9px] font-medium text-muted-foreground">
                     {editingFieldId === field.id ? (
                       <input
                         autoFocus
@@ -498,7 +498,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                           }
                           if (event.key === "Escape") setEditingFieldId(null);
                         }}
-                        className="h-6 w-24 rounded border border-border bg-background px-1 text-xs outline-none focus:border-ring"
+                        className="h-5 w-24 rounded border border-border bg-background px-1 text-[9px] outline-none focus:border-ring"
                       />
                     ) : (
                       <span className="inline-flex items-center gap-1">
@@ -530,7 +530,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                             {(["text", "number", "date", "select", "checkbox"] as const).map(
                               (type) => (
                                 <DropdownMenuItem key={type} onClick={() => setFieldType(field, type)}>
-                                  <span className="w-3 shrink-0 text-xs">
+                                  <span className="w-3 shrink-0 text-[9px]">
                                     {field.type === type ? "✓" : ""}
                                   </span>
                                   <span className="capitalize">{type}</span>
@@ -585,7 +585,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
               ))}
               {!rows.length ? (
                 <tr>
-                  <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-[10px] text-muted-foreground">
                     No rows yet. Add one to start structuring this page.
                   </td>
                 </tr>
@@ -597,8 +597,8 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
         <div className="divide-y divide-border/40">
           {rows.map((row) => (
             <div key={row.id} className="group flex items-start gap-3 px-3 py-2 hover:bg-muted/20">
-              <span className="mt-0.5 text-xs">{cellValue(row, titleField?.id ?? "") || "Untitled"}</span>
-              <div className="ml-auto flex flex-wrap justify-end gap-2 text-xs text-muted-foreground">
+              <span className="mt-0.5 text-[11px]">{cellValue(row, titleField?.id ?? "") || "Untitled"}</span>
+              <div className="ml-auto flex flex-wrap justify-end gap-2 text-[9px] text-muted-foreground">
                 {fields.slice(1, 4).map((field) => (
                   <span key={field.id} className="rounded border border-border/60 px-1.5 py-0.5">
                     {field.name}: {cellValue(row, field.id) || "—"}
@@ -626,15 +626,15 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
             return (
               <div key={option} className="w-48 shrink-0 rounded-lg bg-muted/25 p-2">
                 <div className="flex items-center justify-between px-1 pb-1.5">
-                  <span className="text-xs font-medium">{option}</span>
-                  <span className="text-xs text-muted-foreground">{group.length}</span>
+                  <span className="text-[9px] font-medium">{option}</span>
+                  <span className="text-[8px] text-muted-foreground">{group.length}</span>
                 </div>
                 <div className="space-y-1">
                   {group.map((row) => (
                     <div key={row.id} className="rounded-md border border-border/60 bg-card px-2 py-1.5">
-                      <div className="text-xs">{cellValue(row, titleField?.id ?? "") || "Untitled"}</div>
+                      <div className="text-[10px]">{cellValue(row, titleField?.id ?? "") || "Untitled"}</div>
                       {dateField ? (
-                        <div className="mt-0.5 text-xs text-muted-foreground">{cellValue(row, dateField.id)}</div>
+                        <div className="mt-0.5 text-[8px] text-muted-foreground">{cellValue(row, dateField.id)}</div>
                       ) : null}
                     </div>
                   ))}
@@ -645,7 +645,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                         [selectField.id]: option === "Unassigned" ? "" : option,
                       })
                     }
-                    className="flex w-full items-center gap-1 rounded px-1 py-1 text-xs text-muted-foreground hover:bg-muted"
+                    className="flex w-full items-center gap-1 rounded px-1 py-1 text-[8px] text-muted-foreground hover:bg-muted"
                   >
                     <Plus className="size-2.5" /> Add card
                   </button>
@@ -658,10 +658,10 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
         <div className="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3">
           {rows.map((row) => (
             <div key={row.id} className="rounded-lg border border-border/60 bg-card p-2.5">
-              <div className="text-xs font-medium">{cellValue(row, titleField?.id ?? "") || "Untitled"}</div>
+              <div className="text-[10px] font-medium">{cellValue(row, titleField?.id ?? "") || "Untitled"}</div>
               <div className="mt-1 space-y-0.5">
                 {fields.slice(1, 4).map((field) => (
-                  <div key={field.id} className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div key={field.id} className="flex items-center justify-between text-[8px] text-muted-foreground">
                     <span>{field.name}</span>
                     <span>{cellValue(row, field.id) || "—"}</span>
                   </div>
@@ -673,7 +673,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
       ) : view === "calendar" && dateField ? (
         <CalendarView rows={rows} dateField={dateField} titleField={titleField} />
       ) : (
-        <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+        <div className="px-3 py-6 text-center text-[10px] text-muted-foreground">
           Add a select or date field to use this view.
         </div>
       )}
@@ -690,7 +690,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
               {(optionsField.options ?? []).map((option) => (
                 <div
                   key={option}
-                  className="flex items-center gap-2 rounded-md border border-border/60 bg-background/50 px-2 py-1.5 text-xs"
+                  className="flex items-center gap-2 rounded-md border border-border/60 bg-background/50 px-2 py-1.5 text-[10px]"
                 >
                   <span className="min-w-0 flex-1 truncate">{option}</span>
                   <button
@@ -709,7 +709,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                 </div>
               ))}
               {!optionsField.options?.length ? (
-                <p className="text-xs text-muted-foreground">No options yet.</p>
+                <p className="text-[9px] text-muted-foreground">No options yet.</p>
               ) : null}
             </div>
             <div className="flex gap-1">
@@ -722,13 +722,13 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                   addOption();
                 }}
                 placeholder="Add an option"
-                className="h-8 flex-1 rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-ring"
+                className="h-8 flex-1 rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-ring"
               />
               <button
                 type="button"
                 disabled={!optionDraft.trim()}
                 onClick={addOption}
-                className="h-8 rounded-md bg-foreground px-3 text-xs text-background hover:opacity-85 disabled:opacity-40"
+                className="h-8 rounded-md bg-foreground px-3 text-[9px] text-background hover:opacity-85 disabled:opacity-40"
               >
                 Add
               </button>
@@ -770,12 +770,12 @@ function CalendarView({
   }
   return (
     <div className="p-2">
-      <div className="mb-1 text-xs font-medium text-muted-foreground">
+      <div className="mb-1 text-[9px] font-medium text-muted-foreground">
         {now.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
       </div>
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-md border border-border/60 bg-border/40">
         {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-          <div key={`${day}-${index}`} className="bg-muted/50 px-1 py-0.5 text-center text-xs text-muted-foreground">
+          <div key={`${day}-${index}`} className="bg-muted/50 px-1 py-0.5 text-center text-[8px] text-muted-foreground">
             {day}
           </div>
         ))}
@@ -783,10 +783,10 @@ function CalendarView({
           <div key={index} className="min-h-16 bg-card p-1">
             {day ? (
               <>
-                <div className="text-xs text-muted-foreground">{day}</div>
+                <div className="text-[8px] text-muted-foreground">{day}</div>
                 <div className="mt-0.5 space-y-0.5">
                   {(rowsByDay.get(day) ?? []).map((row) => (
-                    <div key={row.id} className="truncate rounded bg-saffron/15 px-1 py-0.5 text-xs text-foreground">
+                    <div key={row.id} className="truncate rounded bg-saffron/15 px-1 py-0.5 text-[7px] text-foreground">
                       {cellValue(row, titleField?.id ?? "") || "Item"}
                     </div>
                   ))}

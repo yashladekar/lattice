@@ -207,10 +207,10 @@ function LivePageCard({
       style={{ left: element.x, top: element.y, width: element.width, height: element.height }}
     >
       <div className="flex items-center gap-1.5 border-b border-border/50 pb-1.5">
-        <span className="text-xs">{page?.icon ?? "◇"}</span>
-        <span className="truncate text-xs font-medium">{page?.title ?? "Missing page"}</span>
+        <span className="text-[12px]">{page?.icon ?? "◇"}</span>
+        <span className="truncate text-[10px] font-medium">{page?.title ?? "Missing page"}</span>
       </div>
-      <div className="mt-1.5 line-clamp-4 text-xs leading-relaxed text-muted-foreground">
+      <div className="mt-1.5 line-clamp-4 text-[8.5px] leading-relaxed text-muted-foreground">
         {document?.plainText || "This note is empty."}
       </div>
       <button
@@ -220,7 +220,7 @@ function LivePageCard({
           event.stopPropagation();
           onOpen();
         }}
-        className="mt-auto flex items-center gap-1 self-start pt-1 text-xs text-link hover:underline"
+        className="mt-auto flex items-center gap-1 self-start pt-1 text-[8px] text-link hover:underline"
       >
         Open note <ArrowRight className="size-2.5" />
       </button>
@@ -249,9 +249,9 @@ function LiveCanvasCard({
     >
       <div className="flex items-center gap-1.5">
         <Frame className="size-3 text-moss" />
-        <span className="truncate text-xs font-medium">{canvas?.title ?? "Nested canvas"}</span>
+        <span className="truncate text-[10px] font-medium">{canvas?.title ?? "Nested canvas"}</span>
       </div>
-      <div className="mt-1 text-xs text-muted-foreground">Nested whiteboard</div>
+      <div className="mt-1 text-[8px] text-muted-foreground">Nested whiteboard</div>
       <button
         type="button"
         onPointerDown={(event) => event.stopPropagation()}
@@ -259,7 +259,7 @@ function LiveCanvasCard({
           event.stopPropagation();
           onOpen();
         }}
-        className="mt-auto flex items-center gap-1 self-start text-xs text-moss hover:underline"
+        className="mt-auto flex items-center gap-1 self-start text-[8px] text-moss hover:underline"
       >
         Open canvas <ArrowRight className="size-2.5" />
       </button>
@@ -1728,7 +1728,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         <div>
           <Frame className="mx-auto size-8 text-muted-foreground/40" />
           <h2 className="mt-3 font-display text-2xl">No canvas selected</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Create one from the sidebar.</p>
+          <p className="mt-1 text-[10px] text-muted-foreground">Create one from the sidebar.</p>
         </div>
       </div>
     );
@@ -1834,7 +1834,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             >
               <ZoomOut className="size-3.5" />
             </button>
-            <span className="w-9 text-center font-mono text-xs text-muted-foreground">
+            <span className="w-9 text-center font-mono text-[9px] text-muted-foreground">
               {Math.round(viewport.zoom * 100)}%
             </span>
             <button
@@ -1966,9 +1966,9 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               titleFocused.current = false;
               if (db) void updateCanvasLocal(db, canvas.id, { title });
             }}
-            className="w-full bg-transparent text-xs font-semibold outline-none"
+            className="w-full bg-transparent text-[12px] font-semibold outline-none"
           />
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="mt-1 flex items-center gap-1.5 text-[8px] text-muted-foreground">
             <span className={cn("status-dot", saveStatus === "error" ? "bg-destructive" : "bg-moss")} />
             {saveStatus === "saving" ? "Saving locally…" : saveStatus === "error" ? "Save failed" : "Saved locally"}
             <span className="opacity-40">·</span>
@@ -1983,7 +1983,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                         <span
                           key={peer.clientId}
                           title={peer.name}
-                          className="grid size-4 place-items-center rounded-full border border-background text-xs font-semibold text-background"
+                          className="grid size-4 place-items-center rounded-full border border-background text-[7px] font-semibold text-background"
                           style={{ backgroundColor: peer.color }}
                         >
                           {peer.name.slice(0, 1).toUpperCase()}
@@ -2072,7 +2072,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   style={{ backgroundColor: peer.color }}
                 />
                 <span
-                  className="whitespace-nowrap rounded px-1 text-xs text-background"
+                  className="whitespace-nowrap rounded px-1 text-[9px] text-background"
                   style={{ backgroundColor: peer.color }}
                 >
                   {peer.name}
@@ -2212,7 +2212,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   )}
                   style={{ left: element.x, top: element.y, width: element.width, height: element.height }}
                 >
-                  <div className="flex h-8 items-center gap-1 border-b border-foreground/10 px-3 text-xs text-muted-foreground">
+                  <div className="flex h-8 items-center gap-1 border-b border-foreground/10 px-3 text-[10px] text-muted-foreground">
                     <Frame className="size-3 text-moss" />
                     {editingId === element.id ? (
                       <input
@@ -2222,7 +2222,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                         onPointerDown={(event) => event.stopPropagation()}
                         onBlur={commitEdit}
                         onKeyDown={(event) => event.key === "Enter" && commitEdit()}
-                        className="w-full bg-transparent text-xs outline-none"
+                        className="w-full bg-transparent text-[10px] outline-none"
                       />
                     ) : (
                       element.title
@@ -2330,14 +2330,14 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                     onChange={(event) => setEditText(event.target.value)}
                     onPointerDown={(event) => event.stopPropagation()}
                     onBlur={commitEdit}
-                    className="h-full w-full resize-none bg-transparent text-xs leading-relaxed outline-none"
+                    className="h-full w-full resize-none bg-transparent text-[12px] leading-relaxed outline-none"
                     style={{ textAlign: isShape ? "center" : "left" }}
                   />
                 ) : (
                   <div
                     className={cn(
-                      "whitespace-pre-wrap text-xs leading-relaxed",
-                      isShape && "m-auto text-center text-xs",
+                      "whitespace-pre-wrap text-[12px] leading-relaxed",
+                      isShape && "m-auto text-center text-[11px]",
                     )}
                   >
                     {element.text || (isShape ? "Shape" : "Sticky note")}
@@ -2411,17 +2411,17 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 <Sparkles className="size-4 text-saffron" />
               </span>
               <h2 className="mt-3 font-display text-2xl">A blank surface for spatial thinking.</h2>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                 Drop a sticky, link a note, or start from a template. Scroll to pan, ⌘-scroll to zoom.
               </p>
               <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-                <Button size="sm" className="h-8 rounded-md text-xs" onClick={() => createAt({ x: 0, y: 0 }, "note")}>
+                <Button size="sm" className="h-7 rounded-md text-[9px]" onClick={() => createAt({ x: 0, y: 0 }, "note")}>
                   <StickyNote className="size-3" /> Sticky note
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => setTemplateOpen(true)}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => setTemplateOpen(true)}>
                   Template
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => setPagePickerOpen(true)}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => setPagePickerOpen(true)}>
                   Linked note
                 </Button>
               </div>
@@ -2433,7 +2433,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       {!presentation && selectedElements.length ? (
         <div className="absolute bottom-4 right-4 z-30 w-60 rounded-xl border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-medium">
+            <div className="text-[9px] font-medium">
               {selectedElements.length === 1
                 ? selectedElements[0]?.type === "note"
                   ? "Sticky note"
@@ -2447,7 +2447,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
           {selectedConnector ? (
             <div className="mt-2 space-y-2">
               <label className="block">
-                <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                   Label
                 </span>
                 <input
@@ -2458,7 +2458,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                     } as Partial<CanvasElement>)
                   }
                   placeholder="Describe the connection"
-                  className="h-8 w-full rounded border border-border bg-background px-1.5 text-xs outline-none focus:border-primary/40"
+                  className="h-7 w-full rounded border border-border bg-background px-1.5 text-[9px] outline-none focus:border-primary/40"
                 />
               </label>
               <div className="flex items-center gap-1">
@@ -2470,7 +2470,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                       updateElement(selectedConnector.id, { style } as Partial<CanvasElement>, true)
                     }
                     className={cn(
-                      "flex-1 rounded border px-1.5 py-1 text-xs capitalize",
+                      "flex-1 rounded border px-1.5 py-1 text-[8px] capitalize",
                       (selectedConnector.style ?? "solid") === style
                         ? "border-foreground/40 bg-muted"
                         : "border-border text-muted-foreground hover:bg-muted",
@@ -2480,7 +2480,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {[
                   { value: "#8b8b7a", label: "Slate" },
                   { value: "#e07a2e", label: "Saffron" },
@@ -2498,7 +2498,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                       updateElement(selectedConnector.id, { color } as Partial<CanvasElement>, true)
                     }
                     className={cn(
-                      "size-7 rounded-full border",
+                      "size-5 rounded-full border",
                       selectedConnector.color === color
                         ? "border-foreground ring-2 ring-foreground/40"
                         : "border-transparent",
@@ -2519,7 +2519,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                     )
                   }
                   className={cn(
-                    "flex-1 rounded border px-1.5 py-1 text-xs",
+                    "flex-1 rounded border px-1.5 py-1 text-[8px]",
                     selectedConnector.arrowStart
                       ? "border-foreground/40 bg-muted"
                       : "border-border text-muted-foreground hover:bg-muted",
@@ -2537,7 +2537,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                     )
                   }
                   className={cn(
-                    "flex-1 rounded border px-1.5 py-1 text-xs",
+                    "flex-1 rounded border px-1.5 py-1 text-[8px]",
                     selectedConnector.arrowEnd !== false
                       ? "border-foreground/40 bg-muted"
                       : "border-border text-muted-foreground hover:bg-muted",
@@ -2549,7 +2549,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             </div>
           ) : (
             <>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap gap-1">
             {STICKY_COLORS.map((color) => {
               const pressed = selectedElements.some(
                 (element) => "color" in element && element.color === color,
@@ -2562,7 +2562,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   aria-pressed={pressed}
                   onClick={() => setColor(color)}
                   className={cn(
-                    "size-7 rounded border border-foreground/10",
+                    "size-5 rounded border border-foreground/10",
                     colorClass(color),
                     pressed && "ring-2 ring-foreground/40",
                   )}
@@ -2573,10 +2573,10 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
           </div>
           {selectedElements.length > 1 ? (
             <div className="mt-2 flex flex-wrap gap-1">
-              <button type="button" onClick={groupSelected} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-xs hover:bg-muted">
+              <button type="button" onClick={groupSelected} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[8px] hover:bg-muted">
                 <Group className="size-2.5" /> Group
               </button>
-              <button type="button" onClick={ungroupSelected} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-xs hover:bg-muted">
+              <button type="button" onClick={ungroupSelected} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[8px] hover:bg-muted">
                 <Ungroup className="size-2.5" /> Ungroup
               </button>
             </div>
@@ -2611,16 +2611,16 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               <button
                 type="button"
                 onClick={() => void convertSelectionToPages()}
-                className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-xs hover:bg-muted"
+                className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[8px] hover:bg-muted"
                 title="Turn the selected node into a documentation page"
               >
                 <FileText className="size-2.5" /> Page
               </button>
             ) : null}
-            <button type="button" onClick={bringToFront} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-xs hover:bg-muted">
+            <button type="button" onClick={bringToFront} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[8px] hover:bg-muted">
               <BringToFront className="size-2.5" /> Front
             </button>
-            <button type="button" onClick={sendToBack} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-xs hover:bg-muted">
+            <button type="button" onClick={sendToBack} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[8px] hover:bg-muted">
               <SendToBack className="size-2.5" /> Back
             </button>
             <button
@@ -2652,13 +2652,13 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             <button type="button" onClick={() => changeSlide(-1)} className="grid size-7 place-items-center rounded-full hover:bg-white/10 tap-target" aria-label="Previous slide">
               <ChevronLeft className="size-3.5" />
             </button>
-            <span className="min-w-12 text-center text-xs">
+            <span className="min-w-12 text-center text-[9px]">
               {frames.length ? `${presentationIndex + 1} / ${frames.length}` : "Canvas"}
             </span>
             <button type="button" onClick={() => changeSlide(1)} className="grid size-7 place-items-center rounded-full hover:bg-white/10 tap-target" aria-label="Next slide">
               <ChevronRight className="size-3.5" />
             </button>
-            <button type="button" onClick={() => setPresentation(false)} className="ml-2 inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-xs">
+            <button type="button" onClick={() => setPresentation(false)} className="ml-2 inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[8px]">
               Exit <X className="size-2.5" />
             </button>
           </div>
@@ -2687,7 +2687,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 <button
                   type="button"
                   onClick={() => setSelectedIds([element.id])}
-                  className="min-w-0 flex-1 truncate text-left text-xs"
+                  className="min-w-0 flex-1 truncate text-left text-[10px]"
                   title={layerLabel(element)}
                 >
                   {layerLabel(element)}
@@ -2732,7 +2732,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             );
           })}
           {!layerElements.length ? (
-            <p className="py-6 text-center text-xs text-muted-foreground">
+            <p className="py-6 text-center text-[9px] text-muted-foreground">
               Nothing on the canvas yet.
             </p>
           ) : null}
@@ -2774,12 +2774,12 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
               className="rounded-lg border border-border/60 bg-background/50 p-3 text-left hover:border-border hover:bg-muted/40"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium">{template.name}</span>
-                <span className="rounded-full border border-border px-1.5 py-0.5 text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-[11px] font-medium">{template.name}</span>
+                <span className="rounded-full border border-border px-1.5 py-0.5 text-[7px] uppercase tracking-[0.1em] text-muted-foreground">
                   {template.category}
                 </span>
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{template.description}</p>
+              <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">{template.description}</p>
             </button>
           ))}
         </div>
@@ -2802,12 +2802,12 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 className="flex w-full items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-2 text-left hover:bg-muted/50"
               >
                 <Frame className="size-3 text-moss" />
-                <span className="min-w-0 flex-1 truncate text-xs">{entry.title}</span>
+                <span className="min-w-0 flex-1 truncate text-[10px]">{entry.title}</span>
                 <ArrowRight className="size-3 text-muted-foreground" />
               </button>
             ))}
           {canvases.length <= 1 ? (
-            <p className="py-6 text-center text-xs text-muted-foreground">
+            <p className="py-6 text-center text-[9px] text-muted-foreground">
               Create another whiteboard from the sidebar first.
             </p>
           ) : null}
@@ -2855,12 +2855,12 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         description="Whiteboard history stored on the sync server."
       >
         <div className="mb-3 flex justify-end">
-          <Button size="sm" className="h-8 rounded-md text-xs" onClick={() => void saveSnapshot()}>
+          <Button size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void saveSnapshot()}>
             <History className="size-3" /> Save snapshot
           </Button>
         </div>
         {snapshotsLoading ? (
-          <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>
+          <p className="py-6 text-center text-[9px] text-muted-foreground">Loading…</p>
         ) : snapshots.length ? (
           <div className="max-h-72 space-y-1 overflow-y-auto">
             {snapshots.map((snapshot) => (
@@ -2869,10 +2869,10 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-2"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-medium">
+                  <div className="truncate text-[10px] font-medium">
                     v{snapshot.version} · {snapshot.title}
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">
+                  <div className="truncate text-[8px] text-muted-foreground">
                     {new Date(snapshot.createdAt).toLocaleString()}
                     {snapshot.note ? ` · ${snapshot.note}` : ""}
                   </div>
@@ -2880,7 +2880,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 rounded-md text-xs"
+                  className="h-6 rounded-md text-[8px]"
                   onClick={() => void restoreSnapshot(snapshot.id)}
                 >
                   Restore
@@ -2889,7 +2889,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             ))}
           </div>
         ) : (
-          <p className="py-6 text-center text-xs text-muted-foreground">
+          <p className="py-6 text-center text-[9px] text-muted-foreground">
             No snapshots yet. Save one before a big change.
           </p>
         )}

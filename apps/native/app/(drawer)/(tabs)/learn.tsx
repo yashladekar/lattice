@@ -74,7 +74,7 @@ export default function LearnScreen() {
           ].map(([label, value]) => (
             <View key={String(label)} className="flex-1 rounded-xl border border-border bg-surface p-2.5">
               <Text className="text-lg font-semibold text-foreground">{value}</Text>
-              <Text className="text-xs uppercase tracking-wider text-muted">{label}</Text>
+              <Text className="text-[9px] uppercase tracking-wider text-muted">{label}</Text>
             </View>
           ))}
         </View>
@@ -84,10 +84,10 @@ export default function LearnScreen() {
         ) : current ? (
           <View className="mt-6">
             <View className="flex-row items-center justify-between">
-              <Text className="text-xs uppercase tracking-widest text-muted">
+              <Text className="text-[10px] uppercase tracking-widest text-muted">
                 Review · {due.data?.length ?? 0} due
               </Text>
-              <Text className="text-xs text-muted">
+              <Text className="text-[10px] text-muted">
                 {new Date(current.dueAt).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -96,7 +96,7 @@ export default function LearnScreen() {
             </View>
 
             <View className="mt-3 rounded-3xl border border-border bg-surface p-5">
-              <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
+              <Text className="text-[9px] font-semibold uppercase tracking-widest text-muted">
                 Prompt
               </Text>
               <Text className="mt-2 text-xl font-medium leading-8 text-foreground">
@@ -105,7 +105,7 @@ export default function LearnScreen() {
 
               {revealed ? (
                 <View className="mt-6 border-t border-border pt-4">
-                  <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
+                  <Text className="text-[9px] font-semibold uppercase tracking-widest text-muted">
                     Answer
                   </Text>
                   <Text className="mt-2 text-[15px] leading-7 text-foreground/80">
@@ -158,7 +158,7 @@ export default function LearnScreen() {
             <Ionicons name="sparkles-outline" size={15} color={accent} />
             <Text className="text-xs font-medium text-foreground">The learning loop</Text>
           </View>
-          <Text className="mt-1.5 text-xs leading-5 text-muted">
+          <Text className="mt-1.5 text-[10px] leading-5 text-muted">
             Cards generated from notes stay linked to their source. Ratings update the same SM-2
             schedule used on every device.
           </Text>
@@ -166,7 +166,7 @@ export default function LearnScreen() {
             <View className="h-1 flex-1 overflow-hidden rounded-full bg-surface-secondary">
               <View className="h-full rounded-full bg-emerald-500" style={{ width: `${mastery}%` }} />
             </View>
-            <Text className="text-xs text-muted">{mastery}% mastery</Text>
+            <Text className="text-[9px] text-muted">{mastery}% mastery</Text>
           </View>
         </View>
       </View>

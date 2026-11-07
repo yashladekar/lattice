@@ -154,16 +154,3 @@
     background: color-mix(in oklch, var(--saffron) 35%, transparent);
   }
 }
-
-/* Reduce Motion: keep the meaning, drop the movement. Spinners, pulses and
-   the landing page's entrance animations all resolve to their end state. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}

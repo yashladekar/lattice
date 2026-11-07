@@ -35,7 +35,7 @@ export function EditorMenu({
     >
       <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
         <Search className="size-3 text-muted-foreground/60" />
-        <span className="flex-1 truncate text-xs text-muted-foreground">
+        <span className="flex-1 truncate text-[10px] text-muted-foreground">
           {state.kind === "slash"
             ? state.query
               ? `Blocks matching “${state.query}”`
@@ -58,7 +58,7 @@ export function EditorMenu({
             return (
               <div key={item.id}>
                 {showGroup ? (
-                  <div className="px-2 pb-0.5 pt-1.5 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/55">
+                  <div className="px-2 pb-0.5 pt-1.5 text-[8px] font-medium uppercase tracking-[0.16em] text-muted-foreground/55">
                     {item.group}
                   </div>
                 ) : null}
@@ -80,11 +80,11 @@ export function EditorMenu({
                     {item.icon}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-foreground">
+                    <span className="block truncate text-[11px] font-medium text-foreground">
                       {item.label}
                     </span>
                     {item.description ? (
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="block truncate text-[9px] text-muted-foreground">
                         {item.description}
                       </span>
                     ) : null}
@@ -97,12 +97,12 @@ export function EditorMenu({
             );
           })
         ) : (
-          <div className="px-3 py-8 text-center text-xs text-muted-foreground">
+          <div className="px-3 py-8 text-center text-[10px] text-muted-foreground">
             No matching items.
           </div>
         )}
       </div>
-      <div className="flex items-center justify-between border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between border-t border-border/60 px-3 py-1.5 text-[8px] text-muted-foreground">
         <span>↑↓ navigate · ↵ insert</span>
         <span className="font-mono">lattice</span>
       </div>

@@ -12,7 +12,7 @@ export function AppSplash({ label = "Opening your lattice" }: { label?: string }
           <LatticeMark className="size-10" />
           <span className="absolute -inset-3 rounded-2xl border border-saffron/20" />
         </div>
-        <div className="mt-5 flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="mt-5 flex items-center gap-2 text-[10px] text-muted-foreground">
           <Loader2 className="size-3 animate-spin" />
           {label}
         </div>

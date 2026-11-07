@@ -53,7 +53,7 @@ export function TabStrip({
           <div
             key={tab.key}
             className={cn(
-              "group flex h-7 shrink-0 items-center gap-0.5 rounded-md border border-transparent pl-2 pr-1 text-xs transition-colors",
+              "group flex h-6 shrink-0 items-center gap-1.5 rounded-md border border-transparent px-2 text-[10px] transition-colors",
               active
                 ? "border-border/70 bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -64,9 +64,9 @@ export function TabStrip({
               data-tab-select
               aria-current={active ? "page" : undefined}
               onClick={() => onSelect(tab)}
-              className="flex min-w-0 items-center gap-1.5 self-stretch rounded text-sm"
+              className="flex min-w-0 items-center gap-1.5 self-stretch rounded"
             >
-              <span aria-hidden className="text-xs">
+              <span aria-hidden className="text-[10px]">
                 {tab.icon}
               </span>
               <span className="max-w-40 truncate">{title}</span>
@@ -82,11 +82,11 @@ export function TabStrip({
                 onTogglePane(tab);
               }}
               className={cn(
-                "grid size-5 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground",
+                "grid size-4 shrink-0 place-items-center rounded hover:bg-muted hover:text-foreground",
                 paneKey === tab.key ? "text-link" : "text-muted-foreground/60 hover-quiet",
               )}
             >
-              <Columns2 className="size-3" />
+              <Columns2 className="size-2.5" />
             </button>
             {tab.key !== "home" ? (
               <button
@@ -96,9 +96,9 @@ export function TabStrip({
                   event.stopPropagation();
                   onClose(tab.key);
                 }}
-                className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/60 hover:bg-muted hover:text-foreground hover-quiet"
+                className="grid size-4 shrink-0 place-items-center rounded text-muted-foreground/60 hover:bg-muted hover:text-foreground hover-quiet"
               >
-                <X className="size-3" />
+                <X className="size-2.5" />
               </button>
             ) : null}
           </div>
@@ -108,7 +108,7 @@ export function TabStrip({
         type="button"
         aria-label="New tab"
         onClick={onNew}
-        className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
+        className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground tap-target"
       >
         <Plus className="size-3" />
       </button>

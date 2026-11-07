@@ -88,12 +88,12 @@ export function SqlConsolePanel() {
       <div className="rounded-xl border border-border/70 bg-card/35 p-4">
         <div className="flex items-center gap-2">
           <Database className="size-3.5 text-muted-foreground" />
-          <h3 className="text-xs font-medium">Query</h3>
-          <span className="ml-auto text-xs text-muted-foreground">
+          <h3 className="text-[11px] font-medium">Query</h3>
+          <span className="ml-auto text-[8.5px] text-muted-foreground">
             Read-only · scoped to this workspace
           </span>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
           SELECT over the console views below. Queries run in a read-only transaction with a 4s
           limit and a 500-row cap, so nothing here can change your data.
         </p>
@@ -110,16 +110,16 @@ export function SqlConsolePanel() {
           spellCheck={false}
           rows={6}
           aria-label="SQL query"
-          className="mt-3 w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-xs leading-relaxed outline-none focus:border-primary/40"
+          className="mt-3 w-full resize-y rounded-lg border border-border bg-background p-2.5 font-mono text-[11px] leading-relaxed outline-none focus:border-primary/40"
         />
 
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">{hint} · ⌘↵ to run</span>
+          <span className="text-[8.5px] text-muted-foreground">{hint} · ⌘↵ to run</span>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 rounded-md text-xs"
+              className="h-7 rounded-md text-[9px]"
               onClick={() => {
                 setSql(STARTER);
                 setResult(null);
@@ -130,7 +130,7 @@ export function SqlConsolePanel() {
             </Button>
             <Button
               size="sm"
-              className="h-8 rounded-md text-xs"
+              className="h-7 rounded-md text-[9px]"
               disabled={running || !sql.trim()}
               onClick={() => void run()}
             >
@@ -141,7 +141,7 @@ export function SqlConsolePanel() {
         </div>
 
         {error ? (
-          <p className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 font-mono text-xs leading-relaxed text-destructive">
+          <p className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 font-mono text-[10px] leading-relaxed text-destructive">
             {error}
           </p>
         ) : null}
@@ -151,14 +151,14 @@ export function SqlConsolePanel() {
         <div className="overflow-hidden rounded-xl border border-border/70 bg-card/35">
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2">
             <TableProperties className="size-3 text-muted-foreground" />
-            <span className="text-xs font-medium">Result</span>
-            <span className="ml-auto text-xs text-muted-foreground">
+            <span className="text-[10px] font-medium">Result</span>
+            <span className="ml-auto text-[8.5px] text-muted-foreground">
               {result.rowCount} rows{result.truncated ? " (capped at 500)" : ""}
             </span>
           </div>
           {result.rows.length ? (
             <div className="max-h-80 overflow-auto">
-              <table className="w-full border-collapse text-left font-mono text-xs">
+              <table className="w-full border-collapse text-left font-mono text-[10px]">
                 <thead className="sticky top-0 bg-card">
                   <tr>
                     {result.columns.map((column) => (
@@ -189,17 +189,17 @@ export function SqlConsolePanel() {
               </table>
             </div>
           ) : (
-            <p className="px-4 py-3 text-xs text-muted-foreground">No rows.</p>
+            <p className="px-4 py-3 text-[9px] text-muted-foreground">No rows.</p>
           )}
         </div>
       ) : null}
 
       <div className="rounded-xl border border-border/70 bg-card/35 p-4">
-        <h3 className="text-xs font-medium">Views</h3>
+        <h3 className="text-[11px] font-medium">Views</h3>
         {schemaError ? (
-          <p className="mt-2 text-xs text-destructive">{schemaError}</p>
+          <p className="mt-2 text-[9px] text-destructive">{schemaError}</p>
         ) : (
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-[9px] text-muted-foreground">
             These names are the only tables you can select from.
           </p>
         )}
@@ -211,9 +211,9 @@ export function SqlConsolePanel() {
                 onClick={() => setOpenView(openView === view.name ? null : view.name)}
                 className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left"
               >
-                <span className="font-mono text-xs">{view.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{view.description}</span>
-                <span className="ml-auto text-xs text-muted-foreground">{view.columns.length}</span>
+                <span className="font-mono text-[10px]">{view.name}</span>
+                <span className="truncate text-[8.5px] text-muted-foreground">{view.description}</span>
+                <span className="ml-auto text-[8px] text-muted-foreground">{view.columns.length}</span>
               </button>
               {openView === view.name ? (
                 <div className="flex flex-wrap gap-1 border-t border-border/60 px-2.5 py-2">
@@ -221,7 +221,7 @@ export function SqlConsolePanel() {
                     <span
                       key={column.name}
                       className={cn(
-                        "rounded border border-border/60 px-1.5 py-0.5 font-mono text-xs",
+                        "rounded border border-border/60 px-1.5 py-0.5 font-mono text-[8.5px]",
                         "text-muted-foreground",
                       )}
                       title={column.type}

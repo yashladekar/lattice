@@ -27,14 +27,14 @@ export function TrashView() {
         </span>
         <div>
           <h1 className="font-display text-3xl tracking-[-0.03em]">Trash</h1>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             Deleted pages stay recoverable. Nothing is purged silently.
           </p>
         </div>
       </div>
 
       {retentionDays > 0 ? (
-        <p className="mt-4 rounded-lg border border-saffron/25 bg-saffron/[0.05] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-4 rounded-lg border border-saffron/25 bg-saffron/[0.05] px-3 py-2 text-[9px] leading-relaxed text-muted-foreground">
           This workspace keeps trash for {retentionDays} days. Older items have been permanently
           removed by the server and no longer appear here. Change the window in Settings →
           General.
@@ -48,19 +48,19 @@ export function TrashView() {
               key={page.id}
               className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/35 px-3 py-2.5"
             >
-              <span className="grid size-7 place-items-center rounded-lg border border-border/60 bg-background text-xs">
+              <span className="grid size-7 place-items-center rounded-lg border border-border/60 bg-background text-[12px]">
                 {page.icon ?? "◇"}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{page.title}</div>
-                <div className="text-xs text-muted-foreground">
+                <div className="truncate text-[11px] font-medium">{page.title}</div>
+                <div className="text-[8px] text-muted-foreground">
                   Deleted {page.deletedAt ? formatRelative(page.deletedAt) : "recently"}
                 </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 rounded-md text-xs"
+                className="h-7 rounded-md text-[9px]"
                 onClick={async () => {
                   if (!db) return;
                   await restorePageLocal(db, page.id);
@@ -75,8 +75,8 @@ export function TrashView() {
         ) : (
           <div className="rounded-xl border border-dashed border-border py-16 text-center">
             <Trash2 className="mx-auto size-6 text-muted-foreground/40" />
-            <p className="mt-3 text-xs font-medium">Trash is empty</p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-3 text-[12px] font-medium">Trash is empty</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
               Deleted pages will appear here with a restore action.
             </p>
           </div>

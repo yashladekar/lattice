@@ -135,7 +135,7 @@ function MiniGraph({
 
   if (!nodes.length) {
     return (
-      <div className="grid h-[150px] place-items-center rounded-lg border border-dashed border-border/70 text-xs text-muted-foreground">
+      <div className="grid h-[150px] place-items-center rounded-lg border border-dashed border-border/70 text-[10px] text-muted-foreground">
         Connect your first two pages to grow a graph.
       </div>
     );
@@ -387,14 +387,14 @@ export function HomeView({
     <div className="mx-auto w-full max-w-6xl px-4 py-7 md:px-8 md:py-10">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
           </div>
           <h1 className="mt-2 font-display text-4xl tracking-[-0.03em] md:text-5xl">
             {greeting()}, {user?.name?.split(" ")[0] ?? "there"}.
           </h1>
           {ready ? (
-            <p className="mt-2 max-w-lg text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-2 max-w-lg text-[12px] leading-relaxed text-muted-foreground">
               {activeWorkspace?.name ?? "Your workspace"} · {pages.length} pages ·{" "}
               {graph.edges.length} connections · {due.length} cards due.
             </p>
@@ -406,7 +406,7 @@ export function HomeView({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg border-border bg-card/60 text-xs"
+            className="h-8 rounded-lg border-border bg-card/60 text-[11px]"
             onClick={() => setCustomizeOpen(true)}
           >
             <LayoutGrid className="size-3.5" /> Customize
@@ -414,7 +414,7 @@ export function HomeView({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg border-border bg-card/60 text-xs"
+            className="h-8 rounded-lg border-border bg-card/60 text-[11px]"
             onClick={onQuickCapture}
           >
             <Inbox className="size-3.5" /> Capture
@@ -422,12 +422,12 @@ export function HomeView({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg border-border bg-card/60 text-xs"
+            className="h-8 rounded-lg border-border bg-card/60 text-[11px]"
             onClick={() => void newCanvas()}
           >
             <Frame className="size-3.5" /> Whiteboard
           </Button>
-          <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => void newPage()}>
+          <Button size="sm" className="h-8 rounded-lg text-[11px]" onClick={() => void newPage()}>
             <Plus className="size-3.5" /> New page
           </Button>
         </div>
@@ -436,7 +436,7 @@ export function HomeView({
       {!onboardingDismissed && !onboardingComplete ? (
         <section className="mt-6 rounded-xl border border-saffron/25 bg-saffron/[0.05] p-3.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-saffron">
+            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-saffron">
               <Sparkles className="size-3" /> Get started
             </div>
             <button
@@ -456,7 +456,7 @@ export function HomeView({
                 disabled={step.done}
                 onClick={step.action}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors",
+                  "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-[10.5px] transition-colors",
                   step.done
                     ? "border-transparent text-muted-foreground"
                     : "border-border/60 bg-background/40 hover:bg-muted/50",
@@ -483,11 +483,11 @@ export function HomeView({
       <button
         type="button"
         onClick={onOpenPalette}
-        className="mt-6 flex w-full items-center gap-2 rounded-xl border border-border/70 bg-card/50 px-3 py-2.5 text-left text-xs text-muted-foreground backdrop-blur transition-colors hover:bg-card"
+        className="mt-6 flex w-full items-center gap-2 rounded-xl border border-border/70 bg-card/50 px-3 py-2.5 text-left text-[11px] text-muted-foreground backdrop-blur transition-colors hover:bg-card"
       >
         <Sparkles className="size-3.5 text-saffron" />
         Ask your knowledge something, or jump anywhere…
-        <span className="ml-auto flex items-center gap-1.5 font-mono text-xs">
+        <span className="ml-auto flex items-center gap-1.5 font-mono text-[9px]">
           <span className="kbd">⌘</span>
           <span className="kbd">K</span>
         </span>
@@ -500,7 +500,7 @@ export function HomeView({
             className="rounded-2xl border border-saffron/25 bg-saffron/[0.05] p-4 md:col-span-2 xl:col-span-1"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-saffron">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-saffron">
                 <span className="size-1.5 rounded-full bg-saffron" /> Quick capture
               </div>
               <button
@@ -522,22 +522,22 @@ export function HomeView({
                 }
               }}
               placeholder="What is worth keeping?"
-              className="mt-3 min-h-24 resize-none rounded-lg border-saffron/20 bg-background/70 text-xs leading-relaxed"
+              className="mt-3 min-h-24 resize-none rounded-lg border-saffron/20 bg-background/70 text-[12px] leading-relaxed"
             />
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Saved locally · organize later</span>
+              <span className="text-[9px] text-muted-foreground">Saved locally · organize later</span>
               <div className="flex items-center gap-1.5">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 rounded-md text-xs"
+                  className="h-7 rounded-md text-[10px]"
                   onClick={onOpenAsk}
                 >
                   <Sparkles className="size-3" /> Ask
                 </Button>
                 <Button
                   size="sm"
-                  className="h-8 rounded-md text-xs"
+                  className="h-7 rounded-md text-[10px]"
                   disabled={savingCapture || !captureText.trim()}
                   onClick={() => void saveCapture()}
                 >
@@ -554,7 +554,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Clock className="size-3" /> Continue working
               </div>
               <button
@@ -575,18 +575,18 @@ export function HomeView({
                     onClick={() => router.push(appRouteObject({ view: "page", id: page.id }))}
                     className="group flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted/50"
                   >
-                    <span className="mt-0.5 text-xs">{page.icon ?? "◇"}</span>
+                    <span className="mt-0.5 text-[12px]">{page.icon ?? "◇"}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{page.title}</span>
-                      <span className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                      <span className="block truncate text-[11px] font-medium">{page.title}</span>
+                      <span className="mt-0.5 line-clamp-1 text-[9px] text-muted-foreground">
                         {documentByPage.get(page.id)?.slice(0, 100) || "No content yet"}
                       </span>
                     </span>
-                    <span className="mt-1 text-xs text-muted-foreground/60">{formatRelative(page.updatedAt)}</span>
+                    <span className="mt-1 text-[8px] text-muted-foreground/60">{formatRelative(page.updatedAt)}</span>
                   </button>
                 ))
               ) : (
-                <div className="py-8 text-center text-xs text-muted-foreground">
+                <div className="py-8 text-center text-[10px] text-muted-foreground">
                   Create your first page to begin.
                 </div>
               )}
@@ -600,7 +600,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <GraduationCap className="size-3" /> Due reviews
               </div>
               <button
@@ -615,7 +615,7 @@ export function HomeView({
             <div className="mt-4 flex items-center gap-4">
               <div className="relative">
                 <ProgressRing value={learning.mastery} size={64} />
-                <div className="absolute inset-0 grid place-items-center text-xs font-semibold">
+                <div className="absolute inset-0 grid place-items-center text-[12px] font-semibold">
                   {Math.round(learning.mastery * 100)}%
                 </div>
               </div>
@@ -623,16 +623,16 @@ export function HomeView({
                 <div className="text-2xl font-semibold tracking-[-0.03em]">
                   {ready ? due.length : <Skeleton className="h-7 w-10 rounded" />}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-[10px] text-muted-foreground">
                   {ready ? "cards waiting" : <Skeleton className="h-4 w-24 rounded" />}
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
+                <div className="mt-1 text-[9px] text-muted-foreground">
                   {learning.streak > 0 ? `${learning.streak}-day streak` : "Start a streak today"}
                 </div>
               </div>
               <Button
                 size="sm"
-                className="ml-auto h-8 rounded-lg text-xs"
+                className="ml-auto h-8 rounded-lg text-[10px]"
                 onClick={() => router.push(appRouteObject({ view: "learn" }))}
               >
                 Review <ArrowRight className="size-3" />
@@ -647,7 +647,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Inbox className="size-3" /> Knowledge inbox
               </div>
               <button
@@ -669,21 +669,21 @@ export function HomeView({
               <>
                 <div className="mt-3 flex items-baseline gap-2">
                   <span className="text-2xl font-semibold tracking-[-0.03em]">{inboxCount}</span>
-                  <span className="text-xs text-muted-foreground">unprocessed captures</span>
+                  <span className="text-[10px] text-muted-foreground">unprocessed captures</span>
                 </div>
                 <div className="mt-2 space-y-1">
                   {captures.slice(0, 3).map((capture) => (
                     <div key={capture.id} className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
-                      <span className="text-xs text-saffron">{capture.type === "BOOKMARK" ? "⌘" : "◇"}</span>
-                      <span className="min-w-0 flex-1 truncate text-xs">{capture.title}</span>
-                      <span className="text-xs text-muted-foreground">{formatRelative(capture.createdAt)}</span>
+                      <span className="text-[9px] text-saffron">{capture.type === "BOOKMARK" ? "⌘" : "◇"}</span>
+                      <span className="min-w-0 flex-1 truncate text-[10px]">{capture.title}</span>
+                      <span className="text-[8px] text-muted-foreground">{formatRelative(capture.createdAt)}</span>
                     </div>
                   ))}
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="mt-2 h-8 w-full justify-between rounded-md text-xs text-muted-foreground"
+                  className="mt-2 h-7 w-full justify-between rounded-md text-[10px] text-muted-foreground"
                   onClick={() => router.push(appRouteObject({ view: "inbox" }))}
                 >
                   Process inbox <ChevronRight className="size-3" />
@@ -692,8 +692,8 @@ export function HomeView({
             ) : (
               <div className="py-8 text-center">
                 <Check className="mx-auto size-5 text-moss" />
-                <p className="mt-2 text-xs">Inbox zero</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Nothing waiting for your attention.</p>
+                <p className="mt-2 text-[11px]">Inbox zero</p>
+                <p className="mt-0.5 text-[9px] text-muted-foreground">Nothing waiting for your attention.</p>
               </div>
             )}
           </section>
@@ -705,7 +705,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4 md:col-span-2 xl:col-span-1"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Network className="size-3" /> Graph preview
               </div>
               <button
@@ -718,7 +718,7 @@ export function HomeView({
               </button>
             </div>
             <MiniGraph nodes={graph.nodes} edges={graph.edges} />
-            <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <div className="mt-1 flex items-center justify-between text-[9px] text-muted-foreground">
               <span>{summary.nodes} nodes · {summary.edges} edges · {summary.orphans} orphans</span>
               <button
                 type="button"
@@ -737,7 +737,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Brain className="size-3" /> Learning progress
               </div>
               <button
@@ -754,7 +754,7 @@ export function HomeView({
                 <div className="text-2xl font-semibold tracking-[-0.03em]">
                   {ready ? learning.cards.length : <Skeleton className="h-7 w-10 rounded" />}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-[9px] text-muted-foreground">
                   {ready ? (
                     `cards across ${learning.decks.length} decks`
                   ) : (
@@ -762,14 +762,14 @@ export function HomeView({
                   )}
                 </div>
               </div>
-              <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border px-2 py-0.5 text-[9px] text-muted-foreground">
                 {learning.logs.length} reviews / 60d
               </span>
             </div>
             <div className="mt-3 space-y-2">
               {learning.byDeck.slice(0, 3).map((entry) => (
                 <div key={entry.deckId}>
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-[9px]">
                     <span className="truncate">{entry.deck?.name ?? "Deck"}</span>
                     <span className="text-muted-foreground">{Math.round(entry.mastery * 100)}%</span>
                   </div>
@@ -779,7 +779,7 @@ export function HomeView({
                 </div>
               ))}
               {!learning.byDeck.length ? (
-                <div className="py-3 text-center text-xs text-muted-foreground">
+                <div className="py-3 text-center text-[9px] text-muted-foreground">
                   Generate cards from a page to start.
                 </div>
               ) : null}
@@ -793,7 +793,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Frame className="size-3" /> Recent whiteboards
               </div>
               <button
@@ -814,12 +814,12 @@ export function HomeView({
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-muted/50"
                 >
                   <Frame className="size-3 text-moss" />
-                  <span className="min-w-0 flex-1 truncate text-xs">{canvas.title}</span>
-                  <span className="text-xs text-muted-foreground">{formatRelative(canvas.updatedAt)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[10.5px]">{canvas.title}</span>
+                  <span className="text-[8px] text-muted-foreground">{formatRelative(canvas.updatedAt)}</span>
                 </button>
               ))}
               {!canvases.length ? (
-                <div className="py-6 text-center text-xs text-muted-foreground">
+                <div className="py-6 text-center text-[10px] text-muted-foreground">
                   No whiteboards yet.
                 </div>
               ) : null}
@@ -827,7 +827,7 @@ export function HomeView({
             <Button
               variant="ghost"
               size="sm"
-              className="mt-1 h-8 w-full justify-between rounded-md text-xs text-muted-foreground"
+              className="mt-1 h-7 w-full justify-between rounded-md text-[10px] text-muted-foreground"
               onClick={() => void newCanvas()}
             >
               New whiteboard <Plus className="size-3" />
@@ -841,7 +841,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <Circle className="size-3" /> Recent activity
               </div>
               <button
@@ -866,11 +866,11 @@ export function HomeView({
                       }),
                     )
                   }
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/50"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px] hover:bg-muted/50"
                 >
-                  <span className="text-xs">{entry.icon}</span>
+                  <span className="text-[10px]">{entry.icon}</span>
                   <span className="min-w-0 flex-1 truncate">{entry.title}</span>
-                  <span className="text-xs text-muted-foreground">{formatRelative(entry.updatedAt)}</span>
+                  <span className="text-[8px] text-muted-foreground">{formatRelative(entry.updatedAt)}</span>
                 </button>
               ))}
             </div>
@@ -883,7 +883,7 @@ export function HomeView({
             className="rounded-2xl border border-border/70 bg-card/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 <BookOpen className="size-3" /> Notebooks
               </div>
               <button
@@ -903,11 +903,11 @@ export function HomeView({
                     key={notebook.id}
                     type="button"
                     onClick={() => router.push(appRouteObject({ view: "home", notebook: notebook.id }))}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/50"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px] hover:bg-muted/50"
                   >
                     <span>{notebook.icon ?? "◫"}</span>
                     <span className="min-w-0 flex-1 truncate">{notebook.name}</span>
-                    <span className="text-xs text-muted-foreground">{count}</span>
+                    <span className="text-[8px] text-muted-foreground">{count}</span>
                   </button>
                 );
               })}
@@ -915,7 +915,7 @@ export function HomeView({
             {tags.length ? (
               <div className="mt-3 flex flex-wrap gap-1">
                 {tags.slice(0, 6).map((tag) => (
-                  <span key={tag.id} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                  <span key={tag.id} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[8px] text-muted-foreground">
                     <Tag className="size-2" /> {tag.name}
                   </span>
                 ))}
@@ -954,8 +954,8 @@ export function HomeView({
                   >
                     {visibleWidget ? <Check className="size-2.5" /> : null}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-xs">{widget.label}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="min-w-0 flex-1 truncate text-[11px]">{widget.label}</span>
+                  <span className="text-[9px] text-muted-foreground">
                     {visibleWidget ? "Visible" : "Hidden"}
                   </span>
                 </button>

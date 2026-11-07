@@ -65,10 +65,10 @@ export function PromptDialog({
       description={description}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="outline" className="h-9 rounded-lg px-3 text-xs" onClick={onClose}>
+          <Button variant="outline" className="h-7 rounded-md px-3 text-[10px]" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="h-9 rounded-lg px-3 text-xs" onClick={submit}>
+          <Button className="h-7 rounded-md px-3 text-[10px]" onClick={submit}>
             {confirmLabel}
           </Button>
         </div>
@@ -95,7 +95,7 @@ export function PromptDialog({
           }}
         />
         {error ? (
-          <p id={errorId} className="text-xs text-destructive">
+          <p id={errorId} className="text-[10px] text-destructive">
             {error}
           </p>
         ) : null}

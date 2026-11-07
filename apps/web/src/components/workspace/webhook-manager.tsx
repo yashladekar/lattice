@@ -200,24 +200,24 @@ export function WebhookManager() {
     <section className="space-y-4">
       <div className="rounded-xl border border-border/70 bg-card/40 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-medium">Automation destinations</h3>
+          <h3 className="text-[11px] font-medium">Automation destinations</h3>
           <Button
             size="sm"
-            className="h-8 rounded-md text-xs"
+            className="h-7 rounded-md text-[9px]"
             disabled={!online || (endpoints.data?.length ?? 0) >= 5}
             onClick={openNew}
           >
             <Plus className="size-3" /> New destination
           </Button>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
           Lattice POSTs signed JSON when content changes. Each destination picks its own events and
           conditions; deliveries retry with backoff for up to five attempts. Signature header:{" "}
           <span className="font-mono">x-lattice-signature: sha256=HMAC(secret, body)</span>.
         </p>
 
         {!online ? (
-          <p className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground">
+          <p className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-[9px] text-muted-foreground">
             Automations need a connection to the sync server.
           </p>
         ) : (
@@ -229,17 +229,17 @@ export function WebhookManager() {
                   className="rounded-lg border border-border/50 bg-background/50 px-2.5 py-2"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium">{endpoint.name}</span>
+                    <span className="text-[10px] font-medium">{endpoint.name}</span>
                     {!endpoint.enabled ? (
-                      <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-xs text-muted-foreground">
+                      <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[7px] text-muted-foreground">
                         paused
                       </span>
                     ) : null}
-                    <code className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+                    <code className="min-w-0 flex-1 truncate font-mono text-[8.5px] text-muted-foreground">
                       {endpoint.url}
                     </code>
                   </div>
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[8.5px] text-muted-foreground">
                     <span>{endpoint.events.join(", ")}</span>
                     <span>{describeFilters(endpoint.filters)}</span>
                     <span>
@@ -254,7 +254,7 @@ export function WebhookManager() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 rounded-md text-xs"
+                      className="h-6 rounded-md text-[8px]"
                       onClick={() => openEdit(endpoint)}
                     >
                       <Pencil className="size-2.5" /> Edit
@@ -262,7 +262,7 @@ export function WebhookManager() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 rounded-md text-xs"
+                      className="h-6 rounded-md text-[8px]"
                       onClick={() => void sendTest(endpoint.id)}
                     >
                       <Send className="size-2.5" /> Test
@@ -270,7 +270,7 @@ export function WebhookManager() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 rounded-md text-xs text-destructive"
+                      className="h-6 rounded-md text-[8px] text-destructive"
                       onClick={() => setPendingRemove({ id: endpoint.id, name: endpoint.name })}
                     >
                       <Trash2 className="size-2.5" /> Remove
@@ -279,7 +279,7 @@ export function WebhookManager() {
                 </div>
               ))
             ) : (
-              <p className="py-4 text-center text-xs text-muted-foreground">
+              <p className="py-4 text-center text-[9px] text-muted-foreground">
                 No destinations yet. Create one to react to page, whiteboard, capture, or comment
                 events.
               </p>
@@ -290,22 +290,22 @@ export function WebhookManager() {
 
       {formOpen && online ? (
         <div className="rounded-xl border border-border/70 bg-card/40 p-4">
-          <h3 className="text-xs font-medium">
+          <h3 className="text-[11px] font-medium">
             {editingId ? "Edit destination" : "New destination"}
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
             <label className="block w-40">
-              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                 Name
               </span>
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
               />
             </label>
             <label className="block min-w-[240px] flex-1">
-              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                 Endpoint URL
               </span>
               <input
@@ -313,25 +313,25 @@ export function WebhookManager() {
                 onChange={(event) => setUrl(event.target.value)}
                 placeholder="https://hooks.example.com/lattice"
                 spellCheck={false}
-                className="h-8 w-full rounded-md border border-border bg-background px-2 font-mono text-xs outline-none focus:border-primary/40"
+                className="h-8 w-full rounded-md border border-border bg-background px-2 font-mono text-[10px] outline-none focus:border-primary/40"
               />
             </label>
           </div>
 
           <div className="mt-3">
-            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
               Events
             </span>
             <div className="mt-1 grid gap-1 sm:grid-cols-2">
               {WEBHOOK_EVENTS.map((event) => (
-                <label key={event} className="flex items-center gap-2 text-xs">
+                <label key={event} className="flex items-center gap-2 text-[9.5px]">
                   <input
                     type="checkbox"
                     checked={events.includes(event)}
                     onChange={() => toggle(events, event, setEvents)}
                     className="size-3 accent-[var(--saffron)]"
                   />
-                  <span className="font-mono text-xs text-muted-foreground">{event}</span>
+                  <span className="font-mono text-[8.5px] text-muted-foreground">{event}</span>
                   <span className="truncate">{EVENT_LABELS[event]}</span>
                 </label>
               ))}
@@ -340,7 +340,7 @@ export function WebhookManager() {
 
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <div>
-              <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                 Conditions
               </span>
               <label className="mt-1 block">
@@ -348,11 +348,11 @@ export function WebhookManager() {
                   value={titleContains}
                   onChange={(event) => setTitleContains(event.target.value)}
                   placeholder="Only titles containing…"
-                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/40"
+                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-[10px] outline-none focus:border-primary/40"
                 />
               </label>
               <div className="mt-1.5 flex flex-wrap gap-2">
-                <label className="flex items-center gap-1.5 text-xs">
+                <label className="flex items-center gap-1.5 text-[9px]">
                   <input
                     type="checkbox"
                     checked={operations.includes("UPSERT")}
@@ -361,7 +361,7 @@ export function WebhookManager() {
                   />
                   Saved / restored
                 </label>
-                <label className="flex items-center gap-1.5 text-xs">
+                <label className="flex items-center gap-1.5 text-[9px]">
                   <input
                     type="checkbox"
                     checked={operations.includes("DELETE")}
@@ -373,7 +373,7 @@ export function WebhookManager() {
               </div>
               <div className="mt-1.5 flex flex-wrap gap-2">
                 {PAGE_TYPES.map((type) => (
-                  <label key={type} className="flex items-center gap-1.5 text-xs">
+                  <label key={type} className="flex items-center gap-1.5 text-[9px]">
                     <input
                       type="checkbox"
                       checked={pageTypes.includes(type)}
@@ -388,7 +388,7 @@ export function WebhookManager() {
 
             <div className="space-y-2">
               <div>
-                <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                   Notebooks
                 </span>
                 <div className="mt-1 max-h-24 space-y-0.5 overflow-y-auto">
@@ -396,7 +396,7 @@ export function WebhookManager() {
                     notebooks
                       .filter((notebook) => !notebook.deletedAt)
                       .map((notebook) => (
-                        <label key={notebook.id} className="flex items-center gap-1.5 text-xs">
+                        <label key={notebook.id} className="flex items-center gap-1.5 text-[9px]">
                           <input
                             type="checkbox"
                             checked={notebookIds.includes(notebook.id)}
@@ -407,17 +407,17 @@ export function WebhookManager() {
                         </label>
                       ))
                   ) : (
-                    <p className="text-xs text-muted-foreground">No notebooks.</p>
+                    <p className="text-[8.5px] text-muted-foreground">No notebooks.</p>
                   )}
                 </div>
               </div>
               <div>
-                <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                   Authors
                 </span>
                 <div className="mt-1 max-h-24 space-y-0.5 overflow-y-auto">
                   {(members.data ?? []).map((member) => (
-                    <label key={member.userId} className="flex items-center gap-1.5 text-xs">
+                    <label key={member.userId} className="flex items-center gap-1.5 text-[9px]">
                       <input
                         type="checkbox"
                         checked={actorIds.includes(member.userId)}
@@ -433,7 +433,7 @@ export function WebhookManager() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-xs">
+            <label className="flex items-center gap-2 text-[9.5px]">
               <input
                 type="checkbox"
                 checked={enabled}
@@ -442,7 +442,7 @@ export function WebhookManager() {
               />
               Enabled
             </label>
-            <label className="flex items-center gap-2 text-xs">
+            <label className="flex items-center gap-2 text-[9.5px]">
               <input
                 type="checkbox"
                 checked={rotateSecret}
@@ -456,7 +456,7 @@ export function WebhookManager() {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button
               size="sm"
-              className="h-8 rounded-lg text-xs"
+              className="h-8 rounded-lg text-[10px]"
               disabled={busy}
               onClick={() => void save()}
             >
@@ -465,12 +465,12 @@ export function WebhookManager() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 rounded-lg text-xs"
+              className="h-8 rounded-lg text-[10px]"
               onClick={() => setFormOpen(false)}
             >
               Cancel
             </Button>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[8px] text-muted-foreground">
               At most five destinations per workspace.
             </span>
           </div>
@@ -496,16 +496,16 @@ export function WebhookManager() {
 
       {online ? (
         <div className="rounded-xl border border-border/70 bg-card/40 p-4">
-          <h3 className="text-xs font-medium">Recent deliveries</h3>
+          <h3 className="text-[11px] font-medium">Recent deliveries</h3>
           <div className="mt-2 space-y-1">
             {deliveries.data?.length ? (
               deliveries.data.map((delivery) => (
                 <div
                   key={delivery.id}
-                  className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-xs"
+                  className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-[9px]"
                 >
-                  <span className="text-xs text-muted-foreground">{delivery.endpointName}</span>
-                  <span className="font-mono text-xs text-muted-foreground">
+                  <span className="text-[8.5px] text-muted-foreground">{delivery.endpointName}</span>
+                  <span className="font-mono text-[8.5px] text-muted-foreground">
                     {delivery.event}
                   </span>
                   <span
@@ -535,7 +535,7 @@ export function WebhookManager() {
                 </div>
               ))
             ) : (
-              <p className="py-3 text-center text-xs text-muted-foreground">
+              <p className="py-3 text-center text-[9px] text-muted-foreground">
                 No deliveries yet. Create a destination and send a test.
               </p>
             )}

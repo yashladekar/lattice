@@ -155,7 +155,7 @@ function renderNode(
         <figure key={key} className="my-4">
           <MermaidDiagram source={source} className="max-h-96" />
           {caption ? (
-            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+            <figcaption className="mt-2 text-center text-[9.5px] text-muted-foreground">
               {caption}
             </figcaption>
           ) : null}
@@ -171,20 +171,20 @@ function renderNode(
       return (
         <div key={key} className="my-4 overflow-hidden rounded-lg border border-border">
           <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
-            <span className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-xs">
+            <span className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[9px]">
               {method}
             </span>
-            <code className="truncate text-xs">{url || "No URL"}</code>
+            <code className="truncate text-[10.5px]">{url || "No URL"}</code>
           </div>
           {label ? (
-            <p className="px-3 py-1.5 text-xs text-muted-foreground">{label}</p>
+            <p className="px-3 py-1.5 text-[9.5px] text-muted-foreground">{label}</p>
           ) : null}
           {headers || body ? (
-            <pre className="max-h-56 overflow-auto border-t border-border/60 bg-background/40 px-3 py-2 font-mono text-xs leading-relaxed">
+            <pre className="max-h-56 overflow-auto border-t border-border/60 bg-background/40 px-3 py-2 font-mono text-[10px] leading-relaxed">
               <code>{[headers, body].filter(Boolean).join("\n\n")}</code>
             </pre>
           ) : null}
-          <p className="border-t border-border/60 px-3 py-1 text-xs text-muted-foreground/60">
+          <p className="border-t border-border/60 px-3 py-1 text-[8.5px] text-muted-foreground/60">
             Open in Lattice to run this request.
           </p>
         </div>
@@ -194,14 +194,14 @@ function renderNode(
       const title = typeof node.attrs?.title === "string" ? node.attrs.title : "Embedded page";
       return (
         <div key={key} className="my-4 rounded-lg border border-border bg-muted/25 px-4 py-3">
-          <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Embedded page</div>
+          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Embedded page</div>
           <div className="mt-1 text-sm font-medium">{title}</div>
         </div>
       );
     }
     case "liveBlock":
       return (
-        <div key={key} className="my-4 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+        <div key={key} className="my-4 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-[11px] text-muted-foreground">
           Live block · open in Lattice to view
         </div>
       );
@@ -248,7 +248,7 @@ function renderNode(
           className="my-4 block rounded-lg border border-border bg-muted/20 px-4 py-3 no-underline"
         >
           <div className="text-sm font-medium text-foreground">{title}</div>
-          <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{description || url}</div>
+          <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{description || url}</div>
         </a>
       );
     }
@@ -297,7 +297,7 @@ function renderNode(
       return <div key={key}>{String(node.attrs?.latex ?? node.attrs?.math ?? "")}</div>;
     case "youtube":
       return (
-        <div key={key} className="my-4 rounded-lg border border-border px-4 py-3 text-xs text-muted-foreground">
+        <div key={key} className="my-4 rounded-lg border border-border px-4 py-3 text-[11px] text-muted-foreground">
           YouTube embed · open in Lattice to watch
         </div>
       );
@@ -318,7 +318,7 @@ export function ReadOnlyDocument({
   onPageLink?: (pageId: string) => void;
 }) {
   if (!doc?.content?.length) {
-    return <p className={cn("text-xs text-muted-foreground", className)}>No content yet.</p>;
+    return <p className={cn("text-[11px] text-muted-foreground", className)}>No content yet.</p>;
   }
   return (
     <div className={cn("tiptap", compact && "tiptap-compact", className)}>

@@ -24,7 +24,7 @@ export function SyncBadge({ onConflicts }: { onConflicts?: () => void }) {
       <button
         type="button"
         onClick={onConflicts}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/5 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/5 px-2.5 text-[10px] font-medium text-destructive transition-colors hover:bg-destructive/10"
       >
         <AlertTriangle className="size-3" />
         {conflictCount} conflict{conflictCount === 1 ? "" : "s"}
@@ -37,19 +37,19 @@ export function SyncBadge({ onConflicts }: { onConflicts?: () => void }) {
       <button
         type="button"
         onClick={() => void retrySync()}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-medium text-muted-foreground"
+        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-[10px] font-medium text-muted-foreground"
         title="Offline. Everything is saved locally."
       >
         <WifiOff className="size-3 text-saffron" />
         <span className="hidden sm:inline">Offline</span>
-        {pending ? <span className="text-xs">{pending} queued</span> : null}
+        {pending ? <span className="text-[9px]">{pending} queued</span> : null}
       </button>
     );
   }
 
   if (syncState.status === "syncing") {
     return (
-      <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground">
+      <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-[10px] text-muted-foreground">
         <Loader2 className="size-3 animate-spin text-sky" />
         <span className="hidden sm:inline">Syncing</span>
       </span>
@@ -61,7 +61,7 @@ export function SyncBadge({ onConflicts }: { onConflicts?: () => void }) {
       <button
         type="button"
         onClick={() => void retrySync()}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-destructive/25 bg-destructive/5 px-2.5 text-xs text-destructive"
+        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-destructive/25 bg-destructive/5 px-2.5 text-[10px] text-destructive"
         title={syncState.message ?? "Sync paused"}
       >
         <CloudOff className="size-3" />
@@ -76,7 +76,7 @@ export function SyncBadge({ onConflicts }: { onConflicts?: () => void }) {
       type="button"
       onClick={() => void retrySync()}
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:bg-muted",
+        "inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted",
         pending > 0 && "text-foreground",
       )}
       title={syncState.lastSyncedAt ? `Synced ${new Date(syncState.lastSyncedAt).toLocaleTimeString()}` : "All local changes saved"}

@@ -90,7 +90,7 @@ function PageRow({
     <div>
       <div
         className={cn(
-          "group flex h-8 items-center gap-0.5 rounded-md pr-1 text-sm transition-colors",
+          "group flex h-7 items-center gap-0.5 rounded-md pr-1 text-[11.5px] transition-colors",
           active ? "bg-sidebar-accent text-foreground" : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
         )}
         style={{ paddingLeft: 6 + depth * 12 }}
@@ -114,7 +114,7 @@ function PageRow({
           }}
           className="flex min-w-0 flex-1 items-center gap-1.5 self-stretch rounded text-left"
         >
-          <span className="w-4 shrink-0 text-center text-xs text-muted-foreground">
+          <span className="w-4 shrink-0 text-center text-[11px] text-muted-foreground">
             {node.page.icon ?? "◇"}
           </span>
           <span className="truncate">{node.page.title || "Untitled"}</span>
@@ -337,14 +337,14 @@ export function WorkspaceSidebar({
               />
             }
           >
-            <span className="grid size-6 shrink-0 place-items-center rounded-md bg-saffron/15 text-xs text-saffron">
+            <span className="grid size-6 shrink-0 place-items-center rounded-md bg-saffron/15 text-[12px] text-saffron">
               {activeWorkspace?.icon ?? "✦"}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">
+              <span className="block truncate text-[11.5px] font-medium">
                 {activeWorkspace?.name ?? "Loading workspace…"}
               </span>
-              <span className="block text-xs text-muted-foreground">
+              <span className="block text-[9px] text-muted-foreground">
                 {activeWorkspace?.type === "ORGANIZATION" ? "Organization" : "Personal workspace"}
               </span>
             </span>
@@ -362,7 +362,7 @@ export function WorkspaceSidebar({
                   }}
                   className="gap-2"
                 >
-                  <span className="text-xs">{workspace.icon ?? "◇"}</span>
+                  <span className="text-[11px]">{workspace.icon ?? "◇"}</span>
                   <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
                   {workspace.id === activeWorkspaceId ? <Check className="size-3 text-moss" /> : null}
                 </DropdownMenuItem>
@@ -380,11 +380,11 @@ export function WorkspaceSidebar({
         <button
           type="button"
           onClick={onOpenPalette}
-          className="flex h-8 flex-1 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+          className="flex h-7 flex-1 items-center gap-2 rounded-md px-2 text-[11px] text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
         >
           <Search className="size-3.5" />
           Search or ask
-          <span className="ml-auto font-mono text-xs text-muted-foreground/60">⌘K</span>
+          <span className="ml-auto font-mono text-[9px] text-muted-foreground/60">⌘K</span>
         </button>
         <Button
           variant="outline"
@@ -404,7 +404,7 @@ export function WorkspaceSidebar({
             type="button"
             onClick={() => go({ view: item.view })}
             className={cn(
-              "flex h-8 w-full items-center gap-2 rounded-md px-2 text-sm transition-colors",
+              "flex h-7 w-full items-center gap-2 rounded-md px-2 text-[11.5px] transition-colors",
               route.view === item.view
                 ? "bg-sidebar-accent text-foreground"
                 : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
@@ -419,7 +419,7 @@ export function WorkspaceSidebar({
 
       {favoritePages.length ? (
         <div className="mt-2 px-2">
-          <div className="flex items-center gap-1.5 px-1.5 pb-1 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+          <div className="flex items-center gap-1.5 px-1.5 pb-1 text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
             <Star className="size-2.5" /> Favorites
           </div>
           <div className="space-y-0.5">
@@ -429,13 +429,13 @@ export function WorkspaceSidebar({
                 type="button"
                 onClick={() => go({ view: "page", id: favorite.id })}
                 className={cn(
-                  "flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-xs transition-colors",
+                  "flex h-7 w-full items-center gap-2 rounded-md px-1.5 text-[11.5px] transition-colors",
                   activePageId === favorite.id
                     ? "bg-sidebar-accent text-foreground"
                     : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                 )}
               >
-                <span className="w-4 text-center text-xs">{favorite.icon ?? "◇"}</span>
+                <span className="w-4 text-center text-[11px]">{favorite.icon ?? "◇"}</span>
                 <span className="min-w-0 flex-1 self-stretch truncate text-left">{favorite.title || "Untitled"}</span>
               </button>
             ))}
@@ -447,7 +447,7 @@ export function WorkspaceSidebar({
 
       <div className="flex-1 overflow-y-auto px-2 pb-3">
         <div className="flex items-center justify-between px-1.5 pb-1.5">
-          <span className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+          <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
             Notebooks
           </span>
           <button
@@ -464,7 +464,7 @@ export function WorkspaceSidebar({
           <button
             type="button"
             onClick={() => setNotebookDialog(true)}
-            className="flex min-h-11 w-full items-center rounded-lg border border-dashed border-sidebar-border px-3 text-left text-xs text-muted-foreground hover:bg-sidebar-accent/50"
+            className="w-full rounded-lg border border-dashed border-sidebar-border px-3 py-3 text-left text-[10px] text-muted-foreground hover:bg-sidebar-accent/50"
           >
             Create your first notebook
           </button>
@@ -477,7 +477,7 @@ export function WorkspaceSidebar({
                 <div key={notebook.id}>
                   <div
                     className={cn(
-                      "group flex h-8 items-center gap-1 rounded-md px-1.5 text-sm transition-colors",
+                      "group flex h-7 items-center gap-1 rounded-md px-1.5 text-[11.5px] transition-colors",
                       route.notebook === notebook.id
                         ? "bg-sidebar-accent text-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
@@ -498,7 +498,7 @@ export function WorkspaceSidebar({
                     >
                       {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
                     </button>
-                    <span className="w-4 text-center text-xs">{notebook.icon ?? "◫"}</span>
+                    <span className="w-4 text-center text-[11px]">{notebook.icon ?? "◫"}</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -602,7 +602,7 @@ export function WorkspaceSidebar({
                         <button
                           type="button"
                           onClick={() => void createPage(notebook.id)}
-                          className="ml-7 flex h-7 items-center gap-1 rounded px-2 text-xs text-muted-foreground/60 hover:bg-sidebar-accent hover:text-foreground"
+                          className="ml-7 flex h-6 items-center gap-1 rounded px-2 text-[10px] text-muted-foreground/60 hover:bg-sidebar-accent hover:text-foreground"
                         >
                           <Plus className="size-2.5" /> New page
                         </button>
@@ -617,7 +617,7 @@ export function WorkspaceSidebar({
 
         {(rootsByNotebook.get(null) ?? []).length ? (
           <div className="mt-2">
-            <div className="px-1.5 pb-1 text-xs uppercase tracking-[0.14em] text-muted-foreground/50">
+            <div className="px-1.5 pb-1 text-[9px] uppercase tracking-[0.14em] text-muted-foreground/50">
               Unfiled
             </div>
             {(rootsByNotebook.get(null) ?? []).map((node) => (
@@ -633,7 +633,7 @@ export function WorkspaceSidebar({
         ) : null}
 
         <div className="mt-4 flex items-center justify-between px-1.5 pb-1.5">
-          <span className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+          <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
             Canvases
           </span>
           <button
@@ -660,7 +660,7 @@ export function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => go({ view: "canvas", id: canvas.id })}
-                  className="flex h-8 min-w-0 flex-1 items-center gap-2 px-2 text-left text-sm"
+                  className="flex h-7 min-w-0 flex-1 items-center gap-2 px-2 text-left text-[11.5px]"
                 >
                   <Frame className="size-3.5 shrink-0 text-moss" />
                   <span className="truncate">{canvas.title}</span>
@@ -694,7 +694,7 @@ export function WorkspaceSidebar({
             <button
               type="button"
               onClick={() => void createCanvas()}
-              className="flex h-8 w-full items-center rounded-md px-2 text-left text-xs text-muted-foreground/60 hover:bg-sidebar-accent"
+              className="w-full rounded-md px-2 py-1.5 text-left text-[10px] text-muted-foreground/60 hover:bg-sidebar-accent"
             >
               + Start a whiteboard
             </button>
@@ -703,7 +703,7 @@ export function WorkspaceSidebar({
 
         {tags.length ? (
           <>
-            <div className="mt-4 px-1.5 pb-1.5 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
+            <div className="mt-4 px-1.5 pb-1.5 text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
               Tags
             </div>
             <div className="flex flex-wrap gap-1 px-1.5">
@@ -712,7 +712,7 @@ export function WorkspaceSidebar({
                   key={tag.id}
                   type="button"
                   onClick={() => go({ view: "search", query: `#${tag.name}` })}
-                  className="inline-flex h-7 items-center gap-1 rounded-full border border-sidebar-border px-2.5 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                  className="inline-flex items-center gap-1 rounded-full border border-sidebar-border px-2 py-0.5 text-[9px] text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
                 >
                   <Tag className="size-2.5" />
                   {tag.name}
@@ -729,7 +729,7 @@ export function WorkspaceSidebar({
             type="button"
             onClick={() => go({ view: "settings" })}
             className={cn(
-              "flex h-8 flex-1 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+              "flex h-7 flex-1 items-center gap-2 rounded-md px-2 text-[11px] text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
               route.view === "settings" && "bg-sidebar-accent text-foreground",
             )}
           >
@@ -758,12 +758,12 @@ export function WorkspaceSidebar({
         </div>
         {user ? (
           <div className="mt-2 flex items-center gap-2 rounded-lg px-1 py-1">
-            <span className="grid size-6 place-items-center rounded-full bg-moss/20 text-xs font-medium text-moss">
+            <span className="grid size-6 place-items-center rounded-full bg-moss/20 text-[9px] font-medium text-moss">
               {initials(user.name)}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{user.name}</span>
-              <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+              <span className="block truncate text-[10px] font-medium">{user.name}</span>
+              <span className="block truncate text-[8px] text-muted-foreground">{user.email}</span>
             </span>
             <BookOpen className="size-3 text-muted-foreground/50" />
           </div>
@@ -798,7 +798,7 @@ export function WorkspaceSidebar({
           className="h-9 rounded-lg"
           autoFocus
         />
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 text-[10px] text-muted-foreground">
           You will be the owner. Invite members and set roles after creating it.
         </p>
       </Modal>

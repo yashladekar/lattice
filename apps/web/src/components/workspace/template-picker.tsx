@@ -137,23 +137,23 @@ export function TemplatePickerDialog({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Filter templates…"
             autoFocus
-            className="h-9 flex-1 bg-transparent text-xs outline-none"
+            className="h-9 flex-1 bg-transparent text-[12px] outline-none"
           />
         </div>
 
         {grouped.length === 0 ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">
+          <p className="py-8 text-center text-[11px] text-muted-foreground">
             No templates match “{query}”.
           </p>
         ) : (
           grouped.map(([group, list]) => (
             <div key={group}>
               <div className="mb-1.5 flex items-center gap-2">
-                <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
                   {group}
                 </span>
                 {group === "Your templates" ? (
-                  <span className="rounded-full border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full border border-border px-1.5 py-0.5 text-[8px] text-muted-foreground">
                     custom
                   </span>
                 ) : null}
@@ -173,14 +173,14 @@ export function TemplatePickerDialog({
                       disabled={busyId !== null}
                       className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
                     >
-                      <span className="grid size-7 shrink-0 place-items-center rounded-md border border-border/70 bg-background text-sm">
+                      <span className="grid size-7 shrink-0 place-items-center rounded-md border border-border/70 bg-background text-[13px]">
                         {option.icon}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-medium">
+                        <span className="block truncate text-[11.5px] font-medium">
                           {option.name}
                         </span>
-                        <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
+                        <span className="mt-0.5 line-clamp-2 block text-[9.5px] leading-relaxed text-muted-foreground">
                           {option.description}
                         </span>
                       </span>
@@ -204,7 +204,7 @@ export function TemplatePickerDialog({
 
         <div className="flex items-center gap-2 rounded-lg border border-dashed border-border/70 px-3 py-2">
           <LayoutTemplate className="size-3.5 shrink-0 text-muted-foreground" />
-          <p className="text-xs leading-relaxed text-muted-foreground">
+          <p className="text-[9.5px] leading-relaxed text-muted-foreground">
             Save any page as a template from its actions menu. Custom templates stay in this
             workspace and sync with it.
           </p>

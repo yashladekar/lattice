@@ -599,7 +599,7 @@ export function SettingsView() {
       <aside className="w-full shrink-0 md:w-48">
         <div className="mb-4">
           <h1 className="font-display text-3xl tracking-[-0.03em]">Settings</h1>
-          <p className="mt-1 text-xs text-muted-foreground">{activeWorkspace.name}</p>
+          <p className="mt-1 text-[9px] text-muted-foreground">{activeWorkspace.name}</p>
         </div>
         <nav className="space-y-0.5">
           {TABS.map((entry) => (
@@ -608,7 +608,7 @@ export function SettingsView() {
               type="button"
               onClick={() => setTab(entry.id)}
               className={cn(
-                "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[10.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                 tab === entry.id && "bg-muted text-foreground",
               )}
             >
@@ -618,11 +618,11 @@ export function SettingsView() {
           ))}
         </nav>
         <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-2.5">
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex items-center gap-1.5 text-[9px]">
             <span className={cn("status-dot", online ? "bg-moss" : "bg-saffron")} />
             {online ? "Sync available" : "Offline mode"}
           </div>
-          <div className="mt-1 text-xs text-muted-foreground">
+          <div className="mt-1 text-[8px] text-muted-foreground">
             {syncState.pending} local changes queued
           </div>
         </div>
@@ -668,7 +668,7 @@ export function SettingsView() {
             <SettingsCard title="Workspace identity" description="How this workspace appears across Lattice.">
               <div className="flex gap-3">
                 <div className="w-16">
-                  <label className="mb-1 block text-xs text-muted-foreground">Icon</label>
+                  <label className="mb-1 block text-[9px] text-muted-foreground">Icon</label>
                   <Input
                     value={icon}
                     onChange={(event) => setIcon(event.target.value.slice(0, 4))}
@@ -676,24 +676,24 @@ export function SettingsView() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="mb-1 block text-xs text-muted-foreground">Name</label>
-                  <Input value={name} onChange={(event) => setName(event.target.value)} className="h-9 rounded-lg text-xs" />
+                  <label className="mb-1 block text-[9px] text-muted-foreground">Name</label>
+                  <Input value={name} onChange={(event) => setName(event.target.value)} className="h-9 rounded-lg text-[12px]" />
                 </div>
               </div>
               <div className="mt-3">
-                <label className="mb-1 block text-xs text-muted-foreground">Description</label>
+                <label className="mb-1 block text-[9px] text-muted-foreground">Description</label>
                 <Input
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   placeholder="What lives in this workspace?"
-                  className="h-9 rounded-lg text-xs"
+                  className="h-9 rounded-lg text-[11px]"
                 />
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <Button size="sm" className="h-8 rounded-lg text-xs" disabled={busy} onClick={() => void saveGeneral()}>
+                <Button size="sm" className="h-8 rounded-lg text-[10px]" disabled={busy} onClick={() => void saveGeneral()}>
                   Save changes
                 </Button>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[8px] text-muted-foreground">
                   Stored locally, synced when online.
                 </span>
               </div>
@@ -709,7 +709,7 @@ export function SettingsView() {
                     key={days}
                     variant={(activeWorkspace?.trashRetentionDays ?? 0) === days ? "default" : "outline"}
                     size="sm"
-                    className="h-8 rounded-lg text-xs"
+                    className="h-8 rounded-lg text-[10px]"
                     disabled={!["OWNER", "ADMIN"].includes(role ?? "")}
                     onClick={() => void setRetention(days)}
                   >
@@ -717,7 +717,7 @@ export function SettingsView() {
                   </Button>
                 ))}
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
                 The server purges trash past the window on a schedule and records tombstones so every
                 device reflects it. There is deliberately no manual purge button: a client that
                 dropped rows locally would disagree with the server and resurrect content on the
@@ -735,7 +735,7 @@ export function SettingsView() {
                 <LoadingRow />
               ) : (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 text-[10px]">
                     <span
                       className={cn(
                         "status-dot",
@@ -749,27 +749,27 @@ export function SettingsView() {
 
                   {newIngestToken ? (
                     <div className="rounded-lg border border-saffron/30 bg-saffron/[0.05] p-2.5">
-                      <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                         Endpoint
                       </div>
-                      <code className="mt-0.5 block break-all font-mono text-xs">
+                      <code className="mt-0.5 block break-all font-mono text-[9px]">
                         {getApiBaseUrl()}/ingest/email
                       </code>
-                      <div className="mt-1.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <div className="mt-1.5 text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                         Header
                       </div>
-                      <code className="mt-0.5 block break-all font-mono text-xs">
+                      <code className="mt-0.5 block break-all font-mono text-[9px]">
                         x-lattice-ingest-token: {newIngestToken}
                       </code>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <Button
                           size="sm"
-                          className="h-8 rounded-md text-xs"
+                          className="h-7 rounded-md text-[9px]"
                           onClick={() => void copyIngestSetup()}
                         >
                           Copy setup
                         </Button>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[8px] text-muted-foreground">
                           Shown once. Rotate the token if you lose it.
                         </span>
                       </div>
@@ -780,7 +780,7 @@ export function SettingsView() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 rounded-md text-xs"
+                      className="h-7 rounded-md text-[9px]"
                       disabled={!["OWNER", "ADMIN"].includes(role ?? "")}
                       onClick={() => void createIngestToken()}
                     >
@@ -790,7 +790,7 @@ export function SettingsView() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 rounded-md text-xs text-destructive"
+                        className="h-7 rounded-md text-[9px] text-destructive"
                         disabled={!["OWNER", "ADMIN"].includes(role ?? "")}
                         onClick={() => void revokeIngestToken()}
                       >
@@ -799,7 +799,7 @@ export function SettingsView() {
                     ) : null}
                   </div>
 
-                  <p className="text-xs leading-relaxed text-muted-foreground">
+                  <p className="text-[8px] leading-relaxed text-muted-foreground">
                     The provider POSTs JSON with any of <span className="font-mono">subject</span>,{" "}
                     <span className="font-mono">text</span>, <span className="font-mono">html</span>,{" "}
                     <span className="font-mono">from</span>, and{" "}
@@ -814,9 +814,9 @@ export function SettingsView() {
               <div className="space-y-1">
                 {workspaces.map((workspace) => (
                   <div key={workspace.id} className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
-                    <span className="text-xs">{workspace.icon ?? "◇"}</span>
-                    <span className="min-w-0 flex-1 truncate text-xs">{workspace.name}</span>
-                    <span className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                    <span className="text-[10px]">{workspace.icon ?? "◇"}</span>
+                    <span className="min-w-0 flex-1 truncate text-[10px]">{workspace.name}</span>
+                    <span className="text-[8px] uppercase tracking-[0.1em] text-muted-foreground">
                       {workspace.type === "ORGANIZATION" ? "Organization" : "Personal"}
                     </span>
                     {workspace.id === activeWorkspaceId ? <Check className="size-3 text-moss" /> : null}
@@ -824,13 +824,13 @@ export function SettingsView() {
                 ))}
               </div>
               <div className="mt-2 flex gap-2">
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => void refreshWorkspaces()}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void refreshWorkspaces()}>
                   <RefreshCw className="size-3" /> Refresh
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => void exportWorkspace()}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void exportWorkspace()}>
                   <Download className="size-3" /> Export this workspace
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => void exportVault()}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void exportVault()}>
                   <FolderUp className="size-3" /> Export Markdown vault
                 </Button>
               </div>
@@ -838,14 +838,14 @@ export function SettingsView() {
 
             <SettingsCard title="Account" description="Your identity and local session.">
               <div className="flex items-center gap-3">
-                <span className="grid size-9 place-items-center rounded-full bg-moss/15 text-xs font-semibold text-moss">
+                <span className="grid size-9 place-items-center rounded-full bg-moss/15 text-[11px] font-semibold text-moss">
                   {user?.name.slice(0, 2).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-medium">{user?.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
+                  <div className="truncate text-[11px] font-medium">{user?.name}</div>
+                  <div className="truncate text-[9px] text-muted-foreground">{user?.email}</div>
                 </div>
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => void signOut()}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void signOut()}>
                   <LogOut className="size-3" /> Sign out
                 </Button>
               </div>
@@ -862,7 +862,7 @@ export function SettingsView() {
                     key={value}
                     variant={theme === value ? "default" : "outline"}
                     size="sm"
-                    className="h-8 rounded-lg text-xs capitalize"
+                    className="h-8 rounded-lg text-[10px] capitalize"
                     onClick={() => setTheme(value)}
                   >
                     {value}
@@ -891,7 +891,7 @@ export function SettingsView() {
                   ),
                 )}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-[9px] text-muted-foreground">
                 Current: {activeWorkspace?.accent ?? "default"}
               </p>
             </SettingsCard>
@@ -909,18 +909,18 @@ export function SettingsView() {
                 <div className="space-y-1">
                   {members.data?.map((member) => (
                     <div key={member.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
-                      <span className="grid size-6 place-items-center rounded-full bg-sky/15 text-xs font-semibold text-sky">
+                      <span className="grid size-6 place-items-center rounded-full bg-sky/15 text-[8px] font-semibold text-sky">
                         {member.user.name.slice(0, 2).toUpperCase()}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs">{member.user.name}</div>
-                        <div className="truncate text-xs text-muted-foreground">{member.user.email}</div>
+                        <div className="truncate text-[10px]">{member.user.name}</div>
+                        <div className="truncate text-[8px] text-muted-foreground">{member.user.email}</div>
                       </div>
                       {["OWNER", "ADMIN"].includes(role ?? "") && member.role !== "OWNER" ? (
                         <select
                           value={member.role}
                           onChange={(event) => void updateMemberRole(member.id, event.target.value as Role)}
-                          className="h-7 rounded border border-border bg-transparent px-1 text-xs"
+                          className="h-6 rounded border border-border bg-transparent px-1 text-[8px]"
                         >
                           {ROLES.filter((entry) => entry !== "OWNER").map((entry) => (
                             <option key={entry} value={entry}>
@@ -929,7 +929,7 @@ export function SettingsView() {
                           ))}
                         </select>
                       ) : (
-                        <span className="rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
+                        <span className="rounded border border-border px-1.5 py-0.5 text-[8px] text-muted-foreground">
                           {member.role}
                         </span>
                       )}
@@ -957,12 +957,12 @@ export function SettingsView() {
                     onChange={(event) => setInviteEmail(event.target.value)}
                     placeholder="teammate@example.com"
                     type="email"
-                    className="h-8 min-w-48 flex-1 rounded-md text-xs"
+                    className="h-8 min-w-48 flex-1 rounded-md text-[10px]"
                   />
                   <select
                     value={inviteRole}
                     onChange={(event) => setInviteRole(event.target.value as Role)}
-                    className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                    className="h-8 rounded-md border border-border bg-background px-2 text-[9px]"
                   >
                     {ROLES.filter((entry) => entry !== "OWNER" && entry !== "ADMIN").map((entry) => (
                       <option key={entry} value={entry}>
@@ -970,19 +970,19 @@ export function SettingsView() {
                       </option>
                     ))}
                   </select>
-                  <Button size="sm" className="h-8 rounded-md text-xs" disabled={busy || !inviteEmail.trim()} onClick={() => void invite()}>
+                  <Button size="sm" className="h-8 rounded-md text-[9px]" disabled={busy || !inviteEmail.trim()} onClick={() => void invite()}>
                     <Plus className="size-3" /> Create invite
                   </Button>
                 </div>
                 {inviteLink ? (
                   <div className="mt-2 rounded-md border border-moss/25 bg-moss/[0.05] p-2">
-                    <div className="text-xs text-moss">Invite link</div>
+                    <div className="text-[8px] text-moss">Invite link</div>
                     <div className="mt-1 flex gap-1">
-                      <Input value={inviteLink} readOnly className="h-8 rounded text-xs" />
+                      <Input value={inviteLink} readOnly className="h-7 rounded text-[8px]" />
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 rounded px-2 text-xs"
+                        className="h-7 rounded px-2 text-[8px]"
                         onClick={() => void navigator.clipboard.writeText(inviteLink)}
                       >
                         Copy
@@ -999,27 +999,27 @@ export function SettingsView() {
                 description="Point an identity provider at this endpoint to create, update, and deprovision members automatically. Group names map to roles: admin, editor/member, viewer; ownership is never granted."
               >
                 <div className="rounded-lg border border-border/60 bg-background/50 p-2.5">
-                  <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                     SCIM base URL
                   </div>
-                  <code className="mt-0.5 block break-all font-mono text-xs">
+                  <code className="mt-0.5 block break-all font-mono text-[9px]">
                     {getApiBaseUrl()}/scim/v2
                   </code>
-                  <div className="mt-1.5 text-xs text-muted-foreground">
+                  <div className="mt-1.5 text-[8px] text-muted-foreground">
                     Bearer token authentication · Users and Groups · PATCH supported
                   </div>
                 </div>
 
                 {newScimToken ? (
                   <div className="mt-2 rounded-lg border border-saffron/30 bg-saffron/[0.05] p-2.5">
-                    <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Token (shown once)
                     </div>
-                    <code className="mt-0.5 block break-all font-mono text-xs">{newScimToken}</code>
+                    <code className="mt-0.5 block break-all font-mono text-[9px]">{newScimToken}</code>
                     <div className="mt-1.5 flex gap-2">
                       <Button
                         size="sm"
-                        className="h-7 rounded-md text-xs"
+                        className="h-6 rounded-md text-[8px]"
                         onClick={() => void navigator.clipboard.writeText(newScimToken)}
                       >
                         Copy token
@@ -1027,7 +1027,7 @@ export function SettingsView() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 rounded-md text-xs"
+                        className="h-6 rounded-md text-[8px]"
                         onClick={() => setNewScimToken(null)}
                       >
                         Done
@@ -1041,7 +1041,7 @@ export function SettingsView() {
                     (scimTokens.data ?? []).map((token) => (
                       <div
                         key={token.id}
-                        className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-xs"
+                        className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-[9px]"
                       >
                         <span className="min-w-0 flex-1 truncate">{token.name}</span>
                         <span className="text-muted-foreground">
@@ -1064,7 +1064,7 @@ export function SettingsView() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[9px] text-muted-foreground">
                       No tokens yet. Create one per identity provider so revocation stays scoped.
                     </p>
                   )}
@@ -1075,9 +1075,9 @@ export function SettingsView() {
                     value={scimName}
                     onChange={(event) => setScimName(event.target.value)}
                     placeholder="Okta, Entra ID…"
-                    className="h-8 min-w-40 flex-1 rounded-md text-xs"
+                    className="h-8 min-w-40 flex-1 rounded-md text-[10px]"
                   />
-                  <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => void createScimToken()}>
+                  <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => void createScimToken()}>
                     Create SCIM token
                   </Button>
                 </div>
@@ -1090,13 +1090,13 @@ export function SettingsView() {
                 description="Sign in through the workspace's identity provider. Register the redirect URI below at the provider, then save its issuer and client credentials."
               >
                 <div className="rounded-lg border border-border/60 bg-background/50 p-2.5">
-                  <div className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                     Redirect URI
                   </div>
-                  <code className="mt-0.5 block break-all font-mono text-xs">
+                  <code className="mt-0.5 block break-all font-mono text-[9px]">
                     {getApiBaseUrl()}/api/auth/sso/callback
                   </code>
-                  <div className="mt-1.5 text-xs text-muted-foreground">
+                  <div className="mt-1.5 text-[8px] text-muted-foreground">
                     {ssoConnection.data?.configured
                       ? `Configured${ssoConnection.data.enabled ? "" : " · disabled"} · ${ssoConnection.data.domains.join(", ") || "no domains"}`
                       : "Not configured"}
@@ -1105,7 +1105,7 @@ export function SettingsView() {
 
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Issuer URL
                     </span>
                     <Input
@@ -1113,22 +1113,22 @@ export function SettingsView() {
                       onChange={(event) => setSsoIssuer(event.target.value)}
                       placeholder="https://login.example.com"
                       spellCheck={false}
-                      className="h-8 rounded-md font-mono text-xs"
+                      className="h-8 rounded-md font-mono text-[10px]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Client ID
                     </span>
                     <Input
                       value={ssoClientId}
                       onChange={(event) => setSsoClientId(event.target.value)}
                       spellCheck={false}
-                      className="h-8 rounded-md font-mono text-xs"
+                      className="h-8 rounded-md font-mono text-[10px]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Client secret
                     </span>
                     <Input
@@ -1136,24 +1136,24 @@ export function SettingsView() {
                       onChange={(event) => setSsoSecret(event.target.value)}
                       type="password"
                       placeholder={ssoConnection.data?.configured ? "Leave blank to keep" : ""}
-                      className="h-8 rounded-md text-xs"
+                      className="h-8 rounded-md text-[10px]"
                     />
                   </label>
                   <label className="block sm:col-span-2">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Email domains
                     </span>
                     <Input
                       value={ssoDomains}
                       onChange={(event) => setSsoDomains(event.target.value)}
                       placeholder="example.com, example.org"
-                      className="h-8 rounded-md text-xs"
+                      className="h-8 rounded-md text-[10px]"
                     />
                   </label>
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <label className="flex items-center gap-2 text-xs">
+                  <label className="flex items-center gap-2 text-[9.5px]">
                     <input
                       type="checkbox"
                       checked={ssoEnabled}
@@ -1162,21 +1162,21 @@ export function SettingsView() {
                     />
                     Enabled
                   </label>
-                  <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => void saveSso()}>
+                  <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => void saveSso()}>
                     Save connection
                   </Button>
                   {ssoConnection.data?.configured ? (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 rounded-lg text-xs text-destructive"
+                      className="h-8 rounded-lg text-[10px] text-destructive"
                       onClick={() => void removeSso()}
                     >
                       Remove
                     </Button>
                   ) : null}
                 </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                <p className="mt-1.5 text-[8.5px] leading-relaxed text-muted-foreground">
                   Sign-in requires an active, provisioned membership; SCIM or an invite creates one.
                   The client secret is encrypted with the deployment secret before it is stored.
                 </p>
@@ -1194,24 +1194,24 @@ export function SettingsView() {
                 <Stat label="Conflicts" value={String(syncState.conflicts)} tone={syncState.conflicts ? "rose" : "moss"} />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => void retrySync()}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void retrySync()}>
                   <RefreshCw className="size-3" /> Sync now
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 rounded-md text-xs"
+                  className="h-7 rounded-md text-[9px]"
                   onClick={() => void refreshWorkspace(activeWorkspaceId ?? "")}
                 >
                   Pull latest
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md text-xs" onClick={() => void exportWorkspace()}>
+                <Button variant="outline" size="sm" className="h-7 rounded-md text-[9px]" onClick={() => void exportWorkspace()}>
                   <Download className="size-3" /> Export JSON
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 rounded-md text-xs"
+                  className="h-7 rounded-md text-[9px]"
                   onClick={() => importRef.current?.click()}
                 >
                   <ArrowUpRight className="size-3" /> Import JSON
@@ -1241,7 +1241,7 @@ export function SettingsView() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 rounded-md text-xs"
+                  className="h-7 rounded-md text-[9px]"
                   onClick={() => setGithubOpen(true)}
                 >
                   <GitBranch className="size-3" /> Import from GitHub
@@ -1249,7 +1249,7 @@ export function SettingsView() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 rounded-md text-xs"
+                  className="h-7 rounded-md text-[9px]"
                   onClick={() => setVaultOpen(true)}
                 >
                   <FolderUp className="size-3" /> Import a vault
@@ -1257,13 +1257,13 @@ export function SettingsView() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 rounded-md text-xs"
+                  className="h-7 rounded-md text-[9px]"
                   onClick={() => setGitOpen(true)}
                 >
                   <RefreshCw className="size-3" /> Sync with Git
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-[8px] text-muted-foreground">
                 Last sync {syncState.lastSyncedAt ? new Date(syncState.lastSyncedAt).toLocaleString() : "not yet"}.
                 Conflicts are preserved in version history and never overwritten silently.
               </p>
@@ -1272,14 +1272,14 @@ export function SettingsView() {
             <SettingsCard title="Local persistence" description="Browsers may evict storage unless you grant persistence.">
               <div className="flex items-center gap-2">
                 <span className={cn("status-dot", persisted ? "bg-moss" : "bg-saffron")} />
-                <span className="text-xs">
+                <span className="text-[10px]">
                   {persisted === null ? "Checking…" : persisted ? "Persistent storage granted" : "Best-effort storage"}
                 </span>
-                <Button variant="outline" size="sm" className="ml-auto h-8 rounded-md text-xs" onClick={() => void requestPersistence()}>
+                <Button variant="outline" size="sm" className="ml-auto h-7 rounded-md text-[9px]" onClick={() => void requestPersistence()}>
                   <HardDrive className="size-3" /> Request persistence
                 </Button>
               </div>
-              <div className="mt-3 rounded-md border border-border/60 bg-muted/20 p-2 text-xs leading-relaxed text-muted-foreground">
+              <div className="mt-3 rounded-md border border-border/60 bg-muted/20 p-2 text-[8.5px] leading-relaxed text-muted-foreground">
                 Lattice keeps a full local copy of this workspace in IndexedDB. Export regularly, or use a
                 sync server for backup. Attachments are stored on the server when uploaded.
               </div>
@@ -1295,10 +1295,10 @@ export function SettingsView() {
                   <Sparkles className="size-3.5 text-saffron" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium">
+                  <div className="text-[10px] font-medium">
                     {aiStatus.data?.enabled ? "Provider connected" : "Local retrieval mode"}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-[8px] text-muted-foreground">
                     {aiStatus.data?.enabled
                       ? `Model: ${aiStatus.data.model}`
                       : "Configure AI_BASE_URL, AI_API_KEY, and AI_MODEL on the server."}
@@ -1306,7 +1306,7 @@ export function SettingsView() {
                 </div>
                 {aiStatus.data?.enabled ? <Check className="size-3.5 text-moss" /> : <WifiOff className="size-3.5 text-saffron" />}
               </div>
-              <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+              <ul className="mt-3 space-y-1 text-[9px] text-muted-foreground">
                 <li>• Answers always cite the source pages.</li>
                 <li>• AI never edits your notes without an explicit Apply action.</li>
                 <li>• Local mode uses token overlap and graph structure, not external calls.</li>
@@ -1318,7 +1318,7 @@ export function SettingsView() {
                 title="Workspace AI credentials"
                 description="Point this workspace at its own OpenAI-compatible provider. The key is encrypted before it is stored and only ever shown masked. Leave it blank to keep the current one."
               >
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-[9px]">
                   <span
                     className={cn(
                       "status-dot",
@@ -1340,7 +1340,7 @@ export function SettingsView() {
 
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Base URL
                     </span>
                     <Input
@@ -1348,11 +1348,11 @@ export function SettingsView() {
                       onChange={(event) => setAiBaseUrl(event.target.value)}
                       placeholder="https://api.openai.com/v1"
                       spellCheck={false}
-                      className="h-8 rounded-md font-mono text-xs"
+                      className="h-8 rounded-md font-mono text-[10px]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       API key
                     </span>
                     <Input
@@ -1360,58 +1360,58 @@ export function SettingsView() {
                       onChange={(event) => setAiKey(event.target.value)}
                       type="password"
                       placeholder={aiConfig.data?.configured ? "Leave blank to keep" : "sk-…"}
-                      className="h-8 rounded-md text-xs"
+                      className="h-8 rounded-md text-[10px]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Chat model
                     </span>
                     <Input
                       value={aiModel}
                       onChange={(event) => setAiModel(event.target.value)}
                       placeholder="gpt-4.1-mini"
-                      className="h-8 rounded-md font-mono text-xs"
+                      className="h-8 rounded-md font-mono text-[10px]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Embedding model
                     </span>
                     <Input
                       value={aiEmbeddingModel}
                       onChange={(event) => setAiEmbeddingModel(event.target.value)}
                       placeholder="text-embedding-3-small"
-                      className="h-8 rounded-md font-mono text-xs"
+                      className="h-8 rounded-md font-mono text-[10px]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                       Transcription model
                     </span>
                     <Input
                       value={aiTranscribeModel}
                       onChange={(event) => setAiTranscribeModel(event.target.value)}
                       placeholder="whisper-1"
-                      className="h-8 rounded-md font-mono text-xs"
+                      className="h-8 rounded-md font-mono text-[10px]"
                     />
                   </label>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => void saveAiProvider()}>
+                  <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => void saveAiProvider()}>
                     Save credentials
                   </Button>
                   {aiConfig.data?.configured ? (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 rounded-lg text-xs text-destructive"
+                      className="h-8 rounded-lg text-[10px] text-destructive"
                       onClick={() => void removeAiProvider()}
                     >
                       Remove
                     </Button>
                   ) : null}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[8px] text-muted-foreground">
                     Workspace credentials win over the deployment configuration.
                   </span>
                 </div>
@@ -1426,7 +1426,7 @@ export function SettingsView() {
                 <OfflineNotice />
               ) : (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-[10px]">
                     <span
                       className={cn(
                         "status-dot",
@@ -1438,7 +1438,7 @@ export function SettingsView() {
                       : "No pages indexed yet"}
                   </div>
                   {embeddingStatus.data?.lastIndexedAt ? (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[8px] text-muted-foreground">
                       Last indexed{" "}
                       {new Date(embeddingStatus.data.lastIndexedAt).toLocaleString()}
                     </p>
@@ -1447,7 +1447,7 @@ export function SettingsView() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 rounded-md text-xs"
+                      className="h-7 rounded-md text-[9px]"
                       disabled={indexing || !embeddingStatus.data?.enabled}
                       onClick={() => void buildEmbeddingIndex()}
                     >
@@ -1458,13 +1458,13 @@ export function SettingsView() {
                       )}{" "}
                       {embeddingStatus.data?.count ? "Rebuild index" : "Build index"}
                     </Button>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[8px] text-muted-foreground">
                       {embeddingStatus.data?.enabled
                         ? "Uses AI_EMBEDDING_MODEL on the server."
                         : "Add an AI provider to enable embeddings."}
                     </span>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
+                  <p className="text-[8px] leading-relaxed text-muted-foreground">
                     Ask uses the vector index when it exists and the provider can embed the question;
                     otherwise it falls back to token retrieval. Rebuild after large imports or
                     provider changes.
@@ -1489,9 +1489,9 @@ export function SettingsView() {
                 {devices.data?.map((device) => (
                   <div key={device.id} className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
                     <Monitor className="size-3.5 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-xs">{device.name}</span>
-                    <span className="text-xs text-muted-foreground">{device.platform}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="min-w-0 flex-1 truncate text-[10px]">{device.name}</span>
+                    <span className="text-[8px] text-muted-foreground">{device.platform}</span>
+                    <span className="text-[8px] text-muted-foreground">
                       {new Date(device.lastSeenAt).toLocaleDateString()}
                     </span>
                     <button
@@ -1506,7 +1506,7 @@ export function SettingsView() {
                   </div>
                 ))}
                 {!devices.data?.length ? (
-                  <p className="py-4 text-center text-xs text-muted-foreground">No registered devices yet.</p>
+                  <p className="py-4 text-center text-[9px] text-muted-foreground">No registered devices yet.</p>
                 ) : null}
               </div>
               <div className="mt-3 flex gap-2">
@@ -1514,9 +1514,9 @@ export function SettingsView() {
                   value={deviceName}
                   onChange={(event) => setDeviceName(event.target.value)}
                   placeholder="This device's name"
-                  className="h-8 rounded-md text-xs"
+                  className="h-8 rounded-md text-[10px]"
                 />
-                <Button size="sm" className="h-8 rounded-md text-xs" onClick={() => void registerDevice()}>
+                <Button size="sm" className="h-8 rounded-md text-[9px]" onClick={() => void registerDevice()}>
                   Register
                 </Button>
               </div>
@@ -1534,16 +1534,16 @@ export function SettingsView() {
                 <OfflineNotice />
               ) : (
                 <>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[9px] text-muted-foreground">
                     {legalHolds.data?.summary ?? "Loading…"}
                   </p>
                   <div className="mt-2 space-y-1">
                     {(legalHolds.data?.holds ?? []).map((hold) => (
                       <div
                         key={hold.id}
-                        className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-xs"
+                        className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5 text-[9px]"
                       >
-                        <span className="rounded border border-border px-1.5 py-0.5 text-xs uppercase tracking-wide">
+                        <span className="rounded border border-border px-1.5 py-0.5 text-[7px] uppercase tracking-wide">
                           {hold.scope.toLowerCase()}
                         </span>
                         <span className="min-w-0 flex-1 truncate">{hold.targetLabel}</span>
@@ -1568,7 +1568,7 @@ export function SettingsView() {
                       </div>
                     ))}
                     {legalHolds.data && !legalHolds.data.holds.length ? (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[9px] text-muted-foreground">
                         No holds. Expired trash is purged on the workspace schedule.
                       </p>
                     ) : null}
@@ -1577,7 +1577,7 @@ export function SettingsView() {
                   {["OWNER", "ADMIN"].includes(role ?? "") ? (
                     <div className="mt-3 flex flex-wrap items-end gap-2">
                       <label className="block">
-                        <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                        <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                           Scope
                         </span>
                         <select
@@ -1586,7 +1586,7 @@ export function SettingsView() {
                             setHoldScope(event.target.value as typeof holdScope);
                             setHoldTarget("");
                           }}
-                          className="h-8 rounded-md border border-border bg-background px-1.5 text-xs"
+                          className="h-8 rounded-md border border-border bg-background px-1.5 text-[10px]"
                         >
                           <option value="WORKSPACE">Workspace</option>
                           <option value="NOTEBOOK">Notebook</option>
@@ -1595,13 +1595,13 @@ export function SettingsView() {
                       </label>
                       {holdScope !== "WORKSPACE" ? (
                         <label className="block min-w-40 flex-1">
-                          <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                          <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                             Target
                           </span>
                           <select
                             value={holdTarget}
                             onChange={(event) => setHoldTarget(event.target.value)}
-                            className="h-8 w-full rounded-md border border-border bg-background px-1.5 text-xs"
+                            className="h-8 w-full rounded-md border border-border bg-background px-1.5 text-[10px]"
                           >
                             <option value="">Choose…</option>
                             {(holdScope === "NOTEBOOK"
@@ -1620,19 +1620,19 @@ export function SettingsView() {
                         </label>
                       ) : null}
                       <label className="block min-w-48 flex-[2]">
-                        <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                        <span className="mb-1 block text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
                           Reason
                         </span>
                         <Input
                           value={holdReason}
                           onChange={(event) => setHoldReason(event.target.value)}
                           placeholder="Matter reference or request"
-                          className="h-8 rounded-md text-xs"
+                          className="h-8 rounded-md text-[10px]"
                         />
                       </label>
                       <Button
                         size="sm"
-                        className="h-8 rounded-lg text-xs"
+                        className="h-8 rounded-lg text-[10px]"
                         onClick={() => void createLegalHold()}
                       >
                         Place hold
@@ -1650,12 +1650,12 @@ export function SettingsView() {
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
-                  className="h-8 rounded-lg text-xs"
+                  className="h-8 rounded-lg text-[10px]"
                   onClick={() => void downloadLegalExport()}
                 >
                   Download legal export
                 </Button>
-                <span className="text-xs leading-relaxed text-muted-foreground">
+                <span className="text-[8px] leading-relaxed text-muted-foreground">
                   Capped at 5,000 pages, 5,000 versions, 10,000 comments, and 5,000 audit entries;
                   truncation is reported inside the file.
                 </span>
@@ -1668,7 +1668,7 @@ export function SettingsView() {
           <section className="space-y-4">
             <SettingsCard title="Audit log" description="Workspace-level actions recorded on the server.">
               {!["OWNER", "ADMIN"].includes(role ?? "") ? (
-                <p className="py-4 text-xs text-muted-foreground">Only owners and admins can view the audit log.</p>
+                <p className="py-4 text-[10px] text-muted-foreground">Only owners and admins can view the audit log.</p>
               ) : !online ? (
                 <OfflineNotice />
               ) : audit.isLoading ? (
@@ -1676,13 +1676,13 @@ export function SettingsView() {
               ) : audit.data?.length ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[8.5px] text-muted-foreground">
                       {audit.data.length} {audit.data.length === 1 ? "entry" : "entries"}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 rounded-md text-xs"
+                      className="h-7 rounded-md text-[9px]"
                       onClick={() => {
                         const rows = audit.data ?? [];
                         downloadTextFile(
@@ -1710,8 +1710,8 @@ export function SettingsView() {
                     <div key={entry.id} className="flex items-start gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
                       <span className="mt-1 size-1.5 rounded-full bg-saffron" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs">{entry.action}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-[10px]">{entry.action}</div>
+                        <div className="text-[8px] text-muted-foreground">
                           {entry.resourceType} · {new Date(entry.createdAt).toLocaleString()}
                         </div>
                       </div>
@@ -1721,7 +1721,7 @@ export function SettingsView() {
                   </div>
                 </div>
               ) : (
-                <p className="py-4 text-center text-xs text-muted-foreground">No audit entries yet.</p>
+                <p className="py-4 text-center text-[9px] text-muted-foreground">No audit entries yet.</p>
               )}
             </SettingsCard>
           </section>
@@ -1753,7 +1753,7 @@ export function SettingsView() {
           </section>
         ) : null}
 
-        <div className="mt-6 flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
+        <div className="mt-6 flex items-center justify-between border-t border-border/60 pt-3 text-[8px] text-muted-foreground">
           <span>{activeWorkspace.name} · {activeWorkspace.type.toLowerCase()}</span>
           <button type="button" onClick={() => router.push(appRouteObject({ view: "home" }))} className="hover:text-foreground">
             Back home
@@ -1779,8 +1779,8 @@ function SettingsCard({
 }) {
   return (
     <div className="rounded-xl border border-border/70 bg-card/35 p-4">
-      <h2 className="text-xs font-semibold tracking-[-0.01em]">{title}</h2>
-      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
+      <h2 className="text-[12px] font-semibold tracking-[-0.01em]">{title}</h2>
+      <p className="mt-0.5 text-[9px] leading-relaxed text-muted-foreground">{description}</p>
       <div className="mt-3">{children}</div>
     </div>
   );
@@ -1790,15 +1790,15 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: "mos
   const colors = { moss: "text-moss", saffron: "text-saffron", rose: "text-rose" };
   return (
     <div className="rounded-lg border border-border/60 bg-background/50 px-2.5 py-2">
-      <div className={cn("text-base font-semibold", colors[tone])}>{value}</div>
-      <div className="text-xs uppercase tracking-[0.1em] text-muted-foreground">{label}</div>
+      <div className={cn("text-[15px] font-semibold", colors[tone])}>{value}</div>
+      <div className="text-[8px] uppercase tracking-[0.1em] text-muted-foreground">{label}</div>
     </div>
   );
 }
 
 function OfflineNotice() {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-saffron/25 bg-saffron/[0.05] px-2.5 py-2 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 rounded-md border border-saffron/25 bg-saffron/[0.05] px-2.5 py-2 text-[9px] text-muted-foreground">
       <WifiOff className="size-3 text-saffron" />
       This section needs a sync server connection.
     </div>
@@ -1807,7 +1807,7 @@ function OfflineNotice() {
 
 function LoadingRow() {
   return (
-    <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 py-4 text-[10px] text-muted-foreground">
       <Loader2 className="size-3 animate-spin" /> Loading…
     </div>
   );

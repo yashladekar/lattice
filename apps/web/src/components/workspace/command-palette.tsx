@@ -294,7 +294,7 @@ export function CommandPalette({
         label: `Switch to ${workspace.name}`,
         description: workspace.type === "ORGANIZATION" ? "Organization" : "Personal workspace",
         group: "Workspaces",
-        icon: <span className="text-xs">{workspace.icon ?? "◇"}</span>,
+        icon: <span className="text-[10px]">{workspace.icon ?? "◇"}</span>,
         onSelect: () => {
           setActiveWorkspace(workspace.id);
           void refreshWorkspace(workspace.id);
@@ -357,7 +357,7 @@ export function CommandPalette({
       label: page.title,
       description: "Recently edited",
       group: "Recent",
-      icon: <span className="text-xs">{page.icon ?? "◇"}</span>,
+      icon: <span className="text-[12px]">{page.icon ?? "◇"}</span>,
       keywords: page.title,
       onSelect: () => navigate({ view: "page", id: page.id }),
     }));
@@ -521,9 +521,9 @@ export function CommandPalette({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search pages, run a command, or type “new page in Research”…"
-            className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+            className="h-12 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
           />
-          <span className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+          <span className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
             ESC
           </span>
         </div>
@@ -531,7 +531,7 @@ export function CommandPalette({
           {flat.length ? (
             groups.map(([group, items]) => (
               <div key={group} className="mb-1">
-                <div className="px-2 pb-1 pt-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/55">
+                <div className="px-2 pb-1 pt-2 text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/55">
                   {group}
                 </div>
                 {items.map((item) => {
@@ -552,11 +552,11 @@ export function CommandPalette({
                         {item.icon}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">
+                        <span className="block truncate text-[11.5px] font-medium text-foreground">
                           {item.label}
                         </span>
                         {item.description ? (
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          <span className="mt-0.5 block truncate text-[9.5px] text-muted-foreground">
                             {item.description}
                           </span>
                         ) : null}
@@ -570,14 +570,14 @@ export function CommandPalette({
           ) : (
             <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
               <Search className="size-5 text-muted-foreground/40" />
-              <p className="mt-3 text-xs font-medium">No matches</p>
-              <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-3 text-[12px] font-medium">No matches</p>
+              <p className="mt-1 max-w-xs text-[10px] leading-relaxed text-muted-foreground">
                 Try a page title, a command, or a phrase like “new page in Research”.
               </p>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between border-t border-border/70 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between border-t border-border/70 px-3 py-2 text-[9px] text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <span className="kbd">↑</span>

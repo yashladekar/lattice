@@ -575,7 +575,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--foreground);
 }
@@ -756,16 +756,16 @@ body {
 
 .kbd {
   display: inline-flex;
-  min-width: 1.5rem;
-  height: 1.5rem;
+  min-width: 1.3rem;
+  height: 1.3rem;
   align-items: center;
   justify-content: center;
   border-radius: 0.3rem;
   border: 1px solid var(--border);
   background: color-mix(in oklch, var(--foreground) 4%, transparent);
-  padding: 0 0.35rem;
+  padding: 0 0.3rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: var(--muted-foreground);
 }
 
