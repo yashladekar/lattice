@@ -363,6 +363,12 @@
       2.04,
     );
 
+    // audio-reactive: the canvas dot grid warms and cools with the bed
+    var RMS4 = [0.429, 1.000, 0.688, 0.606, 0.698, 0.509, 0.911, 0.631, 0.500, 0.451, 0.421, 0.644, 1.000, 0.488, 0.442, 0.327, 0.381, 1.000, 0.468, 0.391, 0.611, 0.419, 0.961];
+    for (var i4 = 0; i4 < RMS4.length; i4++) {
+      tl.to("#s4-grid", { opacity: 0.82 + RMS4[i4] * 0.18, duration: 0.1, ease: "none" }, 0.34 + i4 * 0.1);
+    }
+
     window.__timelines["s4-canvas"] = tl;
   </script>
 </template>

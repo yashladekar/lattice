@@ -32,6 +32,20 @@
       background-size: 36px 36px;
       background-position: 18px 18px;
     }
+    #s3-halo {
+      position: absolute;
+      left: 1000px;
+      top: 220px;
+      width: 480px;
+      height: 230px;
+      opacity: 0;
+      background: radial-gradient(
+        ellipse at center,
+        rgba(229, 124, 32, 0.34) 0%,
+        rgba(229, 124, 32, 0.12) 45%,
+        rgba(229, 124, 32, 0) 74%
+      );
+    }
     #s3-glow {
       position: absolute;
       left: 0;
@@ -232,6 +246,7 @@
   <div id="root" data-composition-id="s3-graph" data-width="1920" data-height="1080">
     <div id="s3-grid"></div>
     <div id="s3-glow"></div>
+    <div id="s3-halo" data-layout-ignore></div>
 
     <svg id="s3-edges" viewBox="0 0 1920 1080" fill="none" aria-hidden="true">
       <defs>
@@ -441,6 +456,12 @@
       { opacity: 1, scale: 1, duration: 0.26, ease: "power3.out" },
       3.14,
     );
+
+    // audio-reactive: the halo behind the newly linked node breathes with the bed
+    var RMS3 = [0.848, 0.406, 0.413, 0.444, 0.533, 1.000, 0.469, 0.482, 0.515, 0.299, 1.000, 0.631, 0.591, 0.698, 0.602, 1.000, 0.601, 0.497, 0.527, 0.503, 0.734, 0.943, 0.513, 0.437, 0.445, 0.582];
+    for (var i3 = 0; i3 < RMS3.length; i3++) {
+      tl.to("#s3-halo", { opacity: 0.05 + RMS3[i3] * 0.3, duration: 0.1, ease: "none" }, 1.04 + i3 * 0.1);
+    }
 
     window.__timelines["s3-graph"] = tl;
   </script>
