@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuGroup,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@notes-learning/ui/components/dropdown-menu";
@@ -456,12 +457,14 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
               <Plus className="size-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuLabel>Add a field</DropdownMenuLabel>
-              {(["text", "number", "date", "select", "checkbox"] as const).map((type) => (
-                <DropdownMenuItem key={type} onClick={() => addField(type)}>
-                  <span className="capitalize">{type}</span>
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                  <DropdownMenuLabel>Add a field</DropdownMenuLabel>
+                  {(["text", "number", "date", "select", "checkbox"] as const).map((type) => (
+                    <DropdownMenuItem key={type} onClick={() => addField(type)}>
+                      <span className="capitalize">{type}</span>
+                    </DropdownMenuItem>
+                  ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
           <button
@@ -526,8 +529,9 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                             <ChevronDown className="size-2.5" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-40">
-                            <DropdownMenuLabel>Type</DropdownMenuLabel>
-                            {(["text", "number", "date", "select", "checkbox"] as const).map(
+                            <DropdownMenuGroup>
+                              <DropdownMenuLabel>Type</DropdownMenuLabel>
+                              {(["text", "number", "date", "select", "checkbox"] as const).map(
                               (type) => (
                                 <DropdownMenuItem key={type} onClick={() => setFieldType(field, type)}>
                                   <span className="w-3 shrink-0 text-[9px]">
@@ -536,8 +540,8 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                                   <span className="capitalize">{type}</span>
                                 </DropdownMenuItem>
                               ),
-                            )}
-                            {field.type === "select" ? (
+                              )}
+                              {field.type === "select" ? (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -549,11 +553,12 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
                                   Edit options…
                                 </DropdownMenuItem>
                               </>
-                            ) : null}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem variant="destructive" onClick={() => removeField(field.id)}>
+                              ) : null}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem variant="destructive" onClick={() => removeField(field.id)}>
                               <Trash2 className="size-3" /> Delete field
-                            </DropdownMenuItem>
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </span>

@@ -22,7 +22,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@notes-learning/ui/components/dropdown-menu";
 import { cn } from "@notes-learning/ui/lib/utils";

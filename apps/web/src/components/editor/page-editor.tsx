@@ -1589,52 +1589,54 @@ export function PageEditor({
                       <MoreHorizontal className="size-3" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" side="bottom" className="w-48">
-                      <DropdownMenuLabel>Block</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={duplicateBlock}>
-                        <Copy className="size-3.5" /> Duplicate block
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => void copyBlockLink()}>
-                        <Link2 className="size-3.5" /> Copy block link
-                      </DropdownMenuItem>
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                          <Type className="size-3.5" /> Turn into
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                          <DropdownMenuItem onClick={() => turnBlockInto("paragraph")}>
-                            Paragraph
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => turnBlockInto("h1")}>
-                            Heading 1
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => turnBlockInto("h2")}>
-                            Heading 2
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => turnBlockInto("h3")}>
-                            Heading 3
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => turnBlockInto("bullet")}>
-                            <List className="size-3.5" /> Bullet list
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => turnBlockInto("ordered")}>
-                            <ListOrdered className="size-3.5" /> Numbered list
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => turnBlockInto("task")}>
-                            <ListChecks className="size-3.5" /> Task list
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => turnBlockInto("quote")}>
-                            <Quote className="size-3.5" /> Quote
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => turnBlockInto("code")}>
-                            <Code2 className="size-3.5" /> Code block
-                          </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onClick={deleteBlock}>
-                        <Trash2 className="size-3.5" /> Delete block
-                      </DropdownMenuItem>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Block</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={duplicateBlock}>
+                          <Copy className="size-3.5" /> Duplicate block
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void copyBlockLink()}>
+                          <Link2 className="size-3.5" /> Copy block link
+                        </DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <Type className="size-3.5" /> Turn into
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => turnBlockInto("paragraph")}>
+                              Paragraph
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => turnBlockInto("h1")}>
+                              Heading 1
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => turnBlockInto("h2")}>
+                              Heading 2
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => turnBlockInto("h3")}>
+                              Heading 3
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => turnBlockInto("bullet")}>
+                              <List className="size-3.5" /> Bullet list
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => turnBlockInto("ordered")}>
+                              <ListOrdered className="size-3.5" /> Numbered list
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => turnBlockInto("task")}>
+                              <ListChecks className="size-3.5" /> Task list
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => turnBlockInto("quote")}>
+                              <Quote className="size-3.5" /> Quote
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => turnBlockInto("code")}>
+                              <Code2 className="size-3.5" /> Code block
+                            </DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onClick={deleteBlock}>
+                          <Trash2 className="size-3.5" /> Delete block
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
