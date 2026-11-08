@@ -27,6 +27,7 @@ import {
 } from "@notes-learning/domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { Spinner, Switch, useThemeColor, useToast } from "heroui-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -162,6 +163,7 @@ export default function CanvasScreen() {
     defaults: { width: number; height: number };
   } | null>(null);
   const penRef = useRef<{ id: string; last: { x: number; y: number } } | null>(null);
+  const multiTouchRef = useRef(false);
   const movedRef = useRef(0);
   const lastMoveAtRef = useRef(0);
   const lastTapRef = useRef<{ id: string; at: number }>({ id: "", at: 0 });
@@ -301,6 +303,24 @@ export default function CanvasScreen() {
     markDirty();
     setSelectedIds([]);
   }, [markDirty]);
+
+  const twoFingerUndo = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    undo();
+  }, [undo]);
+
+  const threeFingerRedo = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    redo();
+  }, [redo]);
+
+  const markMultiTouch = useCallback(() => {
+    multiTouchRef.current = true;
+  }, []);
+
+  const resetMultiTouch = useCallback(() => {
+    multiTouchRef.current = false;
+  }, []);
 
   const screenToWorld = useCallback((x: number, y: number) => {
     const current = viewRef.current;
@@ -879,19 +899,32 @@ export default function CanvasScreen() {
       if (strokeId) {
         const stroke = docRef.current.elements.find((entry) => entry.id === strokeId);
         if (stroke && stroke.type === "freehand" && stroke.points.length) {
-          const xs = stroke.points.map(([px]) => px);
-          const ys = stroke.points.map(([, py]) => py);
-          const minX = Math.min(...xs);
-          const minY = Math.min(...ys);
-          const maxX = Math.max(...xs);
-          const maxY = Math.max(...ys);
-          patchElement(strokeId, {
-            x: minX,
-            y: minY,
-            width: Math.max(1, maxX - minX),
-            height: Math.max(1, maxY - minY),
-            points: stroke.points.map(([px, py]) => [px - minX, py - minY]),
-          });
+          // A second finger means this was a multi-finger tap or pinch, not a
+          // deliberate pen dot. Drop the accidental mark before undo runs.
+          if (multiTouchRef.current && stroke.points.length <= 3) {
+            const next: CanvasDocument = {
+              ...docRef.current,
+              elements: docRef.current.elements.filter((entry) => entry.id !== strokeId),
+            };
+            docRef.current = next;
+            setDoc(next);
+            setSelectedIds([]);
+            markDirty();
+          } else {
+            const xs = stroke.points.map(([px]) => px);
+            const ys = stroke.points.map(([, py]) => py);
+            const minX = Math.min(...xs);
+            const minY = Math.min(...ys);
+            const maxX = Math.max(...xs);
+            const maxY = Math.max(...ys);
+            patchElement(strokeId, {
+              x: minX,
+              y: minY,
+              width: Math.max(1, maxX - minX),
+              height: Math.max(1, maxY - minY),
+              points: stroke.points.map(([px, py]) => [px - minX, py - minY]),
+            });
+          }
         }
       }
     }
@@ -970,6 +1003,10 @@ export default function CanvasScreen() {
     .minDistance(0)
     .maxPointers(1)
     .averageTouches(true)
+    .onTouchesDown((event) => {
+      if (event.numberOfTouches > 1) runOnJS(markMultiTouch)();
+      else runOnJS(resetMultiTouch)();
+    })
     .onBegin((event) => {
       const pressure = event.stylusData?.pressure ?? 0;
       const stylus = Boolean(event.stylusData);
@@ -990,6 +1027,7 @@ export default function CanvasScreen() {
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
+      runOnJS(markMultiTouch)();
       runOnJS(pinchBegin)();
     })
     .onUpdate((event) => {
@@ -999,7 +1037,32 @@ export default function CanvasScreen() {
       runOnJS(commitViewport)();
     });
 
-  const gesture = Gesture.Simultaneous(panGesture, pinchGesture);
+  const twoFingerTap = Gesture.Tap()
+    .minPointers(2)
+    .maxDuration(280)
+    .maxDistance(16)
+    .onEnd((_event, success) => {
+      if (success) runOnJS(twoFingerUndo)();
+    });
+
+  const threeFingerTap = Gesture.Tap()
+    .minPointers(3)
+    .maxDuration(280)
+    .maxDistance(16)
+    .onEnd((_event, success) => {
+      if (success) runOnJS(threeFingerRedo)();
+    });
+
+  // Three-finger taps win over two-finger taps, pinch wins over both, and a
+  // still multi-finger tap never zooms. Pan only tracks one pointer, so two-
+  // and three-finger taps stay free for undo/redo.
+  const gesture = Gesture.Simultaneous(
+    panGesture,
+    Gesture.Exclusive(
+      pinchGesture,
+      Gesture.Exclusive(threeFingerTap, twoFingerTap),
+    ),
+  );
 
   const insertPageCard = (pageId: string, pageTitle: string) => {
     const element = makePageCard(pageId, 0, 0);

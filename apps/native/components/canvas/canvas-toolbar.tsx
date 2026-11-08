@@ -146,6 +146,9 @@ export function CanvasToolbar({
           </View>
         ) : null}
       </View>
+      <Text className="mt-0.5 px-1 text-[9px] text-muted">
+        Two-finger tap to undo · three-finger tap to redo
+      </Text>
     </View>
   );
 }

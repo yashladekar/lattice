@@ -190,7 +190,7 @@ pnpm --filter native android
 The Expo client is a full Lattice client, not a companion:
 
 - **Editor** — native block editor with headings, lists, checklists, quotes, callouts, toggles, code, images, page links/embeds, bookmarks, YouTube, diagrams, equations, API-request blocks, tables, and slash commands. Documents round-trip through the same TipTap JSON the web app uses.
-- **Whiteboard** — infinite canvas with notes, six shape types, text, frames that move their contents, connectors, images, linked notes, nested canvases, templates, outline generators, undo/redo, layer/align actions, presentation mode, and SVG/PNG/PDF export. The pen captures Apple Pencil and other active-stylus pressure plus tilt; finger pans when **Stylus only drawing** is enabled.
+- **Whiteboard** — infinite canvas with notes, six shape types, text, frames that move their contents, connectors, images, linked notes, nested canvases, templates, outline generators, undo/redo, layer/align actions, presentation mode, and SVG/PNG/PDF export. The pen captures Apple Pencil and other active-stylus pressure plus tilt; finger pans when **Stylus only drawing** is enabled. Two-finger tap undoes and three-finger tap redoes, Procreate-style, on iPhone, iPad, and Android.
 - **Graph** — force layout, filters (kind, notebook, relation, recency, orphans), cluster coloring, relation editing, and AI link suggestions.
 - **Inbox** — notes, links with previews, image/PDF/file uploads, voice-note recording with optional transcription, PDF text extraction, organize-to-page, and tag/page suggestions.
 - **Learning** — SM-2 review, decks and cards, multiple-choice quizzes, learning paths, and knowledge gaps.
