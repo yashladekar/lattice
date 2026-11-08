@@ -255,6 +255,10 @@ export interface CanvasFreehandElement extends CanvasElementBase {
   points: Array<[number, number]>;
   color: string;
   strokeWidth: number;
+  /** Normalized 0–1 stylus pressure per point, when the device reports it. */
+  pressures?: number[];
+  /** True when the stroke came from an Apple Pencil or other active stylus. */
+  stylus?: boolean;
 }
 
 export interface CanvasConnectorElement {

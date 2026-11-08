@@ -338,4 +338,40 @@ export const canvasRouter = {
       category,
     }));
   }),
+
+  trash: workspaceProcedure("VIEWER").handler(async ({ context }) => {
+    return context.db.canvas.findMany({
+      where: { workspaceId: context.workspaceId, deletedAt: { not: null } },
+      orderBy: { deletedAt: "desc" },
+      take: 100,
+    });
+  }),
+
+  restore: workspaceProcedure("EDITOR")
+    .input(z.object({ canvasId: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      const canvas = await context.db.canvas.findFirst({
+        where: {
+          id: input.canvasId,
+          workspaceId: context.workspaceId,
+          deletedAt: { not: null },
+        },
+      });
+      if (!canvas) throw new ORPCError("NOT_FOUND", { message: "Canvas is not in the trash" });
+      const result = await pushSync(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        ops: [
+          {
+            opId: `api-canvas-restore-${randomUUID()}`,
+            entity: "canvas",
+            entityId: canvas.id,
+            op: "UPSERT",
+            payload: {},
+          },
+        ],
+      });
+      if (result.conflicts.length) throw new ORPCError("CONFLICT");
+      return context.db.canvas.findUnique({ where: { id: canvas.id } });
+    }),
 };

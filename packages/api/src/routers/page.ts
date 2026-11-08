@@ -535,4 +535,51 @@ export const pageRouter = {
     });
     return { builtIn: PAGE_TEMPLATES, custom };
   }),
+
+  trash: workspaceProcedure("VIEWER").handler(async ({ context }) => {
+    const allowed = await getAccessiblePageIds(
+      context.db,
+      context.workspaceId,
+      context.userId,
+      context.role,
+    );
+    const pages = await context.db.page.findMany({
+      where: {
+        workspaceId: context.workspaceId,
+        deletedAt: { not: null },
+        ...(allowed ? { id: { in: [...allowed] } } : {}),
+      },
+      orderBy: { deletedAt: "desc" },
+      take: 100,
+    });
+    return pages;
+  }),
+
+  restore: workspaceProcedure("EDITOR")
+    .input(pageIdInput)
+    .handler(async ({ context, input }) => {
+      const page = await context.db.page.findFirst({
+        where: {
+          id: input.pageId,
+          workspaceId: context.workspaceId,
+          deletedAt: { not: null },
+        },
+      });
+      if (!page) throw new ORPCError("NOT_FOUND", { message: "Page is not in the trash" });
+      const result = await pushSync(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        ops: [
+          {
+            opId: `api-page-restore-${randomUUID()}`,
+            entity: "page",
+            entityId: page.id,
+            op: "UPSERT",
+            payload: {},
+          },
+        ],
+      });
+      if (result.conflicts.length) throw new ORPCError("CONFLICT");
+      return context.db.page.findUnique({ where: { id: page.id } });
+    }),
 };

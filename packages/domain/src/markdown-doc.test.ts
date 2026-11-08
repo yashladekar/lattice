@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { docToMarkdown } from "./editor";
-import { simpleMarkdownToDoc } from "./markdown-doc";
+import { simpleMarkdownToDoc, inlineMarkdown, inlineMarkdownToNodes } from "./markdown-doc";
 import type { TipTapNode } from "./types";
 
 function types(node: TipTapNode, acc: string[] = []): string[] {
@@ -110,5 +110,27 @@ describe("simpleMarkdownToDoc", () => {
     expect(simpleMarkdownToDoc("").type).toBe("doc");
     expect(simpleMarkdownToDoc("").content).toEqual([{ type: "paragraph" }]);
     expect(simpleMarkdownToDoc("   \n\n  ").content).toEqual([{ type: "paragraph" }]);
+  });
+});
+
+describe("inline markdown helpers", () => {
+  it("parses formatting, links, page links, and hard breaks", () => {
+    const nodes = inlineMarkdownToNodes(
+      "a **bold** *italic* ~~gone~~ `code` [site](https://example.com) [[page-1|Home]]\nnext",
+    );
+    const marks = nodes
+      .filter((node) => node.type === "text" && node.marks)
+      .map((node) => node.marks?.map((mark) => mark.type).join("+"));
+    expect(marks).toEqual(["bold", "italic", "strike", "code", "link"]);
+    expect(nodes.some((node) => node.type === "pageLink")).toBe(true);
+    const pageLink = nodes.find((node) => node.type === "pageLink");
+    expect(pageLink?.attrs).toMatchObject({ pageId: "page-1", title: "Home" });
+    expect(nodes.some((node) => node.type === "hardBreak")).toBe(true);
+  });
+
+  it("round-trips inline marks and page links", () => {
+    const source =
+      "A **bold** *italic* ~~gone~~ `code` [site](https://example.com) [[page-1|Home]]";
+    expect(inlineMarkdown(inlineMarkdownToNodes(source))).toBe(source);
   });
 });

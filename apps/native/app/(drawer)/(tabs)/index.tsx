@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import { useThemeColor } from "heroui-native";
 import {
   ActivityIndicator,
@@ -9,12 +9,15 @@ import {
   ScrollView,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Container } from "@/components/container";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { useNotifications } from "@/hooks/use-workspace-data";
 import { authClient } from "@/lib/auth-client";
+import { route } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
 
 function greeting(): string {
@@ -35,13 +38,14 @@ function relative(value: string | Date): string {
 }
 
 export default function NativeHome() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { workspace, memberships, switchWorkspace, signOut } = useWorkspace();
+  const { width } = useWindowDimensions();
+  const { workspace, memberships, switchWorkspace } = useWorkspace();
   const { data: session } = authClient.useSession();
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
+  const { unread } = useNotifications();
 
   const recent = useQuery({
     queryKey: ["native-recent", workspace?.id],
@@ -58,12 +62,23 @@ export default function NativeHome() {
     queryFn: async () => client.notebook.list(),
     enabled: Boolean(workspace),
   });
+  const canvases = useQuery({
+    queryKey: ["native-canvases", workspace?.id],
+    queryFn: async () => client.canvas.list(),
+    enabled: Boolean(workspace),
+  });
+  const inbox = useQuery({
+    queryKey: ["native-inbox-count", workspace?.id],
+    queryFn: async () => client.capture.list({ status: "INBOX" }),
+    enabled: Boolean(workspace),
+  });
 
-  const refreshing = recent.isFetching || stats.isFetching;
+  const refreshing =
+    recent.isFetching || stats.isFetching || notebooks.isFetching || canvases.isFetching;
+  const tablet = width >= 900;
 
   return (
     <Container
-      className="bg-background"
       scrollViewProps={{
         refreshControl: (
           <RefreshControl
@@ -73,15 +88,20 @@ export default function NativeHome() {
               void recent.refetch();
               void stats.refetch();
               void notebooks.refetch();
+              void canvases.refetch();
+              void inbox.refetch();
             }}
           />
         ),
       }}
     >
-      <View style={{ paddingTop: insets.top + 18 }} className="px-5 pb-8">
+      <View
+        style={{ paddingTop: insets.top + 18 }}
+        className={`px-5 pb-10 ${tablet ? "mx-auto w-full max-w-3xl" : ""}`}
+      >
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center gap-2">
-            <View className="h-9 w-9 items-center justify-center rounded-xl bg-neutral-900">
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-neutral-900">
               <Text className="text-lg text-amber-50">✦</Text>
             </View>
             <View>
@@ -93,20 +113,32 @@ export default function NativeHome() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Search"
-              hitSlop={12}
+              hitSlop={10}
               className="h-9 w-9 items-center justify-center rounded-full border border-border bg-surface"
-              onPress={() => router.push("/search")}
+              onPress={() => router.push(route("/search"))}
             >
-              <Ionicons name="search-outline" size={17} color={foreground} />
+              <Ionicons name="search-outline" size={16} color={foreground} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Sign out"
-              hitSlop={12}
+              accessibilityLabel="Notifications"
+              hitSlop={10}
               className="h-9 w-9 items-center justify-center rounded-full border border-border bg-surface"
-              onPress={() => void signOut()}
+              onPress={() => router.push("/notifications" as never)}
             >
-              <Ionicons name="log-out-outline" size={17} color={muted} />
+              <Ionicons name="notifications-outline" size={16} color={foreground} />
+              {(unread.data ?? 0) > 0 ? (
+                <View className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
+              ) : null}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="More"
+              hitSlop={10}
+              className="h-9 w-9 items-center justify-center rounded-full border border-border bg-surface"
+              onPress={() => router.push(route("/more"))}
+            >
+              <Ionicons name="ellipsis-horizontal" size={16} color={foreground} />
             </Pressable>
           </View>
         </View>
@@ -126,7 +158,9 @@ export default function NativeHome() {
                   >
                     <Text className="text-[11px]">{membership.workspace.icon ?? "◇"}</Text>
                     <Text
-                      className={`text-[10px] font-medium ${active ? "text-neutral-900" : "text-muted"}`}
+                      className={`text-[10px] font-medium ${
+                        active ? "text-neutral-900" : "text-muted"
+                      }`}
                     >
                       {membership.workspace.name}
                     </Text>
@@ -148,37 +182,73 @@ export default function NativeHome() {
           {greeting()}, {session?.user?.name?.split(" ")[0] ?? "there"}.
         </Text>
         <Text className="mt-2 text-sm leading-6 text-muted">
-          Capture a thought, continue reading, or review what is due.
+          Write, draw, connect, and review — the full workspace, on every device.
         </Text>
 
-        <View className="mt-5 flex-row gap-2">
-          <Pressable
-            onPress={() => router.push("/capture")}
-            className="flex-1 rounded-2xl bg-amber-500 p-4"
-          >
-            <Ionicons name="add-circle-outline" size={20} color="#1d1d1a" />
-            <Text className="mt-2 text-sm font-semibold text-neutral-900">Quick capture</Text>
-            <Text className="mt-0.5 text-[10px] text-neutral-800/70">Inbox first, organize later</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/learn")}
-            className="flex-1 rounded-2xl border border-border bg-surface p-4"
-          >
-            <Ionicons name="school-outline" size={20} color={accent} />
-            <Text className="mt-2 text-sm font-semibold text-foreground">
-              {stats.data?.dueCount ?? 0} cards due
-            </Text>
-            <Text className="mt-0.5 text-[10px] text-muted">
-              {stats.data?.streak ?? 0} day streak
-            </Text>
-          </Pressable>
+        <View className="mt-5 flex-row flex-wrap gap-2">
+          {[
+            {
+              label: "Capture",
+              detail: "Inbox first",
+              icon: "add-circle-outline" as const,
+              href: "/capture",
+              tint: "#e07a2e",
+            },
+            {
+              label: `${stats.data?.dueCount ?? 0} due`,
+              detail: `${stats.data?.streak ?? 0} day streak`,
+              icon: "school-outline" as const,
+              href: "/learn",
+              tint: "#2f6b4f",
+            },
+            {
+              label: "Inbox",
+              detail: `${inbox.data?.length ?? 0} waiting`,
+              icon: "mail-unread-outline" as const,
+              href: "/inbox",
+              tint: "#3b82f6",
+            },
+            {
+              label: "Graph",
+              detail: "Connections",
+              icon: "git-network-outline" as const,
+              href: "/graph",
+              tint: "#8b5cf6",
+            },
+          ].map((action) => (
+            <Pressable
+              key={action.label}
+              onPress={() => router.push(route(action.href))}
+              className="min-w-[47%] flex-1 rounded-2xl border border-border bg-surface p-3.5"
+            >
+              <Ionicons name={action.icon} size={19} color={action.tint} />
+              <Text className="mt-2 text-sm font-semibold text-foreground">{action.label}</Text>
+              <Text className="mt-0.5 text-[10px] text-muted">{action.detail}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View className="mt-4 flex-row gap-2">
+          {[
+            ["Notes", recent.data?.length ?? 0],
+            ["Notebooks", notebooks.data?.length ?? 0],
+            ["Canvases", canvases.data?.length ?? 0],
+            ["Cards", stats.data?.totalCards ?? 0],
+          ].map(([label, value]) => (
+            <View key={String(label)} className="flex-1 rounded-xl border border-border bg-surface p-2.5">
+              <Text className="text-base font-semibold text-foreground">{value}</Text>
+              <Text className="text-[9px] uppercase tracking-wider text-muted">{label}</Text>
+            </View>
+          ))}
         </View>
 
         <View className="mt-6 flex-row items-center justify-between">
           <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
             Continue
           </Text>
-          <Text className="text-[10px] text-muted">{recent.data?.length ?? 0} notes</Text>
+          <Pressable onPress={() => router.push(route("/notebooks"))}>
+            <Text className="text-[10px] text-amber-600">Browse</Text>
+          </Pressable>
         </View>
 
         <View className="mt-3 gap-2">
@@ -188,9 +258,7 @@ export default function NativeHome() {
             recent.data.slice(0, 6).map((page) => (
               <Pressable
                 key={page.id}
-                onPress={() =>
-                  router.push({ pathname: "/page/[id]", params: { id: page.id } })
-                }
+                onPress={() => router.push(route(`/page/${page.id}`))}
                 className="flex-row items-center gap-3 rounded-2xl border border-border bg-surface p-3.5"
               >
                 <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-secondary">
@@ -213,7 +281,7 @@ export default function NativeHome() {
                 Your workspace is waiting
               </Text>
               <Text className="mt-1 text-center text-[11px] leading-5 text-muted">
-                Capture a thought or open the web app to write your first full page.
+                Capture a thought, or create your first page in a notebook.
               </Text>
             </View>
           )}
@@ -221,17 +289,51 @@ export default function NativeHome() {
 
         <View className="mt-6 flex-row items-center justify-between">
           <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
+            Canvases
+          </Text>
+          <Pressable onPress={() => router.push(route("/canvases"))}>
+            <Text className="text-[10px] text-amber-600">All canvases</Text>
+          </Pressable>
+        </View>
+        <View className="mt-3 gap-2">
+          {canvases.data?.slice(0, 3).map((canvas) => (
+            <Pressable
+              key={canvas.id}
+              onPress={() => router.push(route(`/canvas/${canvas.id}`))}
+              className="flex-row items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
+            >
+              <Text className="text-sm">{canvas.icon ?? "▦"}</Text>
+              <Text className="min-w-0 flex-1 text-xs text-foreground">{canvas.title}</Text>
+              <Text className="text-[9px] text-muted">
+                {relative(canvas.updatedAt)}
+              </Text>
+            </Pressable>
+          ))}
+          {!canvases.data?.length ? (
+            <Pressable
+              onPress={() => router.push(route("/canvases"))}
+              className="rounded-xl border border-dashed border-border px-3 py-3"
+            >
+              <Text className="text-center text-[11px] text-muted">
+                Start a whiteboard with the pressure-aware pen
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View className="mt-6 flex-row items-center justify-between">
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
             Notebooks
           </Text>
-          <Pressable onPress={() => router.push("/notebooks")}>
-            <Text className="text-[10px] text-amber-500">View all</Text>
+          <Pressable onPress={() => router.push(route("/notebooks"))}>
+            <Text className="text-[10px] text-amber-600">View all</Text>
           </Pressable>
         </View>
         <View className="mt-3 gap-2">
           {notebooks.data?.slice(0, 4).map((notebook) => (
             <Pressable
               key={notebook.id}
-              onPress={() => router.push("/notebooks")}
+              onPress={() => router.push(route("/notebooks"))}
               className="flex-row items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
             >
               <Text className="text-sm">{notebook.icon ?? "◫"}</Text>
@@ -245,8 +347,8 @@ export default function NativeHome() {
           <Text className="text-[10px] uppercase tracking-widest text-muted">Workspace</Text>
           <Text className="mt-1 text-sm font-medium text-foreground">{workspace?.name}</Text>
           <Text className="mt-1 text-[10px] leading-5 text-muted">
-            Mobile is the capture, reading, and review companion. The full editor, whiteboard, and graph
-            live in the web and desktop app, sharing the same synced knowledge model.
+            Pages, canvases, graph, inbox, and learning share one synced knowledge model. Edits made
+            offline queue and flush automatically.
           </Text>
         </View>
       </View>

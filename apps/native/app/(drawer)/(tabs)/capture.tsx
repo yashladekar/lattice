@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import {
   Button,
   Input,
@@ -19,6 +20,7 @@ import { client } from "@/utils/orpc";
 
 export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { workspace } = useWorkspace();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -185,10 +187,18 @@ export default function CaptureScreen() {
 
         <View className="mt-6 flex-row items-center gap-2 rounded-2xl border border-border bg-surface p-3">
           <Ionicons name="cloud-done-outline" size={16} color={muted} />
-          <Text className="flex-1 text-[10px] leading-4 text-muted">
-            Saves to {workspace?.name ?? "your workspace"} · processed later in the web inbox.
+          <Text className="min-w-0 flex-1 text-[10px] leading-4 text-muted">
+            Saves to {workspace?.name ?? "your workspace"}. Organize it, make a page, or connect it
+            to related notes in the inbox.
           </Text>
         </View>
+        <Pressable
+          onPress={() => router.push("/inbox" as never)}
+          className="mt-3 flex-row items-center justify-center gap-1.5 rounded-2xl border border-border bg-surface py-2.5"
+        >
+          <Text className="text-[11px] font-medium text-foreground">Open full inbox</Text>
+          <Ionicons name="arrow-forward" size={13} color={muted} />
+        </Pressable>
       </View>
     </Container>
   );

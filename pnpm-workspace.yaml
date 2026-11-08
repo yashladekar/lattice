@@ -7,8 +7,11 @@ allowBuilds:
   "@prisma/client": true
   "@prisma/engines": true
   prisma: true
+  tesseract.js: false
 overrides:
   "@next/env": npm:@varlock/nextjs-integration@1.2.2
+  react: 19.3.0
+  react-dom: 19.3.0
 catalog:
   zod: ^4.5.4
   "@types/node": ^26.4.1

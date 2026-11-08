@@ -1,12 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native";
+import { useWindowDimensions } from "react-native";
 
 export default function TabLayout() {
   const foreground = useThemeColor("foreground");
   const background = useThemeColor("background");
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
+  const { width } = useWindowDimensions();
+  const tablet = width >= 900;
 
   return (
     <Tabs
@@ -14,10 +17,12 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: accent,
         tabBarInactiveTintColor: muted,
-        tabBarStyle: {
-          backgroundColor: background,
-          borderTopColor: `${foreground}1a`,
-        },
+        tabBarStyle: tablet
+          ? { display: "none" }
+          : {
+              backgroundColor: background,
+              borderTopColor: `${foreground}1a`,
+            },
         tabBarLabelStyle: { fontSize: 10, fontWeight: "600" },
       }}
     >
@@ -37,7 +42,7 @@ export default function TabLayout() {
           title: "Notebooks",
           tabBarAccessibilityLabel: "Notebooks",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book-outline" size={size} color={color} />
+            <Ionicons name="library-outline" size={size} color={color} />
           ),
         }}
       />
@@ -62,15 +67,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="more"
         options={{
-          title: "Search",
-          tabBarAccessibilityLabel: "Search",
+          title: "More",
+          tabBarAccessibilityLabel: "More",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search-outline" size={size} color={color} />
+            <Ionicons name="ellipsis-horizontal-circle-outline" size={size} color={color} />
           ),
         }}
       />
+      <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
   );
 }

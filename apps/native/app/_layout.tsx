@@ -2,6 +2,7 @@ import "@/global.css";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
 import { HeroUINativeProvider, useThemeColor } from "heroui-native";
+import { useEffect } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -9,8 +10,10 @@ import { StatusBar } from "expo-status-bar";
 
 import { NativeAuthScreen } from "@/components/native-auth-screen";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+import { OutboxProvider } from "@/contexts/outbox-context";
 import { WorkspaceProvider } from "@/contexts/workspace-context";
 import { authClient } from "@/lib/auth-client";
+import { registerDevice } from "@/lib/device";
 import { QUERY_CACHE_MAX_AGE, queryPersister } from "@/lib/query-cache";
 import { queryClient } from "@/utils/orpc";
 
@@ -45,6 +48,25 @@ function RootStack() {
           headerShadowVisible: false,
         }}
       />
+      <Stack.Screen
+        name="canvas/[id]"
+        options={{
+          title: "Canvas",
+          headerShown: false,
+          contentStyle: { backgroundColor: background },
+        }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
+          headerShown: false,
+          presentation: "modal",
+          headerStyle: { backgroundColor: background },
+          headerTintColor: foreground,
+          headerShadowVisible: false,
+        }}
+      />
     </Stack>
   );
 }
@@ -52,6 +74,10 @@ function RootStack() {
 function AppRoot() {
   const { data: session, isPending } = authClient.useSession();
   const accent = useThemeColor("accent");
+
+  useEffect(() => {
+    if (session?.user?.id) void registerDevice();
+  }, [session?.user?.id]);
 
   if (isPending) {
     return (
@@ -68,7 +94,9 @@ function AppRoot() {
 
   return (
     <WorkspaceProvider>
-      <RootStack />
+      <OutboxProvider>
+        <RootStack />
+      </OutboxProvider>
     </WorkspaceProvider>
   );
 }

@@ -19,7 +19,7 @@ The repository/package names remain `notes-learning` from the original scaffold;
 - **Navigation** — dashboard with configurable widgets, command palette (`⌘/Ctrl+K`), hybrid search (lexical + provider-free local vectors) with tag/type/notebook filters, tabs with a split pane, keyboard shortcuts, timeline, trash, first-run checklist.
 - **Import & export** — full workspace JSON export/import, per-page Markdown, one-way GitHub Markdown import, two-way Git sync with an optional schedule, and an Obsidian-style Markdown vault export that round-trips through the vault importer.
 - **Collaboration** — comments with a mention picker, status/search/block filters and block grouping for long discussions, suggested-edit review, notifications, presence heartbeat, async multi-device sync, public read-only sharing, page/notebook visibility controls, device list with revocation.
-- **Platforms** — web/PWA (with an update prompt), Tauri desktop config that opens external links in the OS browser, Expo companion for capture, browse, search, review, and Markdown page editing with an offline query cache.
+- **Platforms** — web/PWA (with an update prompt), Tauri desktop config that opens external links in the OS browser, and a full Expo client for iOS, iPad, and Android: native block editor, pressure-aware whiteboard, graph, inbox, learning, search, timeline, trash, templates, assistant, comments, notifications, and settings with an offline write outbox.
 - **Plugins** — capability-checked worker isolation with per-capability consent, a curated local directory, HTTPS install with manifest validation, and manifest-declared editor blocks and canvas tools whose output is stored in the document.
 - **Enterprise controls** — SCIM 2.0 provisioning for Users and Groups with workspace bearer tokens, OIDC single sign-on per workspace, legal holds that outrank retention with an audited export bundle, workspace-owned AI provider credentials, audit CSV export, device revocation, and workspace retention settings.
 - **Self-hosting** — Docker Compose, runtime web config, hashed share/invite/ingest/SCIM tokens, rate limiting, authenticated uploads, workspace-chosen trash retention with a scheduled server purge, and HMAC-signed webhook deliveries to up to five filtered automation destinations.
@@ -98,7 +98,7 @@ Without a key, Ask Lattice uses local retrieval and labeled citations.
 
 ```text
 apps/web            Next static SPA + Tauri + PWA       full product
-apps/native         Expo companion                       capture / read / review
+apps/native         Expo client (iOS/iPad/Android)      full editor, canvas, graph, capture, review
 apps/server         Express + oRPC host, uploads
 apps/fumadocs       product & architecture docs
 extensions          browser capture extension (MV3)
@@ -182,11 +182,31 @@ Logs go to the OS log directory (macOS `~/Library/Logs/app.lattice.desktop`, Win
 
 ```bash
 pnpm --filter native dev
+pnpm --filter native prebuild   # generate native projects after adding native modules
 pnpm --filter native ios
 pnpm --filter native android
 ```
 
-The mobile app supports sign-in, workspace switching, recent pages, notebook browse, page reading, quick capture, search, and due-card review. Deep editing and the whiteboard remain web/desktop-first.
+The Expo client is a full Lattice client, not a companion:
+
+- **Editor** — native block editor with headings, lists, checklists, quotes, callouts, toggles, code, images, page links/embeds, bookmarks, YouTube, diagrams, equations, API-request blocks, tables, and slash commands. Documents round-trip through the same TipTap JSON the web app uses.
+- **Whiteboard** — infinite canvas with notes, six shape types, text, frames that move their contents, connectors, images, linked notes, nested canvases, templates, outline generators, undo/redo, layer/align actions, presentation mode, and SVG/PNG/PDF export. The pen captures Apple Pencil and other active-stylus pressure plus tilt; finger pans when **Stylus only drawing** is enabled.
+- **Graph** — force layout, filters (kind, notebook, relation, recency, orphans), cluster coloring, relation editing, and AI link suggestions.
+- **Inbox** — notes, links with previews, image/PDF/file uploads, voice-note recording with optional transcription, PDF text extraction, organize-to-page, and tag/page suggestions.
+- **Learning** — SM-2 review, decks and cards, multiple-choice quizzes, learning paths, and knowledge gaps.
+- **Everything else** — search with type filters, timeline with version restore, trash with restore, templates, assistant with citations and reindexing, comments, notifications, and settings (workspace, members/invites, devices, sync conflicts, AI, appearance).
+- **iPad / tablet** — permanent sidebar at ≥ 900 pt, portrait and landscape orientations, pointer/trackpad support, and hardware-keyboard-friendly layouts.
+- **Offline edits** — document and canvas writes queue in a persisted outbox and flush when the network returns; reads stay in the persisted query cache.
+
+`apps/native/.env`:
+
+```dotenv
+EXPO_PUBLIC_SERVER_URL=http://localhost:3100
+# Optional: web origin used for share/invite links
+EXPO_PUBLIC_WEB_URL=http://localhost:3101
+```
+
+Store builds use `apps/native/eas.json` (`development`, `preview`, `production`). `expo prebuild` is required before `expo run:ios` / `expo run:android` because the app ships native modules for image picking, audio recording, file export, and view capture.
 
 ### PWA
 
@@ -244,7 +264,7 @@ This pass is a complete core vertical, not every enterprise subsystem in the ori
 
 - CRDT/live co-editing and live cursors (async sync + comments/presence are implemented).
 - End-to-end encryption, SSO/SCIM, legal hold.
-- App-store signing and native full editor/whiteboard parity.
+- App-store signing (EAS profiles are configured, but credentials and store submission are not) and native admin tooling for SCIM/SSO/legal hold/plugins/webhooks/SQL.
 - Plugin sandbox/runtime, custom object-type editor, automation builder.
 - Email ingestion, speech-to-text, two-way Git sync (one-way GitHub Markdown import is implemented), and an executable SQL console.
 

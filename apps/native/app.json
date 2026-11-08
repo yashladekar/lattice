@@ -3,13 +3,30 @@
     "name": "Lattice",
     "slug": "lattice",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "notes-learning",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.lattice.mobile"
+      "requireFullScreen": false,
+      "bundleIdentifier": "app.lattice.mobile",
+      "infoPlist": {
+        "UIRequiresFullScreen": false,
+        "UIApplicationSupportsIndirectInputEvents": true,
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +35,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
+      "predictiveBackGestureEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "package": "app.lattice.mobile"
     },
     "web": {
@@ -39,7 +57,21 @@
             "backgroundColor": "#171713"
           }
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Lattice uses your photo library to attach images to notes and canvases.",
+          "cameraPermission": "Lattice uses the camera to capture images for your notes."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Lattice records audio so you can capture a thought hands-free."
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

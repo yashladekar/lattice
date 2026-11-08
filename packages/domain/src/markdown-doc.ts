@@ -19,7 +19,7 @@ const ORDERED = /^(\s*)\d+[.)]\s+(.*)$/;
 const QUOTE = /^\s*>\s?(.*)$/;
 
 const INLINE =
-  /(\*\*[^*\n]+\*\*|__[^_\n]+__|`[^`\n]+`|\*[^*\n]+\*|_[^_\n]+_|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))/g;
+  /(\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|`[^`\n]+`|\*[^*\n]+\*|_[^_\n]+_|\[\[[^\]\n]+\]\]|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))/g;
 
 function inlineNodes(text: string): TipTapNode[] {
   if (!text) return [];
@@ -31,6 +31,17 @@ function inlineNodes(text: string): TipTapNode[] {
     const token = match[0];
     if (token.startsWith("**") || token.startsWith("__")) {
       nodes.push({ type: "text", text: token.slice(2, -2), marks: [{ type: "bold" }] });
+    } else if (token.startsWith("~~")) {
+      nodes.push({ type: "text", text: token.slice(2, -2), marks: [{ type: "strike" }] });
+    } else if (token.startsWith("[[")) {
+      const body = token.slice(2, -2);
+      const separator = body.indexOf("|");
+      const pageId = separator >= 0 ? body.slice(0, separator) : body;
+      const title = separator >= 0 ? body.slice(separator + 1) : body;
+      nodes.push({
+        type: "pageLink",
+        attrs: { pageId: pageId.trim(), title: title.trim() || "Untitled", icon: "◇" },
+      });
     } else if (token.startsWith("`")) {
       nodes.push({ type: "text", text: token.slice(1, -1), marks: [{ type: "code" }] });
     } else if (token.startsWith("[")) {
@@ -243,4 +254,45 @@ export function simpleMarkdownToDoc(markdown: string): TipTapNode {
   flushAll();
 
   return { type: "doc", content: content.length ? content : [{ type: "paragraph" }] };
+}
+
+/**
+ * Parses the inline subset used by the mobile block editor back into TipTap
+ * inline nodes. Kept beside the block parser so both directions share one
+ * grammar (bold, italic, strike, code, links, page links, hard breaks).
+ */
+export function inlineMarkdownToNodes(text: string): TipTapNode[] {
+  const lines = text.split("\n");
+  const nodes: TipTapNode[] = [];
+  lines.forEach((line, index) => {
+    if (index > 0) nodes.push({ type: "hardBreak" });
+    nodes.push(...inlineNodes(line));
+  });
+  return nodes;
+}
+
+/** Serializes inline TipTap nodes to the Markdown subset above. */
+export function inlineMarkdown(nodes: TipTapNode[] | undefined): string {
+  return (nodes ?? [])
+    .map((node) => {
+      if (node.type === "hardBreak") return "\n";
+      if (node.type === "pageLink") {
+        const pageId = typeof node.attrs?.pageId === "string" ? node.attrs.pageId : "";
+        const title = typeof node.attrs?.title === "string" ? node.attrs.title : "Untitled";
+        return `[[${pageId}|${title}]]`;
+      }
+      if (node.type !== "text") return node.text ?? "";
+      let value = node.text ?? "";
+      for (const mark of node.marks ?? []) {
+        if (mark.type === "bold") value = `**${value}**`;
+        else if (mark.type === "italic") value = `*${value}*`;
+        else if (mark.type === "strike") value = `~~${value}~~`;
+        else if (mark.type === "code") value = `\`${value}\``;
+      }
+      const link = (node.marks ?? []).find((mark) => mark.type === "link");
+      const href = typeof link?.attrs?.href === "string" ? link.attrs.href : "";
+      if (href) value = `[${value}](${href})`;
+      return value;
+    })
+    .join("");
 }
