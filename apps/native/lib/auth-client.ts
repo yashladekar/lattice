@@ -6,13 +6,13 @@ import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-import { ENV } from "../src/env";
+import { SERVER_URL } from "@/lib/server-url";
 
 const scheme = Constants.expoConfig?.scheme as string;
 const isWeb = Platform.OS === "web";
 
 export const authClient = createAuthClient({
-  baseURL: ENV.EXPO_PUBLIC_SERVER_URL,
+  baseURL: SERVER_URL,
   fetchOptions: isWeb ? { credentials: "include" } : undefined,
   plugins: [
     // Infer Polar endpoints without importing its browser checkout embed.

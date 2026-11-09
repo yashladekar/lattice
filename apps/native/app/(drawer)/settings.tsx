@@ -14,6 +14,7 @@ import { useWorkspace } from "@/contexts/workspace-context";
 import { authClient } from "@/lib/auth-client";
 import { inviteLink } from "@/lib/config";
 import { copyText, shareUrl } from "@/lib/files";
+import { SERVER_URL } from "@/lib/server-url";
 import { client } from "@/utils/orpc";
 
 function Card({
@@ -510,7 +511,7 @@ export default function SettingsScreen() {
 
         <Card title="About" description="Lattice mobile">
           <Row label="App" value="iOS · iPad · Android" />
-          <Row label="Server" value={process.env.EXPO_PUBLIC_SERVER_URL ?? ""} />
+          <Row label="Server" value={SERVER_URL} />
           <Pressable
             onPress={() => router.push("/notifications" as never)}
             className="items-center rounded-xl border border-border py-2"

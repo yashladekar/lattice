@@ -6,9 +6,8 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { Platform } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
+import { SERVER_URL } from "@/lib/server-url";
 import { appStorage } from "@/lib/storage";
-
-import { ENV } from "../src/env";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,7 +44,7 @@ async function expoFetch(request: Request, init?: RequestInit) {
 }
 
 export const link = new RPCLink({
-  url: `${ENV.EXPO_PUBLIC_SERVER_URL}/rpc`,
+  url: `${SERVER_URL}/rpc`,
   fetch(request, init) {
     return expoFetch(request, {
       ...init,

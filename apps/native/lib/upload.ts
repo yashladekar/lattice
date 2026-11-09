@@ -2,7 +2,7 @@ import { File } from "expo-file-system";
 import { Platform } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
-import { ENV } from "@/src/env";
+import { SERVER_URL } from "@/lib/server-url";
 
 export interface UploadedFile {
   id: string;
@@ -29,7 +29,7 @@ export async function uploadFile(input: {
     Platform.OS === "web" ? globalThis.fetch : (await import("expo/fetch")).fetch;
   const cookie = Platform.OS === "web" ? null : await authClient.getCookie();
 
-  const response = await fetchImpl(`${ENV.EXPO_PUBLIC_SERVER_URL}/uploads`, {
+  const response = await fetchImpl(`${SERVER_URL}/uploads`, {
     method: "POST",
     headers: {
       "content-type": input.mime || "application/octet-stream",
@@ -50,6 +50,6 @@ export async function uploadFile(input: {
     ...data,
     url: data.url.startsWith("http")
       ? data.url
-      : `${ENV.EXPO_PUBLIC_SERVER_URL}${data.url}`,
+      : `${SERVER_URL}${data.url}`,
   };
 }
