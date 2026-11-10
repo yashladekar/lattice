@@ -20,6 +20,9 @@ model AiMessage {
   content   String   @db.Text
   citations Json     @default("[]")
   provider  String?
+  /// The approved-able change plan that came with this turn, so reopening a
+  /// conversation still shows the card instead of a one-line summary.
+  plan      Json?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)

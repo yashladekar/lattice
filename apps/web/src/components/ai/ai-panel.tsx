@@ -10,9 +10,11 @@ import {
 import { Button } from "@notes-learning/ui/components/button";
 import { Textarea } from "@notes-learning/ui/components/textarea";
 import { cn } from "@notes-learning/ui/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpRight,
   BookOpen,
+  History,
   Loader2,
   Plus,
   Sparkles,
@@ -74,8 +76,16 @@ export function AiPanel({
   const [mode, setMode] = useState<"local" | "provider" | "chatgpt" | "unknown">("unknown");
   const [agentEnabled, setAgentEnabled] = useState(false);
   const [agentMode, setAgentMode] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const threads = useQuery({
+    queryKey: ["ai-threads", activeWorkspaceId],
+    queryFn: async () => client.ai.threads(),
+    enabled: open && online && Boolean(activeWorkspaceId),
+  });
 
   useEffect(() => {
     if (open && online) {
@@ -226,6 +236,7 @@ export function AiPanel({
         if (frame !== null) cancelAnimationFrame(frame);
 
         setThreadId(streamedThread);
+        void queryClient.invalidateQueries({ queryKey: ["ai-threads", activeWorkspaceId] });
         patchAssistant(assistantId, {
           content: answer,
           citations,
@@ -333,6 +344,32 @@ export function AiPanel({
     );
   };
 
+  const openThread = async (id: string) => {
+    try {
+      const thread = await client.ai.thread({ threadId: id });
+      setMessages(
+        thread.messages.map((message) => ({
+          id: message.id,
+          role: message.role === "user" ? ("user" as const) : ("assistant" as const),
+          content: message.content,
+          citations: Array.isArray(message.citations)
+            ? (message.citations as Citation[])
+            : [],
+          ...(message.provider ? { provider: message.provider } : {}),
+          local: message.provider === "local",
+          // Plans survive a reload, so an old proposal can still be reviewed.
+          ...(message.plan && typeof message.plan === "object"
+            ? { plan: message.plan as NonNullable<ChatMessage["plan"]> }
+            : {}),
+        })),
+      );
+      setThreadId(id);
+      setHistoryOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not open that conversation");
+    }
+  };
+
   const createPageFromAnswer = async (message: ChatMessage) => {
     if (!db || !user || !activeWorkspaceId) return;
     const page = await createPageLocal(db, {
@@ -381,6 +418,20 @@ export function AiPanel({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((value) => !value)}
+              aria-pressed={historyOpen}
+              title="Recent conversations"
+              className={cn(
+                "grid size-7 place-items-center rounded-md tap-target",
+                historyOpen
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <History className="size-3.5" />
+            </button>
             {agentEnabled ? (
               <button
                 type="button"
@@ -420,7 +471,48 @@ export function AiPanel({
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-          {!messages.length ? (
+          {historyOpen ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Recent conversations
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(false)}
+                  className="text-[8px] text-link hover:underline"
+                >
+                  Back
+                </button>
+              </div>
+              {(threads.data ?? []).map((thread) => (
+                <button
+                  key={thread.id}
+                  type="button"
+                  onClick={() => void openThread(thread.id)}
+                  className={cn(
+                    "block w-full rounded-lg border border-border/60 px-2.5 py-2 text-left hover:bg-muted/50",
+                    thread.id === threadId ? "bg-saffron/5" : "bg-card/40",
+                  )}
+                >
+                  <div className="truncate text-[10px] text-foreground">{thread.title}</div>
+                  <div className="text-[8px] text-muted-foreground">
+                    {new Date(thread.updatedAt).toLocaleString()}
+                  </div>
+                </button>
+              ))}
+              {threads.isLoading ? (
+                <div className="flex items-center justify-center py-6 text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                </div>
+              ) : null}
+              {threads.data && !threads.data.length ? (
+                <p className="py-6 text-center text-[10px] text-muted-foreground">
+                  No conversations yet. Ask something and it will appear here.
+                </p>
+              ) : null}
+            </div>
+          ) : !messages.length ? (
             <div className="flex h-full flex-col justify-center">
               <div className="mx-auto max-w-xs text-center">
                 <span className="mx-auto grid size-10 place-items-center rounded-xl border border-border/70 bg-card">

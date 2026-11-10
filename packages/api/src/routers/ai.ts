@@ -66,6 +66,8 @@ async function saveThreadMessage(
     answer: string;
     citations: AiCitation[];
     provider: string;
+    plan?: AgentPlan | null;
+    warnings?: string[];
   },
 ): Promise<string> {
   let threadId = input.threadId ?? null;
@@ -101,9 +103,17 @@ async function saveThreadMessage(
         content: input.answer,
         citations: input.citations as never,
         provider: input.provider,
+        // Keep the plan so reopening the conversation still offers the card.
+        plan: input.plan
+          ? ({ ...input.plan, warnings: input.warnings ?? [] } as Prisma.InputJsonValue)
+          : Prisma.DbNull,
       },
     ],
   });
+  // A conversation that keeps being used should sort to the top of the list.
+  await db.aiThread
+    .update({ where: { id: threadId }, data: { updatedAt: new Date() } })
+    .catch(() => undefined);
   return threadId;
 }
 
@@ -491,6 +501,8 @@ export const aiRouter = {
         answer,
         citations: [],
         provider,
+        plan,
+        warnings,
       });
       yield {
         type: "done" as const,

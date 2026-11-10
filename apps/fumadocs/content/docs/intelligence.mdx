@@ -183,6 +183,16 @@ Two reasons, both structural:
 Plan mode is available on web and desktop. The native assistant can use a
 connected ChatGPT plan or API key for answers, but not plan mode.
 
+## Conversations
+
+Ask keeps a history. Every turn is stored per member and per workspace, and the
+clock button in the panel lists recent conversations so you can pick one back up
+where it stopped. Reopening a conversation also restores any plan it proposed,
+so an old card can still be reviewed and applied.
+
+History lives in the database, not the browser — it survives reloads and follows
+the account across devices that use the same server.
+
 ## Retrieval
 
 1. Resolve pages visible to the requesting member (private pages excluded unless allowed).
