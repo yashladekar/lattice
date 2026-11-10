@@ -86,7 +86,9 @@ describeWithDatabase("ChatGPT credential store", () => {
   it("encrypts every token at rest", async () => {
     await setup();
     await store();
-    const row = await db.chatGptConnection.findFirstOrThrow();
+    const row = await db.chatGptConnection.findFirstOrThrow({
+      where: { userId: workspace.ownerId },
+    });
     for (const value of [row.accessToken, row.refreshToken, row.idToken]) {
       expect(value.startsWith("v1.")).toBe(true);
       expect(value).not.toContain("access-token");
@@ -111,6 +113,7 @@ describeWithDatabase("ChatGPT credential store", () => {
     await setup();
     await store();
     await db.chatGptConnection.updateMany({
+      where: { userId: workspace.ownerId },
       data: { accessExpiresAt: new Date(Date.now() - 1_000) },
     });
     const fetchMock = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(
@@ -135,6 +138,7 @@ describeWithDatabase("ChatGPT credential store", () => {
     await setup();
     await store();
     await db.chatGptConnection.updateMany({
+      where: { userId: workspace.ownerId },
       data: { accessExpiresAt: new Date(Date.now() - 1_000) },
     });
     vi.stubGlobal(
@@ -163,6 +167,7 @@ describeWithDatabase("ChatGPT credential store", () => {
     await setup();
     await store();
     await db.chatGptConnection.updateMany({
+      where: { userId: workspace.ownerId },
       data: { accessExpiresAt: new Date(Date.now() - 1_000) },
     });
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503 })));
