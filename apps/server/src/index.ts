@@ -9,6 +9,7 @@ import { deliverWebhookBatch } from "@notes-learning/api/services/webhooks";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
+import { ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/node";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
@@ -25,6 +26,20 @@ import { auth, db } from "./services";
 const app = express();
 
 app.set("trust proxy", 1);
+
+/**
+ * One line per client error, with the path handler interceptors cannot see. A
+ * 401 from a poll that ran before the session resolved is expected traffic, not
+ * a crash, and it should not read like one.
+ */
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    if (res.statusCode >= 400 && res.statusCode < 500) {
+      console.warn(`${req.method} ${req.path} → ${res.statusCode}`);
+    }
+  });
+  next();
+});
 
 const rateLimiter = new RateLimiter();
 setInterval(() => rateLimiter.sweep(), 60_000).unref();
@@ -157,12 +172,23 @@ app.get("/polar/success", (req, res) => {
   res.redirect(302, redirectUrl.toString());
 });
 
+/**
+ * Expected client errors — an unauthenticated poll before the session resolves,
+ * a page deleted in another tab, a rejected input — are not worth a stack. They
+ * get one line with the request path, added below; everything else keeps its
+ * stack, which is the category worth reading.
+ */
+type HandlerInterceptor = NonNullable<
+  NonNullable<ConstructorParameters<typeof RPCHandler>[1]>["interceptors"]
+>[number];
+
+const logProcedureError: HandlerInterceptor = onError((error) => {
+  if (error instanceof ORPCError && error.status >= 400 && error.status < 500) return;
+  console.error(error);
+});
+
 const rpcHandler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
+  interceptors: [logProcedureError],
 });
 const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
@@ -170,11 +196,7 @@ const apiHandler = new OpenAPIHandler(appRouter, {
       schemaConverters: [new ZodToJsonSchemaConverter()],
     }),
   ],
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
+  interceptors: [logProcedureError],
 });
 
 app.use(async (req, res, next) => {
