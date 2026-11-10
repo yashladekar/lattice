@@ -131,11 +131,14 @@ its own tools — `search_pages`, `read_page`, `related_pages`, `graph_neighbors
 `list_pages` — and returns a plan. The plan is rendered as a card with a preview
 per change, and **nothing is written until you press Apply**.
 
-Applying happens on your device, through the same local repository calls your
-own edits use: a snapshot is saved first (`Before AI edit`, visible in the page
-timeline), then the document is written as a normal revision-aware sync op. If
-you have the page open in a live collaborative session, the CRDT owns the body,
-so Lattice surfaces the usual reload prompt rather than fighting it.
+Applying happens on your device, and a snapshot is saved first (`Before AI edit`,
+visible in the page timeline). Then:
+
+- **With the page open in the editor**, the blocks are applied through that
+  editor's own transaction. A live collaborative session sees the change
+  immediately and every connected device receives it — no reload.
+- **With the page closed**, the document is written through the normal local
+  repository and sync op instead, and the edit is there when you next open it.
 
 ### Why it works this way
 

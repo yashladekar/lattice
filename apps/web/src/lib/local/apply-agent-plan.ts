@@ -8,6 +8,7 @@ import {
 import { client } from "@/utils/orpc";
 
 import type { LatticeDB } from "./db";
+import { getEditorBlockApplier } from "./editor-bridge";
 import {
   createFlashcardLocal,
   createPageLocal,
@@ -65,18 +66,35 @@ export async function applyAgentPlan(
   const skipped: string[] = [];
   const snapshotted = new Set<string>();
 
+  const snapshotOnce = async (pageId: string) => {
+    if (snapshotted.has(pageId)) return;
+    snapshotted.add(pageId);
+    await snapshotPage(pageId);
+  };
+
   for (const op of input.ops) {
     try {
       if (op.kind === "append_blocks" || op.kind === "insert_blocks" || op.kind === "replace_blocks") {
+        // A mounted editor owns the live document and the Yjs room. Applying
+        // there makes the change a normal transaction; its own debounced persist
+        // writes the store, so we must not also write Dexie here.
+        const applier = getEditorBlockApplier(op.pageId);
+        if (applier) {
+          await snapshotOnce(op.pageId);
+          const viaEditor = applier.apply([op]);
+          if (viaEditor.applied) {
+            applied += 1;
+            continue;
+          }
+          skipped.push(...viaEditor.skipped);
+        }
+
         const document = await db.pageDocuments.get(op.pageId);
         if (!document) {
           skipped.push("A page in the plan no longer exists.");
           continue;
         }
-        if (!snapshotted.has(op.pageId)) {
-          snapshotted.add(op.pageId);
-          await snapshotPage(op.pageId);
-        }
+        await snapshotOnce(op.pageId);
         const result = applyBlockEdits(safeDoc(document.content), [op]);
         if (!result.applied) {
           skipped.push(...result.skipped);

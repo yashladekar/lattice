@@ -112,12 +112,14 @@ import {
   upsertEdgeLocal,
 } from "@/lib/local/repository";
 import { DOCUMENT_REPLACED_EVENT } from "@/lib/local/apply-agent-plan";
+import { registerEditorBlockApplier } from "@/lib/local/editor-bridge";
 import { appRouteObject } from "@/lib/navigation";
 import { useInstalledPlugins, type StoredPlugin } from "@/lib/plugins";
 import { client } from "@/utils/orpc";
 
 import { EditorMenu } from "./editor-menu";
 import { CanvasPlanPreview } from "./canvas-plan-preview";
+import { applyBlockEditsToEditor } from "./editor-block-edits";
 import { createEditorExtensions } from "./extensions";
 import { EditorPageContext } from "./editor-page-context";
 import type { EditorMenuItem, EditorMenuKind, EditorMenuState } from "./menu-types";
@@ -753,6 +755,17 @@ export function PageEditor({
     window.addEventListener(DOCUMENT_REPLACED_EVENT, onReplaced);
     return () => window.removeEventListener(DOCUMENT_REPLACED_EVENT, onReplaced);
   }, [editor, pageId, collab]);
+
+  useEffect(() => {
+    if (!editor) return;
+    return registerEditorBlockApplier({
+      pageId,
+      apply: (edits) =>
+        editor.isDestroyed
+          ? { applied: 0, skipped: ["The editor is closed."] }
+          : applyBlockEditsToEditor(editor, edits),
+    });
+  }, [editor, pageId]);
 
   useEffect(() => {
     if (!db || !activeWorkspaceId) return;
