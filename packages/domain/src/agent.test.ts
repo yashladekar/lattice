@@ -70,7 +70,26 @@ describe("node allowlist", () => {
     expect(nodes[1]?.attrs).toEqual({ level: 2 });
   });
 
-  it("caps the number of nodes per operation", () => {
+  it("keeps a valid Mermaid diagram", () => {
+    const [node] = normalizeAgentNodes([
+      {
+        type: "diagram",
+        attrs: { source: "flowchart TD\n  a[Client] --> b[Server]", caption: "Request path" },
+      },
+    ]);
+    expect(node?.type).toBe("diagram");
+    expect(node?.attrs?.source).toContain("flowchart TD");
+    expect(node?.attrs?.caption).toBe("Request path");
+  });
+
+  it("drops a diagram Mermaid could not render", () => {
+    expect(
+      normalizeAgentNodes([{ type: "diagram", attrs: { source: "draw something nice" } }]),
+    ).toEqual([]);
+    expect(normalizeAgentNodes([{ type: "diagram", attrs: {} }])).toEqual([]);
+  });
+
+  it("clamps the number of nodes per operation", () => {
     const many = Array.from({ length: AGENT_LIMITS.maxNodesPerOp + 10 }, () => ({
       type: "paragraph",
       content: [{ type: "text", text: "x" }],

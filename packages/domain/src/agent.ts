@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isKnownDiagramSource, normalizeDiagramSource } from "./diagrams";
 import { createId } from "./ids";
 import { RELATION_TYPES, type TipTapDoc, type TipTapNode } from "./types";
 
@@ -35,6 +36,7 @@ const ALLOWED_NODES = new Set([
   "taskList",
   "listItem",
   "taskItem",
+  "diagram",
   "text",
 ]);
 
@@ -154,6 +156,21 @@ function normalizeNode(value: unknown, depth: number): TipTapNode | null {
     if (typeof language === "string" && /^[a-z0-9+#._-]{1,24}$/i.test(language)) {
       node.attrs = { language };
     }
+  }
+  if (type === "diagram") {
+    const raw = record.attrs;
+    if (!raw || typeof raw !== "object") return null;
+    const source = (raw as Record<string, unknown>).source;
+    const caption = (raw as Record<string, unknown>).caption;
+    if (typeof source !== "string") return null;
+    const normalized = normalizeDiagramSource(source).slice(0, 4_000);
+    // A source Mermaid cannot parse would render as an error box in the page.
+    if (!normalized || !isKnownDiagramSource(normalized)) return null;
+    node.attrs = {
+      source: normalized,
+      caption: typeof caption === "string" ? caption.trim().slice(0, 200) : "",
+    };
+    return node;
   }
 
   const children = Array.isArray(record.content) ? record.content : null;

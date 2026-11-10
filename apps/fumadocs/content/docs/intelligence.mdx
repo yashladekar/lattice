@@ -138,10 +138,18 @@ Pages a plan creates can be connected to each other in that same plan. Each
 set arrives already linked instead of as a pile of loose notes. Aliases exist
 only inside one plan; they are resolved to real page ids as the plan is applied.
 
-Plain **Ask** stays different on purpose: it answers from your notes and cites
-them, and tells you when they do not cover the question. That is the behaviour
-its empty state promises. Use Ask to interrogate what you have, and Plan mode
-to add to it.
+Diagrams are part of the draft: a ```mermaid fence inside a page becomes a
+rendered Mermaid diagram rather than a code block, which is how system-design
+notes get their request paths, sequence diagrams and data models. A fence
+Mermaid would not understand stays a code block instead of an error box. Images
+are not available — a model-supplied image URL is exactly the kind of thing the
+block allowlist exists to stop.
+
+Plain **Ask** answers from your notes and cites them. When they do not cover the
+question it says so in one line, then continues from general knowledge under a
+"From general knowledge" heading with no citations — so you always know which
+part is which. Use Ask to interrogate what you have or to ask a general
+question, and Plan mode when you want pages created.
 
 ### How a change is applied
 

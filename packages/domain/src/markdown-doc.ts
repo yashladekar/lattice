@@ -1,3 +1,4 @@
+import { diagramBlock, isKnownDiagramSource } from "./diagrams";
 import type { TipTapNode } from "./types";
 
 /**
@@ -111,6 +112,28 @@ export function simpleMarkdownToDoc(markdown: string): TipTapNode {
     frames.length = 0;
   };
 
+  /**
+   * A ```mermaid fence is a diagram, not code — this is how a drafted page gets
+   * a real flowchart instead of a block of Mermaid source. Anything Mermaid
+   * would not parse stays a code block rather than rendering an error box.
+   */
+  const flushCode = () => {
+    if (!codeLines) return;
+    const text = codeLines.join("\n");
+    const language = codeLanguage.toLowerCase();
+    if ((language === "mermaid" || language === "diagram") && isKnownDiagramSource(text)) {
+      content.push(diagramBlock(text));
+    } else {
+      content.push({
+        type: "codeBlock",
+        attrs: { language: codeLanguage },
+        content: codeLines.length ? [{ type: "text", text }] : [],
+      });
+    }
+    codeLines = null;
+    codeLanguage = "";
+  };
+
   const appendItem = (frame: ListFrame, item: TipTapNode) => {
     const items = (frame.node.content ??= []);
     items.push(item);
@@ -163,13 +186,7 @@ export function simpleMarkdownToDoc(markdown: string): TipTapNode {
 
     if (codeLines) {
       if (FENCE.test(line)) {
-        content.push({
-          type: "codeBlock",
-          attrs: { language: codeLanguage },
-          content: codeLines.length ? [{ type: "text", text: codeLines.join("\n") }] : [],
-        });
-        codeLines = null;
-        codeLanguage = "";
+        flushCode();
         continue;
       }
       codeLines.push(rawLine);
@@ -245,11 +262,7 @@ export function simpleMarkdownToDoc(markdown: string): TipTapNode {
   }
 
   if (codeLines) {
-    content.push({
-      type: "codeBlock",
-      attrs: { language: codeLanguage },
-      content: codeLines.length ? [{ type: "text", text: codeLines.join("\n") }] : [],
-    });
+    flushCode();
   }
   flushAll();
 

@@ -1432,6 +1432,12 @@ export function SettingsView() {
                       {aiStatus.data.degradedReason}
                     </div>
                   ) : null}
+                  {aiStatus.data && !aiStatus.data.agent.enabled ? (
+                    <div className="mt-0.5 text-[8px] text-muted-foreground">
+                      Plan mode is off on this server. Set AI_AGENT_ENABLED=true to let the
+                      assistant draft pages and propose edits.
+                    </div>
+                  ) : null}
                 </div>
                 {aiStatus.data?.enabled ? <Check className="size-3.5 text-moss" /> : <WifiOff className="size-3.5 text-saffron" />}
               </div>

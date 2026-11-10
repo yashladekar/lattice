@@ -39,6 +39,17 @@ export function normalizeDiagramSource(source: string): string {
     .trim();
 }
 
+/** True when the source opens with a diagram type Mermaid actually knows. */
+export function isKnownDiagramSource(source: string): boolean {
+  const line = source
+    .split("\n")
+    .map((value) => value.trim())
+    .find((value) => value.length > 0 && !value.startsWith("%%"));
+  if (!line) return false;
+  const keyword = line.split(/[\s{]/)[0] ?? "";
+  return keyword in DIAGRAM_TYPES;
+}
+
 export function diagramTypeOf(source: string): string {
   const line = source
     .split("\n")

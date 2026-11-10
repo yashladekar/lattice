@@ -55,6 +55,22 @@ describe("simpleMarkdownToDoc", () => {
     expect(tasks[0]?.content?.[1]?.attrs?.checked).toBe(true);
   });
 
+  it("turns a mermaid fence into a diagram, not code", () => {
+    const doc = simpleMarkdownToDoc(
+      "Intro\n\n```mermaid\nflowchart TD\n  a[Client] --> b[Server]\n```\n\nAfter",
+    );
+    const diagram = find(doc, "diagram");
+    expect(diagram).toBeDefined();
+    expect(String(diagram?.attrs?.source)).toContain("flowchart TD");
+    expect(find(doc, "codeBlock")).toBeUndefined();
+  });
+
+  it("keeps an unrecognised diagram source as code", () => {
+    const doc = simpleMarkdownToDoc("```mermaid\nnot a diagram\n```");
+    expect(find(doc, "diagram")).toBeUndefined();
+    expect(find(doc, "codeBlock")).toBeDefined();
+  });
+
   it("starts a sibling list when the type changes at the same depth", () => {
     const doc = simpleMarkdownToDoc("- bullet\n1. number");
     expect(types(doc, []).filter((type) => type.endsWith("List"))).toEqual([
