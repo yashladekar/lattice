@@ -293,7 +293,10 @@ export async function* runAgent(input: RunAgentInput): AsyncGenerator<AgentEvent
   for (let step = 0; step < AGENT_LIMITS.maxSteps; step += 1) {
     if (input.signal?.aborted) return;
 
-    const result = await chatCompletion(input.ai, messages, input.signal);
+    const result = await chatCompletion(input.ai, messages, {
+      ...(input.signal ? { signal: input.signal } : {}),
+      maxTokens: AGENT_LIMITS.maxOutputTokens,
+    });
     if (!result.ok) {
       if (input.signal?.aborted) return;
       yield { type: "error", code: result.code, message: result.message };

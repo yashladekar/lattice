@@ -845,7 +845,31 @@ async function applyEdge(
     select: { id: true },
   });
   if (nodes.length !== 2) {
-    throw new ORPCError("BAD_REQUEST", { message: "Both edge endpoints must exist in this workspace" });
+    // A page or a canvas always has a graph node. When an edge arrives in the
+    // same batch as the page that creates its endpoint, the node may not exist
+    // yet — create it instead of rejecting an otherwise valid edge.
+    const found = new Set(nodes.map((node) => node.id));
+    for (const nodeId of [sourceNodeId, targetNodeId]) {
+      if (found.has(nodeId)) continue;
+      const page = await tx.page.findFirst({
+        where: { id: nodeId, workspaceId, deletedAt: null },
+      });
+      if (page) {
+        await ensurePageNode(tx, page, changes);
+        found.add(nodeId);
+        continue;
+      }
+      const canvas = await tx.canvas.findFirst({
+        where: { id: nodeId, workspaceId, deletedAt: null },
+      });
+      if (canvas) {
+        await ensureCanvasNode(tx, canvas, changes);
+        found.add(nodeId);
+      }
+    }
+    if (found.size !== 2) {
+      throw new ORPCError("BAD_REQUEST", { message: "Both edge endpoints must exist in this workspace" });
+    }
   }
   const relationType = allowedString(payload.relationType, RELATION_TYPES, (existing?.relationType as "RELATED_TO") ?? "RELATED_TO");
   const origin = allowedString(payload.origin, ["MANUAL", "PAGE_LINK", "CANVAS_LINK", "AI"] as const, (existing?.origin as "MANUAL") ?? "MANUAL");

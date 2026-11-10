@@ -81,6 +81,15 @@ function chatGptFailure(error: unknown): ChatFailure {
   };
 }
 
+export interface ChatOptions {
+  signal?: AbortSignal;
+  /**
+   * Output budget for the OpenAI-compatible route. The ChatGPT-plan route
+   * rejects `max_output_tokens`, so it is not sent there.
+   */
+  maxTokens?: number;
+}
+
 /**
  * One chat turn. ChatGPT-plan configurations stream from the Responses API and
  * are collected here; everything else uses the OpenAI-compatible chat endpoint.
@@ -90,8 +99,9 @@ function chatGptFailure(error: unknown): ChatFailure {
 export async function chatCompletion(
   config: AiConfig,
   messages: ChatMessage[],
-  signal?: AbortSignal,
+  options: ChatOptions = {},
 ): Promise<ChatResult> {
+  const signal = options.signal;
   if (config.auth === "chatgpt") {
     const parts: string[] = [];
     try {
@@ -130,7 +140,7 @@ export async function chatCompletion(
       body: JSON.stringify({
         model: config.model,
         temperature: 0.2,
-        max_tokens: 1200,
+        max_tokens: options.maxTokens ?? 1200,
         messages,
       }),
     });
@@ -200,7 +210,7 @@ export async function* streamChatCompletion(
     return;
   }
 
-  const result = await chatCompletion(config, messages);
+  const result = await chatCompletion(config, messages, signal ? { signal } : {});
   if (result.ok) {
     yield { type: "delta", text: result.content };
     yield { type: "done", provider: result.provider };

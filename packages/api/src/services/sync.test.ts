@@ -212,3 +212,95 @@ describeWithDatabase("member role changes through sync", () => {
     expect((await db.workspaceMember.findUnique({ where: { id } }))?.deletedAt).toBeNull();
   });
 });
+
+describeWithDatabase("edge endpoints", () => {
+  let db: Database;
+  let workspace: TestWorkspace;
+
+  beforeAll(async () => {
+    db = createTestDatabase();
+    workspace = await createTestWorkspace(db);
+  });
+
+  afterAll(async () => {
+    await cleanupTestWorkspace(db, workspace.id);
+    await db.$disconnect();
+  });
+
+  const makePage = (title: string) => {
+    const id = randomUUID();
+    return db.page
+      .create({
+        data: {
+          id,
+          workspaceId: workspace.id,
+          title,
+          createdById: workspace.ownerId,
+          visibility: "WORKSPACE",
+        },
+      })
+      .then(() => id);
+  };
+
+  it("creates the graph node for a page that has not synced yet", async () => {
+    const first = await makePage("One");
+    const second = await makePage("Two");
+
+    // This is the shape a plan produces: an edge queued in the same batch as the
+    // pages it connects, so neither node exists on the server yet.
+    const result = await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `e-${randomUUID()}`,
+          entity: "edge",
+          entityId: randomUUID(),
+          op: "UPSERT",
+          payload: {
+            sourceNodeId: first,
+            targetNodeId: second,
+            relationType: "PART_OF",
+            origin: "AI",
+            aiGenerated: true,
+          },
+        },
+      ],
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.accepted).toHaveLength(1);
+    expect(
+      await db.knowledgeNode.count({
+        where: { id: { in: [first, second] }, workspaceId: workspace.id },
+      }),
+    ).toBe(2);
+    const edge = await db.knowledgeEdge.findFirst({
+      where: { workspaceId: workspace.id, sourceNodeId: first, targetNodeId: second },
+    });
+    expect(edge?.origin).toBe("AI");
+    expect(edge?.aiGenerated).toBe(true);
+  });
+
+  it("still rejects an edge whose endpoint is not a page or canvas", async () => {
+    await expect(
+      pushSync(db, {
+        workspaceId: workspace.id,
+        userId: workspace.ownerId,
+        ops: [
+          {
+            opId: `e-${randomUUID()}`,
+            entity: "edge",
+            entityId: randomUUID(),
+            op: "UPSERT",
+            payload: {
+              sourceNodeId: randomUUID(),
+              targetNodeId: randomUUID(),
+              relationType: "RELATED_TO",
+            },
+          },
+        ],
+      }),
+    ).rejects.toThrow(/must exist/i);
+  });
+});

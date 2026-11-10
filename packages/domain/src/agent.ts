@@ -22,6 +22,11 @@ export const AGENT_LIMITS = {
   maxReadChars: 6_000,
   maxTotalReadChars: 24_000,
   maxMarkdownChars: 20_000,
+  /**
+   * Output budget for one plan turn. A reply carries the JSON wrapper plus every
+   * page body, and the default chat budget truncates it mid-object.
+   */
+  maxOutputTokens: 4_000,
 } as const;
 
 const ALLOWED_NODES = new Set([
