@@ -210,6 +210,19 @@ export async function applyChange(db: LatticeDB, change: SyncChange): Promise<vo
     case "pageDocument": {
       const pageId = change.entityId;
       const { source, ...rest } = data as Record<string, unknown> & { source?: unknown };
+      const incomingRev = typeof data.rev === "number" ? data.rev : 0;
+      const existing = await db.pageDocuments.get(pageId);
+      // Defence in depth: a page's empty starter document must never replace
+      // real local content. Same revision means nothing has been written since.
+      if (
+        existing &&
+        incomingRev <= existing.rev &&
+        existing.plainText.length > 0 &&
+        typeof data.plainText === "string" &&
+        !data.plainText
+      ) {
+        break;
+      }
       const document = {
         ...rest,
         pageId,

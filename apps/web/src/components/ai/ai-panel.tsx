@@ -46,7 +46,9 @@ interface ChatMessage {
   provider?: string;
   local?: boolean;
   steps?: string[];
-  plan?: { title: string; ops: AgentOp[]; warnings: string[] };
+  plan?: { title: string; ops: AgentOp[]; warnings: string[]; appliedAt?: string };
+  /** Database id of this turn, once the server has stored it. */
+  dbMessageId?: string;
 }
 
 const SUGGESTIONS = [
@@ -175,6 +177,7 @@ export function AiPanel({
         let streamedThread: string | null = null;
         let provider: string | undefined;
         let local = false;
+        let dbMessageId: string | undefined;
         const steps: string[] = [];
         let frame: number | null = null;
         const flush = () => {
@@ -206,6 +209,7 @@ export function AiPanel({
               toast.error(event.message);
             } else {
               streamedThread = event.threadId;
+              dbMessageId = event.messageId ?? undefined;
               provider = event.provider;
               local = event.local;
             }
@@ -242,6 +246,7 @@ export function AiPanel({
           citations,
           steps,
           ...(provider ? { provider } : {}),
+          ...(dbMessageId ? { dbMessageId } : {}),
           local,
         });
         setMode((current) => (local ? "local" : current === "chatgpt" ? "chatgpt" : "provider"));
@@ -324,6 +329,9 @@ export function AiPanel({
     if (!db || !user || !activeWorkspaceId || !message.plan) {
       return { applied: 0, skipped: [] };
     }
+    if (message.plan.appliedAt) {
+      return { applied: 0, skipped: ["This plan was already applied."] };
+    }
     const notebookId =
       (pageId ? index.pages.find((page) => page.id === pageId)?.notebookId : null) ?? null;
     const result = await applyAgentPlan(db, {
@@ -333,6 +341,17 @@ export function AiPanel({
       ops: message.plan.ops,
     });
     if (result.applied) {
+      // Mark it applied locally first so a second click has nothing to press,
+      // then persist so the state survives a reload and reaches other devices.
+      const appliedAt = new Date().toISOString();
+      patchAssistant(message.id, { plan: { ...message.plan, appliedAt } });
+      if (message.dbMessageId) {
+        try {
+          await client.ai.markPlanApplied({ messageId: message.dbMessageId });
+        } catch {
+          // Offline or the row vanished; the local marker still prevents repeats.
+        }
+      }
       toast.success(`Applied ${result.applied} change${result.applied === 1 ? "" : "s"}`);
     }
     return result;
@@ -361,6 +380,7 @@ export function AiPanel({
           ...(message.plan && typeof message.plan === "object"
             ? { plan: message.plan as NonNullable<ChatMessage["plan"]> }
             : {}),
+          dbMessageId: message.id,
         })),
       );
       setThreadId(id);
@@ -588,6 +608,7 @@ export function AiPanel({
                         ops={message.plan.ops}
                         warnings={message.plan.warnings}
                         pageTitles={pageTitles}
+                        appliedAt={message.plan.appliedAt}
                         onApply={() => applyPlan(message)}
                         onDiscard={() => discardPlan(message.id)}
                       />

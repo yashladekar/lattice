@@ -213,6 +213,48 @@ describeWithDatabase("member role changes through sync", () => {
   });
 });
 
+describeWithDatabase("page creation", () => {
+  let db: Database;
+  let workspace: TestWorkspace;
+
+  beforeAll(async () => {
+    db = createTestDatabase();
+    workspace = await createTestWorkspace(db);
+  });
+
+  afterAll(async () => {
+    await cleanupTestWorkspace(db, workspace.id);
+    await db.$disconnect();
+  });
+
+  it("does not broadcast a placeholder document", async () => {
+    const pageId = randomUUID();
+    await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `p-${randomUUID()}`,
+          entity: "page",
+          entityId: pageId,
+          op: "UPSERT",
+          payload: { title: "New page" },
+        },
+      ],
+    });
+
+    // The row has to exist so the client's document write can land, but it is
+    // not a change: sending it would race that write and blank the page.
+    const document = await db.pageDocument.findUnique({ where: { pageId } });
+    expect(document?.plainText).toBe("");
+    expect(
+      await db.syncChange.count({
+        where: { workspaceId: workspace.id, entity: "pageDocument", entityId: pageId },
+      }),
+    ).toBe(0);
+  });
+});
+
 describeWithDatabase("edge endpoints", () => {
   let db: Database;
   let workspace: TestWorkspace;

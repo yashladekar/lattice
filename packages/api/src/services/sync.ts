@@ -377,19 +377,16 @@ async function applyPage(
 
   const document = await tx.pageDocument.findUnique({ where: { pageId: page.id } });
   if (!document) {
-    const created = await tx.pageDocument.create({
+    // The row exists so a document write can land, but it is not a real change:
+    // broadcasting this empty starter body would race the client's own document
+    // write and could leave a freshly created page blank.
+    await tx.pageDocument.create({
       data: {
         pageId: page.id,
         workspaceId,
         content: { type: "doc", content: [{ type: "paragraph" }] },
         plainText: "",
       },
-    });
-    changes.push({
-      entity: "pageDocument",
-      entityId: page.id,
-      op: "UPSERT",
-      data: { ...toJsonSafe(created), source: "write" },
     });
   }
 

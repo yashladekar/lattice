@@ -69,7 +69,7 @@ async function saveThreadMessage(
     plan?: AgentPlan | null;
     warnings?: string[];
   },
-): Promise<string> {
+): Promise<{ threadId: string; messageId: string }> {
   let threadId = input.threadId ?? null;
   if (threadId) {
     const thread = await db.aiThread.findFirst({
@@ -87,6 +87,7 @@ async function saveThreadMessage(
     });
     threadId = thread.id;
   }
+  const assistantId = createId();
   await db.aiMessage.createMany({
     data: [
       {
@@ -97,7 +98,7 @@ async function saveThreadMessage(
         citations: [],
       },
       {
-        id: createId(),
+        id: assistantId,
         threadId,
         role: "assistant",
         content: input.answer,
@@ -114,7 +115,7 @@ async function saveThreadMessage(
   await db.aiThread
     .update({ where: { id: threadId }, data: { updatedAt: new Date() } })
     .catch(() => undefined);
-  return threadId;
+  return { threadId, messageId: assistantId };
 }
 
 interface AiWorkspaceContext extends Context {
@@ -356,7 +357,7 @@ export const aiRouter = {
         answer = localAnswer(input.question, citations);
         provider = "local";
       }
-      const threadId = await saveThreadMessage(context.db, {
+      const { threadId } = await saveThreadMessage(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
         threadId: input.threadId,
@@ -401,7 +402,7 @@ export const aiRouter = {
         yield { type: "delta" as const, text: answer };
       }
 
-      const threadId = await saveThreadMessage(context.db, {
+      const { threadId } = await saveThreadMessage(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
         threadId: input.threadId,
@@ -432,7 +433,7 @@ export const aiRouter = {
         const text =
           "Plan mode needs an AI provider. Connect a ChatGPT plan or set AI_API_KEY on the server.";
         yield { type: "delta" as const, text };
-        const threadId = await saveThreadMessage(context.db, {
+        const { threadId } = await saveThreadMessage(context.db, {
           workspaceId: context.workspaceId,
           userId: context.userId,
           threadId: input.threadId,
@@ -444,6 +445,7 @@ export const aiRouter = {
         yield {
           type: "done" as const,
           threadId,
+          messageId: null,
           answer: text,
           provider: "local",
           plan: null,
@@ -493,7 +495,7 @@ export const aiRouter = {
         warnings = event.warnings;
       }
 
-      const threadId = await saveThreadMessage(context.db, {
+      const { threadId, messageId } = await saveThreadMessage(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
         threadId: input.threadId,
@@ -507,12 +509,39 @@ export const aiRouter = {
       yield {
         type: "done" as const,
         threadId,
+        messageId,
         answer,
         provider,
         plan,
         warnings,
         local: provider === "local",
       };
+    }),
+
+  markPlanApplied: aiWorkspaceProcedure("VIEWER")
+    .input(z.object({ messageId: z.string().min(1) }))
+    .handler(async ({ context, input }) => {
+      const message = await context.db.aiMessage.findFirst({
+        where: {
+          id: input.messageId,
+          thread: { workspaceId: context.workspaceId, userId: context.userId },
+        },
+        select: { id: true, plan: true },
+      });
+      if (!message) throw new ORPCError("NOT_FOUND");
+      const plan =
+        message.plan && typeof message.plan === "object" && !Array.isArray(message.plan)
+          ? (message.plan as Record<string, unknown>)
+          : null;
+      if (!plan) throw new ORPCError("BAD_REQUEST", { message: "This turn has no plan." });
+      if (typeof plan.appliedAt === "string") return { appliedAt: plan.appliedAt };
+
+      const appliedAt = new Date().toISOString();
+      await context.db.aiMessage.update({
+        where: { id: message.id },
+        data: { plan: { ...plan, appliedAt } as Prisma.InputJsonValue },
+      });
+      return { appliedAt };
     }),
 
   transcribe: aiWorkspaceProcedure("EDITOR")

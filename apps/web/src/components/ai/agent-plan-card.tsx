@@ -4,7 +4,7 @@ import { describeAgentOp, nodePlainText, type AgentOp } from "@notes-learning/do
 import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { Check, Loader2, ShieldAlert, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { ApplyAgentPlanResult } from "@/lib/local/apply-agent-plan";
 
@@ -51,6 +51,7 @@ export function AgentPlanCard({
   ops,
   warnings,
   pageTitles,
+  appliedAt,
   onApply,
   onDiscard,
 }: {
@@ -58,11 +59,15 @@ export function AgentPlanCard({
   ops: AgentOp[];
   warnings: string[];
   pageTitles: Record<string, string>;
+  /** Set once this plan has been applied, locally or on another device. */
+  appliedAt?: string;
   onApply: () => Promise<ApplyAgentPlanResult>;
   onDiscard: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ApplyAgentPlanResult | null>(null);
+  // A ref, not state: two clicks in the same tick would both pass a state check.
+  const applying = useRef(false);
 
   // Pages this plan creates are referenced by alias until Apply, so preview the
   // titles the plan itself proposes rather than "a page".
@@ -72,10 +77,13 @@ export function AgentPlanCard({
   }
 
   const apply = async () => {
+    if (applying.current || appliedAt) return;
+    applying.current = true;
     setBusy(true);
     try {
       setResult(await onApply());
     } finally {
+      applying.current = false;
       setBusy(false);
     }
   };
@@ -124,17 +132,22 @@ export function AgentPlanCard({
         </div>
       ) : null}
 
-      {result ? (
+      {result || appliedAt ? (
         <div className="mt-2 space-y-0.5">
           <div className="flex items-center gap-1 text-[9px] text-moss">
             <Check className="size-3" />
-            Applied {result.applied} change{result.applied === 1 ? "" : "s"}
+            {result
+              ? `Applied ${result.applied} change${result.applied === 1 ? "" : "s"}`
+              : `Applied ${new Date(appliedAt!).toLocaleString()}`}
           </div>
-          {result.skipped.map((entry) => (
+          {result?.skipped.map((entry) => (
             <div key={entry} className="text-[8px] text-muted-foreground">
               {entry}
             </div>
           ))}
+          <div className="text-[8px] text-muted-foreground">
+            This plan has been applied. Edit the pages, or ask for a refinement.
+          </div>
         </div>
       ) : (
         <div className="mt-2 flex items-center gap-1.5">
@@ -157,7 +170,7 @@ export function AgentPlanCard({
             Discard
           </Button>
           <span className="ml-auto text-[8px] text-muted-foreground">
-            Nothing changes until you apply.
+            Nothing changes until you apply, once.
           </span>
         </div>
       )}
