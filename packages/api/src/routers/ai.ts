@@ -3,20 +3,19 @@ import { randomUUID } from "node:crypto";
 import type { Database } from "@notes-learning/db";
 import { Prisma } from "@notes-learning/db";
 import {
+  AGENT_LIMITS,
   appendTranscript,
-  buildSnippet,
-  cosineSimilarityVectors,
   createId,
   embeddingSource,
   extractOutline,
   generateFlashcardsFromDoc,
-  isEmbeddingVector,
+  hasRole,
   knowledgeGaps,
   masteryScore,
   relatedDocuments,
   safeDoc,
-  scoreText,
   tokenize,
+  type AgentPlan,
   type AiCitation,
   type KnowledgeEdge,
   type KnowledgeNode,
@@ -25,6 +24,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
+import { runAgent } from "../ai/agent";
 import {
   aiEnabled,
   auxEnabled,
@@ -35,153 +35,16 @@ import {
   transcribeAudio,
   type ChatMessage,
 } from "../ai/provider";
-import type { AiConfig, Context } from "../context";
+import type { Context } from "../context";
 import { aiWorkspaceProcedure } from "../index";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
-
-interface RetrievedPage {
-  pageId: string;
-  title: string;
-  body: string;
-  score: number;
-  excerpt: string;
-  updatedAt: string;
-}
-
-async function retrievePages(
-  db: Database,
-  workspaceId: string,
-  userId: string,
-  role: Role,
-  query: string,
-  scope?: { notebookId?: string | null; pageIds?: string[] },
-  limit = 8,
-): Promise<RetrievedPage[]> {
-  const allowed = await getAccessiblePageIds(db, workspaceId, userId, role);
-  const pages = await db.page.findMany({
-    where: {
-      workspaceId,
-      deletedAt: null,
-      ...(scope?.notebookId ? { notebookId: scope.notebookId } : {}),
-      ...(scope?.pageIds?.length ? { id: { in: scope.pageIds } } : {}),
-      ...(allowed ? { id: { in: [...allowed] } } : {}),
-    },
-  });
-  const documents = await db.pageDocument.findMany({
-    where: { workspaceId, pageId: { in: pages.map((page) => page.id) } },
-  });
-  const documentByPage = new Map(
-    documents.map((document) => [document.pageId, document.plainText]),
-  );
-  return pages
-    .map((page) => {
-      const body = documentByPage.get(page.id) ?? "";
-      return {
-        pageId: page.id,
-        title: page.title,
-        body,
-        score: scoreText(query, page.title, body),
-        excerpt: buildSnippet(body, query, 700),
-        updatedAt: page.updatedAt.toISOString(),
-      };
-    })
-    .filter((page) => page.score > 0 || !query)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
-}
-
-function citationsFrom(pages: RetrievedPage[]): AiCitation[] {
-  return pages.map((page) => ({
-    pageId: page.pageId,
-    title: page.title,
-    excerpt: page.excerpt,
-  }));
-}
-
-function contextBlock(pages: RetrievedPage[]): string {
-  return pages
-    .map(
-      (page, index) =>
-        `[${index + 1}] ${page.title}\n${page.body.slice(0, 2400)}`,
-    )
-    .join("\n\n---\n\n");
-}
-
-/**
- * Ranks pages by embedding similarity when a vector index exists. Returns null
- * when there is nothing to rank, so callers fall back to token retrieval.
- */
-async function retrieveSemantic(
-  db: Database,
-  config: AiConfig,
-  workspaceId: string,
-  userId: string,
-  role: Role,
-  question: string,
-  scope?: { notebookId?: string | null; pageIds?: string[] },
-  limit = 8,
-): Promise<RetrievedPage[] | null> {
-  const rows = await db.pageEmbedding.findMany({
-    where: { workspaceId },
-    select: { pageId: true, vector: true },
-  });
-  if (!rows.length) return null;
-  const embedded = await embedTexts(config, [question]);
-  const questionVector = embedded?.[0];
-  if (!questionVector) return null;
-  const allowed = await getAccessiblePageIds(db, workspaceId, userId, role);
-  const scopedIds =
-    scope?.notebookId || scope?.pageIds?.length
-      ? new Set(
-          (
-            await db.page.findMany({
-              where: {
-                workspaceId,
-                deletedAt: null,
-                ...(scope.notebookId ? { notebookId: scope.notebookId } : {}),
-                ...(scope.pageIds?.length ? { id: { in: scope.pageIds } } : {}),
-              },
-              select: { id: true },
-            })
-          ).map((page) => page.id),
-        )
-      : null;
-  const ranked = rows
-    .map((row) => ({
-      pageId: row.pageId,
-      score: isEmbeddingVector(row.vector)
-        ? cosineSimilarityVectors(questionVector, row.vector)
-        : null,
-    }))
-    .filter((entry): entry is { pageId: string; score: number } => entry.score !== null)
-    .filter((entry) => entry.score > 0.2)
-    .filter((entry) => !allowed || allowed.has(entry.pageId))
-    .filter((entry) => !scopedIds || scopedIds.has(entry.pageId))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
-  if (!ranked.length) return null;
-
-  const pages = await db.page.findMany({
-    where: { id: { in: ranked.map((entry) => entry.pageId) }, workspaceId, deletedAt: null },
-    include: { document: true },
-  });
-  const byId = new Map(pages.map((page) => [page.id, page]));
-  return ranked.flatMap((entry) => {
-    const page = byId.get(entry.pageId);
-    if (!page) return [];
-    const body = page.document?.plainText ?? "";
-    return [
-      {
-        pageId: page.id,
-        title: page.title,
-        body,
-        score: entry.score,
-        excerpt: buildSnippet(body, question, 700),
-        updatedAt: page.updatedAt.toISOString(),
-      } satisfies RetrievedPage,
-    ];
-  });
-}
+import {
+  citationsFrom,
+  contextBlock,
+  retrievePages,
+  retrieveSemantic,
+  type RetrievedPage,
+} from "../services/retrieval";
 
 const SYSTEM_PROMPT =
   "You are Lattice, a calm, precise knowledge assistant. Answer using the supplied notes. Cite sources as [1], [2] matching the order provided. If the notes do not support an answer, say what is missing. Do not invent facts. Keep responses compact and useful. Never claim to have modified the user's notes.";
@@ -299,6 +162,12 @@ const askInput = z.object({
   threadId: z.string().nullable().optional(),
 });
 
+const agentInput = z.object({
+  question: z.string().trim().min(2).max(4000),
+  pageId: z.string().nullable().optional(),
+  threadId: z.string().nullable().optional(),
+});
+
 export const aiRouter = {
   status: aiWorkspaceProcedure("VIEWER").handler(({ context }) => {
     const enabled = aiEnabled(context);
@@ -309,6 +178,12 @@ export const aiRouter = {
       source: context.aiSource ?? "none",
       chatgpt: context.aiChatGpt ?? null,
       degradedReason: context.aiDegradedReason ?? null,
+      agent: {
+        enabled: Boolean(context.aiAgent?.enabled),
+        canApply: hasRole(context.role, "EDITOR"),
+        maxSteps: AGENT_LIMITS.maxSteps,
+        maxOps: AGENT_LIMITS.maxOps,
+      },
     };
   }),
 
@@ -525,6 +400,99 @@ export const aiRouter = {
         citations,
         local: provider === "local",
         warning,
+      };
+    }),
+
+  agentStream: aiWorkspaceProcedure("VIEWER")
+    .input(agentInput)
+    .handler(async function* ({ context, input, signal }) {
+      if (!context.aiAgent?.enabled) {
+        throw new ORPCError("PRECONDITION_FAILED", {
+          message: "Plan mode is not enabled on this server.",
+        });
+      }
+      if (!aiEnabled(context)) {
+        const text =
+          "Plan mode needs an AI provider. Connect a ChatGPT plan or set AI_API_KEY on the server.";
+        yield { type: "delta" as const, text };
+        const threadId = await saveThreadMessage(context.db, {
+          workspaceId: context.workspaceId,
+          userId: context.userId,
+          threadId: input.threadId,
+          question: input.question,
+          answer: text,
+          citations: [],
+          provider: "local",
+        });
+        yield {
+          type: "done" as const,
+          threadId,
+          answer: text,
+          provider: "local",
+          plan: null,
+          warnings: [],
+          local: true,
+        };
+        return;
+      }
+
+      let answer = "";
+      let provider = context.ai.model;
+      let plan: AgentPlan | null = null;
+      let warnings: string[] = [];
+
+      for await (const event of runAgent({
+        db: context.db,
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        role: context.role,
+        ai: context.ai,
+        question: input.question,
+        pageId: input.pageId ?? null,
+        ...(signal ? { signal } : {}),
+      })) {
+        if (event.type === "step") {
+          yield { type: "step" as const, label: event.label };
+          continue;
+        }
+        if (event.type === "answer") {
+          answer = event.text;
+          yield { type: "delta" as const, text: event.text };
+          continue;
+        }
+        if (event.type === "plan") {
+          plan = event.plan;
+          warnings = event.warnings;
+          yield { type: "plan" as const, plan: event.plan, warnings: event.warnings };
+          continue;
+        }
+        if (event.type === "error") {
+          yield { type: "error" as const, code: event.code, message: event.message };
+          return;
+        }
+        answer = event.answer;
+        provider = event.provider;
+        plan = event.plan;
+        warnings = event.warnings;
+      }
+
+      const threadId = await saveThreadMessage(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        threadId: input.threadId,
+        question: input.question,
+        answer,
+        citations: [],
+        provider,
+      });
+      yield {
+        type: "done" as const,
+        threadId,
+        answer,
+        provider,
+        plan,
+        warnings,
+        local: provider === "local",
       };
     }),
 

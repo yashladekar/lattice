@@ -79,6 +79,10 @@ Members can connect their own ChatGPT Plus or Pro plan instead of using an API k
 
 The listener only starts when someone opens the sign-in flow. It is bound to loopback, serves exactly one path, and never returns credentials to the browser. Tokens are encrypted at rest with `BETTER_AUTH_SECRET` as the key material — back that secret up with the database, or existing connections have to be reauthorized.
 
+### Plan mode
+
+`AI_AGENT_ENABLED=true` turns on the experimental planning assistant: Ask can read pages and propose edits, graph links, and flashcards, which a person then applies. It is **off by default**, adds up to six model calls per question, and needs no extra configuration. Set it back to `false` and restart to remove the surface entirely; no data is migrated either way.
+
 ### Audio transcription
 
 Audio captures in the inbox can be transcribed when the provider exposes `/audio/transcriptions`. The model comes from `AI_TRANSCRIBE_MODEL` (default `whisper-1`). The server reads the stored upload from `UPLOAD_DIR`, sends it to the provider, and appends the transcript to the capture through the sync change log; files above 25 MB are refused.

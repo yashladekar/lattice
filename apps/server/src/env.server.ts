@@ -4,7 +4,9 @@ import path from "node:path";
 
 import type { AiConfig } from "@notes-learning/api/context";
 
-export { ENV } from "./env";
+import { ENV } from "./env";
+
+export { ENV };
 
 /** Packaged desktop builds serve the frontend from their own origin, not CORS_ORIGIN. */
 export const desktopOrigins = ["tauri://localhost", "http://tauri.localhost"];
@@ -21,3 +23,10 @@ export const aiConfig: AiConfig | null = process.env.AI_API_KEY
 
 export const uploadDirectory = process.env.UPLOAD_DIR ?? "./storage/uploads";
 export const uploadRoot = path.resolve(process.cwd(), uploadDirectory);
+
+/**
+ * Experimental: lets Ask read pages and propose changes. Off unless explicitly
+ * enabled, so the whole agent surface can be switched off without a deploy.
+ */
+export const aiAgentEnabled =
+  process.env.AI_AGENT_ENABLED === "true" || ENV.AI_AGENT_ENABLED === true;

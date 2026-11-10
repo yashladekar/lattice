@@ -55,6 +55,7 @@
     }
   },
   "globalEnv": [
+    "AI_AGENT_ENABLED",
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
     "CI",

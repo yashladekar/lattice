@@ -4,6 +4,7 @@ import {
   answerGraphQuery,
   docFromText,
   rankRecords,
+  type AgentOp,
   type SearchableRecord,
 } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
@@ -22,7 +23,9 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { AgentPlanCard } from "@/components/ai/agent-plan-card";
 import { useGraph, useWorkspaceSearchIndex } from "@/hooks/use-local-data";
+import { applyAgentPlan } from "@/lib/local/apply-agent-plan";
 import { createPageLocal } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
@@ -40,6 +43,8 @@ interface ChatMessage {
   citations: Citation[];
   provider?: string;
   local?: boolean;
+  steps?: string[];
+  plan?: { title: string; ops: AgentOp[]; warnings: string[] };
 }
 
 const SUGGESTIONS = [
@@ -67,6 +72,8 @@ export function AiPanel({
   const [busy, setBusy] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [mode, setMode] = useState<"local" | "provider" | "chatgpt" | "unknown">("unknown");
+  const [agentEnabled, setAgentEnabled] = useState(false);
+  const [agentMode, setAgentMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -74,9 +81,12 @@ export function AiPanel({
     if (open && online) {
       void client.ai
         .status()
-        .then((status) =>
-          setMode(status.mode === "chatgpt" ? "chatgpt" : status.mode === "provider" ? "provider" : "local"),
-        )
+        .then((status) => {
+          setMode(
+            status.mode === "chatgpt" ? "chatgpt" : status.mode === "provider" ? "provider" : "local",
+          );
+          setAgentEnabled(Boolean(status.agent?.enabled));
+        })
         .catch(() => setMode("local"));
     }
   }, [open, online]);
@@ -155,31 +165,62 @@ export function AiPanel({
         let streamedThread: string | null = null;
         let provider: string | undefined;
         let local = false;
+        const steps: string[] = [];
         let frame: number | null = null;
         const flush = () => {
           frame = null;
           patchAssistant(assistantId, { content: answer });
         };
 
-        for await (const event of await client.ai.askStream(
-          {
-            question: prompt,
-            ...(pageId ? { scope: { pageIds: [pageId] } } : {}),
-            threadId,
-          },
-          { signal: controller.signal },
-        )) {
-          if (event.type === "citations") {
-            citations = event.citations as Citation[];
-          } else if (event.type === "delta") {
-            answer += event.text;
-            frame ??= requestAnimationFrame(flush);
-          } else {
-            streamedThread = event.threadId;
-            citations = event.citations as Citation[];
-            provider = event.provider;
-            local = event.local;
-            if (event.warning) toast.error(event.warning.message);
+        if (agentMode) {
+          for await (const event of await client.ai.agentStream(
+            { question: prompt, pageId: pageId ?? null, threadId },
+            { signal: controller.signal },
+          )) {
+            if (event.type === "step") {
+              steps.push(event.label);
+              patchAssistant(assistantId, { steps: [...steps] });
+            } else if (event.type === "delta") {
+              answer += event.text;
+              frame ??= requestAnimationFrame(flush);
+            } else if (event.type === "plan") {
+              patchAssistant(assistantId, {
+                plan: {
+                  title: event.plan.title,
+                  ops: event.plan.ops,
+                  warnings: event.warnings,
+                },
+              });
+            } else if (event.type === "error") {
+              answer = event.message;
+              toast.error(event.message);
+            } else {
+              streamedThread = event.threadId;
+              provider = event.provider;
+              local = event.local;
+            }
+          }
+        } else {
+          for await (const event of await client.ai.askStream(
+            {
+              question: prompt,
+              ...(pageId ? { scope: { pageIds: [pageId] } } : {}),
+              threadId,
+            },
+            { signal: controller.signal },
+          )) {
+            if (event.type === "citations") {
+              citations = event.citations as Citation[];
+            } else if (event.type === "delta") {
+              answer += event.text;
+              frame ??= requestAnimationFrame(flush);
+            } else {
+              streamedThread = event.threadId;
+              citations = event.citations as Citation[];
+              provider = event.provider;
+              local = event.local;
+              if (event.warning) toast.error(event.warning.message);
+            }
           }
         }
         if (frame !== null) cancelAnimationFrame(frame);
@@ -188,6 +229,7 @@ export function AiPanel({
         patchAssistant(assistantId, {
           content: answer,
           citations,
+          steps,
           ...(provider ? { provider } : {}),
           local,
         });
@@ -261,6 +303,36 @@ export function AiPanel({
     }
   };
 
+  const pageTitles = (() => {
+    const map: Record<string, string> = {};
+    for (const page of index.pages) map[page.id] = page.title;
+    return map;
+  })();
+
+  const applyPlan = async (message: ChatMessage) => {
+    if (!db || !user || !activeWorkspaceId || !message.plan) {
+      return { applied: 0, skipped: [] };
+    }
+    const notebookId =
+      (pageId ? index.pages.find((page) => page.id === pageId)?.notebookId : null) ?? null;
+    const result = await applyAgentPlan(db, {
+      workspaceId: activeWorkspaceId,
+      userId: user.id,
+      notebookId,
+      ops: message.plan.ops,
+    });
+    if (result.applied) {
+      toast.success(`Applied ${result.applied} change${result.applied === 1 ? "" : "s"}`);
+    }
+    return result;
+  };
+
+  const discardPlan = (id: string) => {
+    setMessages((current) =>
+      current.map((message) => (message.id === id ? { ...message, plan: undefined } : message)),
+    );
+  };
+
   const createPageFromAnswer = async (message: ChatMessage) => {
     if (!db || !user || !activeWorkspaceId) return;
     const page = await createPageLocal(db, {
@@ -309,6 +381,22 @@ export function AiPanel({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {agentEnabled ? (
+              <button
+                type="button"
+                onClick={() => setAgentMode((value) => !value)}
+                title="Let the assistant read pages and propose edits"
+                aria-pressed={agentMode}
+                className={cn(
+                  "rounded-md border px-1.5 py-0.5 text-[8px]",
+                  agentMode
+                    ? "border-saffron/60 bg-saffron/10 text-foreground"
+                    : "border-border/60 text-muted-foreground hover:bg-muted/50",
+                )}
+              >
+                Plan
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -360,7 +448,13 @@ export function AiPanel({
           ) : (
             <div className="space-y-4">
               {messages
-                .filter((message) => message.role === "user" || message.content.length > 0)
+                .filter(
+                  (message) =>
+                    message.role === "user" ||
+                    message.content.length > 0 ||
+                    Boolean(message.plan) ||
+                    Boolean(message.steps?.length),
+                )
                 .map((message) =>
                 message.role === "user" ? (
                   <div key={message.id} className="flex justify-end">
@@ -378,9 +472,34 @@ export function AiPanel({
                         {message.local ? "Local mode" : message.provider ?? "Lattice"}
                       </span>
                     </div>
-                    <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-card/45 px-3 py-2.5 text-[11px] leading-relaxed">
-                      {message.content}
-                    </div>
+                    {message.steps?.length ? (
+                      <div className="space-y-0.5">
+                        {message.steps.map((step, index) => (
+                          <div
+                            key={`${step}-${index}`}
+                            className="flex items-center gap-1 text-[8px] text-muted-foreground"
+                          >
+                            <span className="size-1 shrink-0 rounded-full bg-saffron/60" />
+                            <span className="truncate">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {message.content ? (
+                      <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-card/45 px-3 py-2.5 text-[11px] leading-relaxed">
+                        {message.content}
+                      </div>
+                    ) : null}
+                    {message.plan ? (
+                      <AgentPlanCard
+                        title={message.plan.title}
+                        ops={message.plan.ops}
+                        warnings={message.plan.warnings}
+                        pageTitles={pageTitles}
+                        onApply={() => applyPlan(message)}
+                        onDiscard={() => discardPlan(message.id)}
+                      />
+                    ) : null}
                     {message.citations.length ? (
                       <div className="space-y-1">
                         <div className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -448,7 +567,11 @@ export function AiPanel({
             />
             <div className="flex items-center justify-between pt-1">
               <span className="text-[8px] text-muted-foreground">
-                {online ? "Citations always included" : "Offline · local retrieval only"}
+                {agentMode
+                  ? "Plan mode · nothing is written until you apply"
+                  : online
+                    ? "Citations always included"
+                    : "Offline · local retrieval only"}
               </span>
               <Button
                 size="sm"

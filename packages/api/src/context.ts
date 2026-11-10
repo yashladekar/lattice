@@ -30,6 +30,8 @@ export type Context = {
     lastError: string | null;
   } | null;
   aiDegradedReason?: string | null;
+  /** Experimental plan-mode agent. Absent or disabled hides the whole surface. */
+  aiAgent?: { enabled: boolean };
   headers: Headers;
   /** Present when the API is hosted by a server that runs live sessions. */
   collab?: {

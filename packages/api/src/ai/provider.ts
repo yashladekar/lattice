@@ -90,11 +90,15 @@ function chatGptFailure(error: unknown): ChatFailure {
 export async function chatCompletion(
   config: AiConfig,
   messages: ChatMessage[],
+  signal?: AbortSignal,
 ): Promise<ChatResult> {
   if (config.auth === "chatgpt") {
     const parts: string[] = [];
     try {
-      for await (const event of streamChatGptResponse(chatGptRequest(config, messages))) {
+      for await (const event of streamChatGptResponse({
+        ...chatGptRequest(config, messages),
+        ...(signal ? { signal } : {}),
+      })) {
         if (event.type === "delta") parts.push(event.text);
       }
     } catch (error) {
@@ -114,6 +118,7 @@ export async function chatCompletion(
   }
 
   const endpoint = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
+  const timeout = AbortSignal.timeout(45_000);
   try {
     const response = await fetch(endpoint, {
       method: "POST",
@@ -121,7 +126,7 @@ export async function chatCompletion(
         "content-type": "application/json",
         authorization: `Bearer ${config.apiKey}`,
       },
-      signal: AbortSignal.timeout(45_000),
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       body: JSON.stringify({
         model: config.model,
         temperature: 0.2,

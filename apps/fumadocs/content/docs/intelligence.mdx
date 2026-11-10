@@ -103,6 +103,56 @@ on another billing path — you get the error and a local answer instead.
 - Usage and limits live at [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage).
   Plan limits are shared across every app that uses your ChatGPT plan.
 
+## Plan mode (experimental)
+
+Behind `AI_AGENT_ENABLED=true`, the Ask panel grows a **Plan** toggle. With it on,
+the assistant can read pages, follow graph relations, and propose a concrete set
+of changes instead of only writing an answer.
+
+It is off by default. Set `AI_AGENT_ENABLED=false` (or remove it) and restart to
+hide the whole surface; the code stays in place and nothing else is affected.
+
+### What it can propose
+
+| Op | Effect |
+| --- | --- |
+| Append / insert / replace blocks | Edits one page's body |
+| Create page | A new page from Markdown |
+| Link pages | A typed graph relation, marked `origin: AI` |
+| Create flashcards | Cards in the daily-review deck |
+
+There is **no delete op**. Destructive changes are not representable, so the
+worst a confused model can do is add something you then discard.
+
+### How a change is applied
+
+The server only ever reads. It runs a bounded loop (6 model turns, 12 ops) over
+its own tools — `search_pages`, `read_page`, `related_pages`, `graph_neighbors`,
+`list_pages` — and returns a plan. The plan is rendered as a card with a preview
+per change, and **nothing is written until you press Apply**.
+
+Applying happens on your device, through the same local repository calls your
+own edits use: a snapshot is saved first (`Before AI edit`, visible in the page
+timeline), then the document is written as a normal revision-aware sync op. If
+you have the page open in a live collaborative session, the CRDT owns the body,
+so Lattice surfaces the usual reload prompt rather than fighting it.
+
+### Why it works this way
+
+Two reasons, both structural:
+
+- A server-side write to a page someone has open loses to that editor's next
+  save — the collaboration layer deliberately does not drop a live room for an
+  out-of-band write. Applying on the client removes the race entirely.
+- Tool output is untrusted text. Emailed captures, pasted pages, and imports all
+  reach the model. The prompt tells the model that note content is data, but the
+  real boundary is the allowlist (no embeds, no images, no executable blocks),
+  the per-page access check on every proposed op, the op caps, and the human
+  Apply click.
+
+Plan mode is available on web and desktop. The native assistant can use a
+connected ChatGPT plan or API key for answers, but not plan mode.
+
 ## Retrieval
 
 1. Resolve pages visible to the requesting member (private pages excluded unless allowed).

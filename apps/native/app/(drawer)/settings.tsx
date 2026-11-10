@@ -481,7 +481,8 @@ export default function SettingsScreen() {
           />
           <Text className="text-[9px] leading-4 text-muted">
             Connecting a ChatGPT plan needs a loopback callback, so it is done from the web or
-            desktop app on the server's machine. This device then uses the same connection.
+            desktop app on the server's machine. This device then uses the same connection. Plan
+            mode is available in the web and desktop app.
           </Text>
           <Pressable
             onPress={() => void reindex()}

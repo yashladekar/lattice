@@ -111,6 +111,7 @@ import {
   updatePageLocal,
   upsertEdgeLocal,
 } from "@/lib/local/repository";
+import { DOCUMENT_REPLACED_EVENT } from "@/lib/local/apply-agent-plan";
 import { appRouteObject } from "@/lib/navigation";
 import { useInstalledPlugins, type StoredPlugin } from "@/lib/plugins";
 import { client } from "@/utils/orpc";
@@ -720,6 +721,38 @@ export function PageEditor({
     if (!page) return;
     setTitle(page.title);
   }, [page?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onReplaced = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ pageId?: string; content?: unknown; rev?: number }>
+      ).detail;
+      if (!detail || detail.pageId !== pageId) return;
+      if (typeof detail.rev === "number") lastWrittenRev.current = detail.rev;
+      if (!editor || editor.isDestroyed) return;
+
+      // A live Yjs session owns the body. Writing through TipTap would fight
+      // the CRDT, so surface the existing reload affordance instead and let the
+      // room re-seed from the applied document.
+      if (collab) {
+        setClobberBlocked(true);
+        setSaveStatus("error");
+        return;
+      }
+
+      const content = safeDoc(detail.content);
+      lastRev.current = lastWrittenRev.current ?? lastRev.current;
+      setClobberBlocked(false);
+      queueMicrotask(() => {
+        if (editor.isDestroyed) return;
+        editor.commands.setContent(content, { emitUpdate: false });
+        setSaveStatus("saved");
+      });
+    };
+    window.addEventListener(DOCUMENT_REPLACED_EVENT, onReplaced);
+    return () => window.removeEventListener(DOCUMENT_REPLACED_EVENT, onReplaced);
+  }, [editor, pageId, collab]);
 
   useEffect(() => {
     if (!db || !activeWorkspaceId) return;
