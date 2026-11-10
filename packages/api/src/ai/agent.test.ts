@@ -80,6 +80,44 @@ describe("agent replies", () => {
     expect(reply).toBeNull();
   });
 
+  it("accepts a plan that writes new notes from general knowledge", () => {
+    const reply = parseAgentReply(
+      JSON.stringify({
+        action: "plan",
+        title: "System design, beginner to advanced",
+        ops: [
+          {
+            kind: "create_page",
+            title: "System design: fundamentals",
+            markdown: "# Fundamentals\n\n- Latency and throughput\n- Read vs write paths",
+          },
+          {
+            kind: "create_page",
+            title: "System design: scaling",
+            markdown: "# Scaling\n\n- Sharding\n- Caching layers",
+          },
+        ],
+      }),
+    );
+    expect(reply?.action).toBe("plan");
+    if (reply?.action !== "plan") throw new Error("expected a plan");
+    expect(reply.plan.ops).toHaveLength(2);
+    expect(reply.plan.ops[0]?.kind).toBe("create_page");
+    expect(reply.warnings).toEqual([]);
+  });
+
+  it("rejects a create_page op with no body", () => {
+    expect(
+      parseAgentReply(
+        JSON.stringify({
+          action: "plan",
+          title: "Empty",
+          ops: [{ kind: "create_page", title: "Nothing", markdown: "" }],
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it("rejects prose and unknown actions", () => {
     expect(parseAgentReply("I will now edit your notes.")).toBeNull();
     expect(parseAgentReply('{"action":"delete_everything"}')).toBeNull();

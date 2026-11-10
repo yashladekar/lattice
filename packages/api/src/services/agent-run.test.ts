@@ -128,6 +128,27 @@ describeWithDatabase("agent run", () => {
     expect(events.some((event) => event.type === "plan")).toBe(true);
   });
 
+  it("proposes new pages when the workspace has nothing to read", async () => {
+    await setup();
+    runChat.mockResolvedValueOnce(
+      reply({
+        action: "plan",
+        title: "System design notes",
+        ops: [
+          {
+            kind: "create_page",
+            title: "System design: fundamentals",
+            markdown: "# Fundamentals\n\nLatency, throughput, and the read/write path.",
+          },
+        ],
+      }),
+    );
+
+    const done = finalPlan(await run("create system design notes for me"));
+    expect(done.plan?.ops[0]?.kind).toBe("create_page");
+    expect(done.warnings).toEqual([]);
+  });
+
   it("drops a change that targets a page which does not exist", async () => {
     await setup();
     runChat.mockResolvedValueOnce(

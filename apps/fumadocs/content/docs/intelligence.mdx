@@ -124,6 +124,20 @@ hide the whole surface; the code stays in place and nothing else is affected.
 There is **no delete op**. Destructive changes are not representable, so the
 worst a confused model can do is add something you then discard.
 
+### Writing from general knowledge
+
+Plan mode is the authoring surface. Ask it for notes on a topic and it drafts
+them from its own knowledge — an empty workspace is the normal starting point,
+not a blocker. Such a page opens with a plain line saying it was drafted from
+general knowledge rather than derived from your workspace, so provenance is
+never ambiguous. For a broad subject it proposes a few focused pages
+(fundamentals first) rather than one enormous one.
+
+Plain **Ask** stays different on purpose: it answers from your notes and cites
+them, and tells you when they do not cover the question. That is the behaviour
+its empty state promises. Use Ask to interrogate what you have, and Plan mode
+to add to it.
+
 ### How a change is applied
 
 The server only ever reads. It runs a bounded loop (6 model turns, 12 ops) over
