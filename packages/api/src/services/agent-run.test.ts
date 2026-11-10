@@ -149,6 +149,58 @@ describeWithDatabase("agent run", () => {
     expect(done.warnings).toEqual([]);
   });
 
+  it("keeps a plan that links the pages it is creating", async () => {
+    await setup();
+    runChat.mockResolvedValueOnce(
+      reply({
+        action: "plan",
+        title: "System design",
+        ops: [
+          { kind: "create_page", ref: "ref:basics", title: "Basics", markdown: "# Basics" },
+          { kind: "create_page", ref: "ref:advanced", title: "Advanced", markdown: "# Advanced" },
+          {
+            kind: "link_pages",
+            sourcePageId: "ref:advanced",
+            targetPageId: "ref:basics",
+            relationType: "PART_OF",
+          },
+          {
+            kind: "link_pages",
+            sourcePageId: "ref:basics",
+            targetPageId: pageId,
+            relationType: "REFERENCES",
+          },
+        ],
+      }),
+    );
+
+    const done = finalPlan(await run("create system design notes and connect them"));
+    expect(done.plan?.ops).toHaveLength(4);
+    expect(done.warnings).toEqual([]);
+  });
+
+  it("drops an op that references an alias the plan never declares", async () => {
+    await setup();
+    runChat.mockResolvedValueOnce(
+      reply({
+        action: "plan",
+        title: "Broken",
+        ops: [
+          {
+            kind: "link_pages",
+            sourcePageId: "ref:missing",
+            targetPageId: pageId,
+            relationType: "RELATED_TO",
+          },
+        ],
+      }),
+    );
+
+    const done = finalPlan(await run("link it"));
+    expect(done.plan).toBeNull();
+    expect(done.answer).toMatch(/does not create/i);
+  });
+
   it("drops a change that targets a page which does not exist", async () => {
     await setup();
     runChat.mockResolvedValueOnce(

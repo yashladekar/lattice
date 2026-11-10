@@ -2,7 +2,9 @@ import type { Database } from "@notes-learning/db";
 import {
   AGENT_LIMITS,
   hasRole,
+  isPlanRef,
   normalizeAgentPlan,
+  planRefs,
   type AgentOp,
   type AgentPlan,
   type Role,
@@ -178,16 +180,27 @@ async function filterPlan(
   };
 
   const ops: AgentOp[] = [];
+  const declaredRefs = planRefs(plan);
   for (const op of plan.ops) {
     const scope = opPageIds(op);
-    let ok = true;
-    for (const pageId of scope.write) {
-      if (!(await check(pageId)).write) ok = false;
-    }
-    for (const pageId of scope.read) {
-      if (!(await check(pageId)).read) ok = false;
-    }
-    if (ok) ops.push(op);
+    let permitted = true;
+    let unknownRef = false;
+
+    const inspect = async (pageId: string, mode: "read" | "write") => {
+      if (isPlanRef(pageId)) {
+        // A page this plan creates has no row to check; its existence depends on
+        // a create_page op in the same plan.
+        if (!declaredRefs.has(pageId)) unknownRef = true;
+        return;
+      }
+      if (!(await check(pageId))[mode]) permitted = false;
+    };
+
+    for (const pageId of scope.write) await inspect(pageId, "write");
+    for (const pageId of scope.read) await inspect(pageId, "read");
+
+    if (permitted && !unknownRef) ops.push(op);
+    else if (unknownRef) warnings.push("A change referenced a page this plan does not create.");
     else warnings.push("A change was dropped because you cannot edit that page.");
   }
 
@@ -210,7 +223,7 @@ Plan ops (every id must come from a tool result, never invented):
 {"kind":"append_blocks","pageId":"…","nodes":[<blocks>]}
 {"kind":"insert_blocks","pageId":"…","afterBlockId":"…","nodes":[<blocks>]}
 {"kind":"replace_blocks","pageId":"…","blockIds":["…"],"nodes":[<blocks>]}
-{"kind":"create_page","title":"…","markdown":"…"}
+{"kind":"create_page","ref":"ref:short-name","title":"…","markdown":"…"}
 {"kind":"link_pages","sourcePageId":"…","targetPageId":"…","relationType":"RELATED_TO"}
 {"kind":"create_flashcards","pageId":"…","cards":[{"front":"…","back":"…"}]}
 
@@ -232,6 +245,7 @@ Authoring new notes:
 - Open any page you drafted from general knowledge with one plain paragraph saying so, for example: "Draft from general knowledge, not derived from the workspace." Never imply it came from their notes.
 - For a broad topic, propose a few focused pages (fundamentals first, then deeper material) instead of one enormous page. At most ${AGENT_LIMITS.maxOps} pages.
 - A page body is markdown: headings, paragraphs, bullet and numbered lists, task lists, blockquotes and fenced code. Aim for a genuinely useful outline with real explanations, not a table of contents.
+- To link or extend pages this plan creates, give each create_page a "ref" such as "ref:fundamentals" and use that exact string wherever an op expects a page id. Refs live only inside one plan, so never invent them for pages you did not create here. Declare a page before another op uses its ref.
 ${pageContext}`;
 }
 

@@ -6,6 +6,7 @@ import {
   describeAgentOp,
   normalizeAgentNodes,
   normalizeAgentPlan,
+  planRefs,
   type AgentOp,
 } from "./agent";
 import type { TipTapDoc, TipTapNode } from "./types";
@@ -121,6 +122,71 @@ describe("plan validation", () => {
   it("returns null rather than throwing on junk", () => {
     expect(normalizeAgentPlan("not a plan").plan).toBeNull();
     expect(normalizeAgentPlan({ title: "x", ops: [] }).plan).toBeNull();
+  });
+});
+
+describe("plan aliases", () => {
+  it("resolves refs declared by create_page in later ops", () => {
+    const { plan, warnings } = normalizeAgentPlan({
+      title: "System design",
+      ops: [
+        { kind: "create_page", ref: "ref:fundamentals", title: "Fundamentals", markdown: "# Basics" },
+        { kind: "create_page", ref: "scaling", title: "Scaling", markdown: "# Scaling" },
+        {
+          kind: "link_pages",
+          sourcePageId: "scaling",
+          targetPageId: "fundamentals",
+          relationType: "PART_OF",
+        },
+      ],
+    });
+    expect(warnings).toEqual([]);
+    expect(plan?.ops[0]).toMatchObject({ kind: "create_page", ref: "ref:fundamentals" });
+    // A bare slug is normalised to the prefixed form.
+    expect(plan?.ops[1]).toMatchObject({ kind: "create_page", ref: "ref:scaling" });
+    expect(plan?.ops[2]).toMatchObject({
+      kind: "link_pages",
+      sourcePageId: "ref:scaling",
+      targetPageId: "ref:fundamentals",
+    });
+  });
+
+  it("leaves real page ids untouched", () => {
+    const id = "0b2c7f7e-1f4a-4c1e-9d2a-2f6a1c3b4d5e";
+    const { plan } = normalizeAgentPlan({
+      title: "x",
+      ops: [
+        {
+          kind: "append_blocks",
+          pageId: id,
+          nodes: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
+        },
+      ],
+    });
+    expect(plan?.ops[0]).toMatchObject({ pageId: id });
+  });
+
+  it("drops a duplicate alias and reports it", () => {
+    const { plan, warnings } = normalizeAgentPlan({
+      title: "x",
+      ops: [
+        { kind: "create_page", ref: "ref:basics", title: "Basics", markdown: "a" },
+        { kind: "create_page", ref: "basics", title: "Basics again", markdown: "a" },
+      ],
+    });
+    expect(plan?.ops).toHaveLength(1);
+    expect(warnings.join(" ")).toMatch(/declared twice/i);
+  });
+
+  it("only counts aliases the plan declares", () => {
+    const { plan } = normalizeAgentPlan({
+      title: "x",
+      ops: [
+        { kind: "create_page", ref: "ref:a", title: "A", markdown: "a" },
+        { kind: "create_page", title: "No alias", markdown: "b" },
+      ],
+    });
+    expect(planRefs(plan!)).toEqual(new Set(["ref:a"]));
   });
 });
 

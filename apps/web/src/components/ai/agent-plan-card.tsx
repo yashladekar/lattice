@@ -27,8 +27,12 @@ function previewOf(op: AgentOp): string {
   return op.cards.map((card) => card.front).join(" · ");
 }
 
-function targetOf(op: AgentOp, pageTitles: Record<string, string>): string | null {
-  const title = (pageId: string) => pageTitles[pageId] ?? "a page";
+function targetOf(
+  op: AgentOp,
+  pageTitles: Record<string, string>,
+  refTitles: Map<string, string>,
+): string | null {
+  const title = (pageId: string) => pageTitles[pageId] ?? refTitles.get(pageId) ?? "a page";
   switch (op.kind) {
     case "append_blocks":
     case "insert_blocks":
@@ -59,6 +63,13 @@ export function AgentPlanCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ApplyAgentPlanResult | null>(null);
+
+  // Pages this plan creates are referenced by alias until Apply, so preview the
+  // titles the plan itself proposes rather than "a page".
+  const refTitles = new Map<string, string>();
+  for (const op of ops) {
+    if (op.kind === "create_page" && op.ref) refTitles.set(op.ref, op.title);
+  }
 
   const apply = async () => {
     setBusy(true);
@@ -92,7 +103,7 @@ export function AgentPlanCard({
               <span className="text-[8px] text-saffron">{index + 1}</span>
               <span className="text-[9px] font-medium">{describeAgentOp(op)}</span>
               <span className="ml-auto truncate text-[8px] text-muted-foreground">
-                {targetOf(op, pageTitles)}
+                {targetOf(op, pageTitles, refTitles)}
               </span>
             </div>
             <div className="mt-0.5 line-clamp-2 text-[8px] leading-relaxed text-muted-foreground">

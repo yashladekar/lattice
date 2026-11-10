@@ -53,6 +53,8 @@ export type AgentOp =
     }
   | {
       kind: "create_page";
+      /** Plan-local alias so later ops can target a page that does not exist yet. */
+      ref?: string;
       title: string;
       markdown: string;
       parentPageId?: string;
@@ -73,6 +75,25 @@ export type AgentOp =
 export interface AgentPlan {
   title: string;
   ops: AgentOp[];
+}
+
+/**
+ * A page id that only exists inside one plan. `create_page` declares it; any
+ * other op may use it, which is how a plan links or edits pages it is creating.
+ */
+export const PLAN_REF_PREFIX = "ref:";
+
+export function isPlanRef(value: string): boolean {
+  return value.startsWith(PLAN_REF_PREFIX);
+}
+
+/** Every alias declared by this plan's `create_page` ops. */
+export function planRefs(plan: AgentPlan): Set<string> {
+  const refs = new Set<string>();
+  for (const op of plan.ops) {
+    if (op.kind === "create_page" && op.ref) refs.add(op.ref);
+  }
+  return refs;
 }
 
 export type BlockEdit = Extract<
@@ -178,6 +199,7 @@ const agentOpShape = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("create_page"),
+    ref: z.string().trim().min(1).max(80).optional(),
     title: z.string().trim().min(1).max(120),
     markdown: z.string().min(1).max(AGENT_LIMITS.maxMarkdownChars),
     parentPageId: pageIdSchema.optional(),
@@ -209,6 +231,40 @@ const agentPlanShape = z.object({
   ops: z.array(agentOpShape).min(1),
 });
 
+/**
+ * Models rarely copy a prefix twice, so `fundamentals` and `ref:fundamentals`
+ * are the same alias. Anything that cannot make a usable slug is dropped
+ * rather than failing the whole plan.
+ */
+export function normalizePlanRef(value: string): string | null {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/^ref:/, "")
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return slug ? `${PLAN_REF_PREFIX}${slug}` : null;
+}
+
+function canonicalizeOpRefs(op: AgentOp, canonical: Map<string, string>): AgentOp {
+  const fix = (value: string) => canonical.get(value) ?? value;
+  switch (op.kind) {
+    case "append_blocks":
+    case "insert_blocks":
+    case "replace_blocks":
+    case "create_flashcards":
+      return { ...op, pageId: fix(op.pageId) };
+    case "create_page":
+      return {
+        ...op,
+        ...(op.parentPageId ? { parentPageId: fix(op.parentPageId) } : {}),
+      };
+    case "link_pages":
+      return { ...op, sourcePageId: fix(op.sourcePageId), targetPageId: fix(op.targetPageId) };
+  }
+}
+
 function normalizeOp(
   raw: z.infer<typeof agentOpShape>,
   warnings: string[],
@@ -231,10 +287,12 @@ function normalizeOp(
     return { kind: raw.kind, pageId: raw.pageId, blockIds: raw.blockIds, nodes };
   }
   if (raw.kind === "create_page") {
+    const ref = raw.ref ? normalizePlanRef(raw.ref) : null;
     return {
       kind: raw.kind,
       title: raw.title,
       markdown: raw.markdown,
+      ...(ref ? { ref } : {}),
       ...(raw.parentPageId ? { parentPageId: raw.parentPageId } : {}),
     };
   }
@@ -265,16 +323,36 @@ export function normalizeAgentPlan(value: unknown): {
   }
 
   const ops: AgentOp[] = [];
+  const seenRefs = new Set<string>();
   for (const raw of parsed.data.ops) {
     if (ops.length >= AGENT_LIMITS.maxOps) {
       warnings.push(`Only the first ${AGENT_LIMITS.maxOps} changes were kept.`);
       break;
     }
     const op = normalizeOp(raw, warnings);
-    if (op) ops.push(op);
+    if (!op) continue;
+    if (op.kind === "create_page" && op.ref) {
+      if (seenRefs.has(op.ref)) {
+        warnings.push(`“${op.ref}” was declared twice, so one page was dropped.`);
+        continue;
+      }
+      seenRefs.add(op.ref);
+    }
+    ops.push(op);
   }
   if (!ops.length) return { plan: null, warnings };
-  return { plan: { title: parsed.data.title, ops }, warnings };
+
+  // Aliases may be written with or without the prefix; canonicalise every
+  // reference against the aliases this plan actually declares.
+  const canonical = new Map<string, string>();
+  for (const op of ops) {
+    if (op.kind !== "create_page" || !op.ref) continue;
+    canonical.set(op.ref, op.ref);
+    canonical.set(op.ref.slice(PLAN_REF_PREFIX.length), op.ref);
+  }
+  const resolved = ops.map((op) => canonicalizeOpRefs(op, canonical));
+
+  return { plan: { title: parsed.data.title, ops: resolved }, warnings };
 }
 
 function withFreshBlockIds(node: TipTapNode): TipTapNode {
