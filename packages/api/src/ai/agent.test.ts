@@ -118,6 +118,34 @@ describe("agent replies", () => {
     ).toBeNull();
   });
 
+  it("parses a plan whose page bodies contain mermaid fences", () => {
+    const reply = parseAgentReply(
+      JSON.stringify({
+        action: "plan",
+        title: "System design",
+        ops: [
+          {
+            kind: "create_page",
+            ref: "ref:one",
+            title: "One",
+            markdown:
+              "Intro\n\n```mermaid\nflowchart TD\n  a[Client] --> b{Healthy?}\n  b --> c[Server]\n```\n\nDone",
+          },
+        ],
+      }),
+    );
+    expect(reply?.action).toBe("plan");
+    if (reply?.action !== "plan") throw new Error("expected a plan");
+    expect(reply.plan.ops[0]).toMatchObject({ kind: "create_page" });
+  });
+
+  it("finds the reply when prose and a fence precede it", () => {
+    const reply = parseAgentReply(
+      'Here you go:\n```json\n{"action":"answer","text":"hi"}\n```',
+    );
+    expect(reply).toEqual({ action: "answer", text: "hi" });
+  });
+
   it("rejects prose and unknown actions", () => {
     expect(parseAgentReply("I will now edit your notes.")).toBeNull();
     expect(parseAgentReply('{"action":"delete_everything"}')).toBeNull();

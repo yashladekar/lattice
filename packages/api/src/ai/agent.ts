@@ -65,19 +65,24 @@ const replySchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-/** Pulls the first complete JSON object out of a reply, fenced or bare. */
+/**
+ * Returns the first complete JSON object in `text`.
+ *
+ * Deliberately does not strip markdown fences first: a plan legitimately
+ * contains ```mermaid fences inside its page bodies, and treating the first
+ * fence as the payload threw the real object away.
+ */
 export function extractJsonObject(text: string): string | null {
-  const fenced = /```(?:json)?\s*\n?([\s\S]*?)```/i.exec(text);
-  const source = fenced?.[1] ?? text;
+  const start = text.indexOf("{");
+  return start === -1 ? null : balancedObjectAt(text, start);
+}
 
-  const start = source.indexOf("{");
-  if (start === -1) return null;
-
+function balancedObjectAt(text: string, start: number): string | null {
   let depth = 0;
   let inString = false;
   let escaped = false;
-  for (let index = start; index < source.length; index += 1) {
-    const char = source[index];
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
     if (inString) {
       if (escaped) escaped = false;
       else if (char === "\\") escaped = true;
@@ -88,18 +93,44 @@ export function extractJsonObject(text: string): string | null {
     else if (char === "{") depth += 1;
     else if (char === "}") {
       depth -= 1;
-      if (depth === 0) return source.slice(start, index + 1);
+      if (depth === 0) return text.slice(start, index + 1);
     }
   }
   return null;
 }
 
+/** Every brace-balanced object that could be a protocol reply, in order. */
+function candidateObjects(text: string): string[] {
+  const candidates: string[] = [];
+  let index = text.indexOf("{");
+  let examined = 0;
+  while (index !== -1 && examined < 64) {
+    examined += 1;
+    const object = balancedObjectAt(text, index);
+    if (object && /"action"\s*:/.test(object.slice(0, 200))) {
+      candidates.push(object);
+      if (candidates.length >= 8) break;
+    }
+    index = text.indexOf("{", index + 1);
+  }
+  return candidates;
+}
+
 export function parseAgentReply(text: string): AgentReply | null {
-  const raw = extractJsonObject(text);
-  if (!raw) return null;
+  // Models sometimes preface the object with prose, and a plan can contain
+  // braces of its own (diagram labels), so try each candidate rather than only
+  // the first brace in the string.
+  for (const candidate of candidateObjects(text)) {
+    const reply = readReply(candidate);
+    if (reply) return reply;
+  }
+  return null;
+}
+
+function readReply(candidate: string): AgentReply | null {
   let value: unknown;
   try {
-    value = JSON.parse(raw);
+    value = JSON.parse(candidate);
   } catch {
     return null;
   }
@@ -310,8 +341,12 @@ export async function* runAgent(input: RunAgentInput): AsyncGenerator<AgentEvent
       repairs += 1;
       if (repairs > 1) {
         const notes = ["The assistant did not return a readable plan, so nothing was proposed."];
-        yield { type: "answer", text: raw };
-        yield { type: "done", answer: raw, provider, plan: null, warnings: notes };
+        // Never dump a broken protocol reply into the chat as if it were prose.
+        const text = raw.trimStart().startsWith("{")
+          ? "The assistant sent a plan that could not be read, so nothing was proposed. Try again, or split the request into smaller parts."
+          : raw;
+        yield { type: "answer", text };
+        yield { type: "done", answer: text, provider, plan: null, warnings: notes };
         return;
       }
       messages.push({ role: "assistant", content: raw });
