@@ -9,10 +9,11 @@ The intelligence layer is optional. Lattice is useful without any model provider
 
 | Mode | Behavior |
 | --- | --- |
+| ChatGPT plan | Server calls the OpenAI Responses API with the signed-in member's own ChatGPT plan |
 | Provider | Server calls an OpenAI-compatible chat endpoint with retrieved note context |
 | Local | Token-overlap retrieval from the workspace, with passages and citations |
 
-The UI labels responses as **Local mode** or the configured model. It never presents heuristic retrieval as a synthesized answer.
+The UI labels responses as **ChatGPT plan**, the configured model, or **Local mode**. It never presents heuristic retrieval as a synthesized answer.
 
 ## Configuration
 
@@ -44,6 +45,63 @@ transcription model). That is what bring-your-own-key means here:
 In both modes the provider is an OpenAI-compatible endpoint: the server sends
 chat, embedding, and transcription requests itself, and no note content reaches a
 provider until a member asks a question or an editor builds the semantic index.
+
+## ChatGPT plan
+
+Instead of an API key, each member can sign in with their own ChatGPT account and
+run AI requests against their Plus or Pro plan. This is OpenAI's
+[Sign in with ChatGPT](https://developers.openai.com/siwc/quickstart) open-source
+token-sharing flow.
+
+### Connecting
+
+1. **Settings → Intelligence → ChatGPT plan → Continue with ChatGPT.**
+2. Your system browser opens OpenAI's consent screen. Approve the request.
+3. The browser returns to the loopback callback
+   (`http://127.0.0.1:1455/auth/callback`), Lattice exchanges the code, validates
+   the ID token, and stores the tokens.
+
+Two constraints follow from OpenAI's contract, not from Lattice:
+
+- **The sign-in only works when the Lattice server runs on the same machine as
+  the browser** — `pnpm dev`, a local `docker compose up`, or the desktop build.
+  OpenAI only accepts a `127.0.0.1` callback, and `127.0.0.1` is the browser's
+  machine. On a remote server, use **Export credential** / **Import credential**
+  to transfer a session, following OpenAI's self-hosted VM guidance.
+- **Plan usage covers `POST /v1/responses` only.** No embeddings, no audio
+  transcription, no `temperature` or `max_output_tokens`. The semantic index and
+  transcription therefore keep using a workspace or deployment API key, and say
+  so plainly when neither exists.
+
+### Precedence
+
+The preferred chat backend is per member, per workspace:
+
+| Preference | Order |
+| --- | --- |
+| Automatic (default) | ChatGPT plan → workspace key → deployment key |
+| ChatGPT plan | ChatGPT plan only, with an explicit notice if unavailable |
+| Workspace provider | Workspace key only |
+| Deployment provider | `AI_API_KEY` only |
+
+Embeddings and transcription always come from whichever API key is configured;
+they never route through the ChatGPT plan. A failed plan request is never retried
+on another billing path — you get the error and a local answer instead.
+
+### Credentials
+
+- Access tokens last one hour; refresh tokens last 30 days and rotate on every
+  refresh. Refreshes are serialized per credential so two requests cannot race a
+  rotating token.
+- Access, refresh, and ID tokens are encrypted with AES-256-GCM under a
+  purpose-separated key (`chatgpt`). They never reach the browser, are never
+  logged — including the authorization URL, which carries the retained
+  `id_token_hint` — and are never written to a client-side store.
+- **Disconnect** revokes the refresh token at OpenAI's revocation endpoint before
+  deleting the row. If revocation cannot be confirmed, Lattice says so; you can
+  also disconnect from ChatGPT settings.
+- Usage and limits live at [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage).
+  Plan limits are shared across every app that uses your ChatGPT plan.
 
 ## Retrieval
 

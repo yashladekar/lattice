@@ -5,7 +5,7 @@ import type { Context as ApiContext } from "@notes-learning/api/context";
 import { fromNodeHeaders } from "better-auth/node";
 import type { Request } from "express";
 
-import { auth, db } from "./services";
+import { auth, chatgptCallback, db } from "./services";
 import { isCollaborating, invalidateCollabState, resetCollabState } from "./collaboration";
 import { ENV, aiConfig, uploadRoot } from "./env.server";
 
@@ -54,9 +54,11 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     db,
     session,
     ai: aiConfig,
+    aiAux: aiConfig,
     headers,
     uploads: { read: readUpload },
     secrets: { keyMaterial: ENV.BETTER_AUTH_SECRET },
+    chatgpt: chatgptCallback,
     collab: {
       isActive: (_workspaceId: string, pageId: string, userId: string) =>
         isCollaborating(pageId, userId),

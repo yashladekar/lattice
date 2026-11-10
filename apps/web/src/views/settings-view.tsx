@@ -35,7 +35,7 @@ import {
   Webhook,
   WifiOff,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -54,6 +54,7 @@ import { WebhookManager } from "@/components/workspace/webhook-manager";
 import { authClient } from "@/lib/auth-client";
 import { getApiBaseUrl } from "@/lib/config";
 import { downloadBytes, downloadTextFile } from "@/lib/download";
+import { openExternalUrl } from "@/lib/open-external";
 import { useWorkspaceNotebooks, useWorkspacePages } from "@/hooks/use-local-data";
 import {
   exportWorkspaceLocal,
@@ -98,6 +99,15 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Cloud }> = [
 ];
 
 const ROLES: Role[] = ["OWNER", "ADMIN", "MEMBER", "EDITOR", "VIEWER", "GUEST"];
+
+type ChatSource = "auto" | "chatgpt" | "workspace" | "deployment";
+
+const CHAT_SOURCE_CHOICES: Array<{ value: ChatSource; label: string; hint: string }> = [
+  { value: "auto", label: "Automatic", hint: "Your ChatGPT plan, then the workspace provider, then deployment." },
+  { value: "chatgpt", label: "ChatGPT plan", hint: "Always use your ChatGPT plan for chat." },
+  { value: "workspace", label: "Workspace provider", hint: "Always use this workspace's API key." },
+  { value: "deployment", label: "Deployment provider", hint: "Always use the server's AI_API_KEY." },
+];
 
 export function SettingsView() {
   const router = useRouter();
@@ -193,6 +203,16 @@ export function SettingsView() {
     queryFn: async () => client.ai.embeddingStatus(),
     enabled: online && Boolean(activeWorkspaceId),
   });
+  const chatgpt = useQuery({
+    queryKey: ["chatgpt-status", user?.id, activeWorkspaceId],
+    queryFn: async () => client.chatgpt.status(),
+    enabled: online && Boolean(user) && Boolean(activeWorkspaceId),
+  });
+  const chatgptModels = useQuery({
+    queryKey: ["chatgpt-models", user?.id],
+    queryFn: async () => client.chatgpt.models(),
+    enabled: online && Boolean(user) && Boolean(chatgpt.data?.connected),
+  });
   const [newIngestToken, setNewIngestToken] = useState<string | null>(null);
   const [scimName, setScimName] = useState("Identity provider");
   const [newScimToken, setNewScimToken] = useState<string | null>(null);
@@ -214,6 +234,11 @@ export function SettingsView() {
   const [pendingRetention, setPendingRetention] = useState<number | null>(null);
   const [pendingMember, setPendingMember] = useState<{ id: string; name: string } | null>(null);
   const [indexing, setIndexing] = useState(false);
+  const [chatgptBusy, setChatgptBusy] = useState(false);
+  const chatgptCredentialInput = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
+  const chatgptRedirect = searchParams?.get("chatgpt") ?? null;
+  const handledChatGptRedirect = useRef<string | null>(null);
 
   const saveGeneral = async () => {
     if (!db || !activeWorkspaceId) return;
@@ -446,6 +471,101 @@ export function SettingsView() {
       toast.error(error instanceof Error ? error.message : "Could not build the index");
     } finally {
       setIndexing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!chatgptRedirect || handledChatGptRedirect.current === chatgptRedirect) return;
+    handledChatGptRedirect.current = chatgptRedirect;
+    setTab("ai");
+    if (chatgptRedirect === "connected") {
+      toast.success("ChatGPT connected");
+      void Promise.all([chatgpt.refetch(), chatgptModels.refetch(), aiStatus.refetch()]);
+    } else if (chatgptRedirect === "denied") {
+      toast.error("ChatGPT plan usage was not granted");
+    } else if (chatgptRedirect === "error") {
+      toast.error("The ChatGPT sign-in did not complete");
+    }
+  }, [chatgptRedirect]);
+
+  const connectChatGpt = async (options: { consent?: boolean } = {}) => {
+    setChatgptBusy(true);
+    try {
+      const result = await client.chatgpt.start(options);
+      await openExternalUrl(result.authorizeUrl);
+      toast.success("Finish signing in to ChatGPT in your browser.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not start the ChatGPT sign-in",
+      );
+    } finally {
+      setChatgptBusy(false);
+    }
+  };
+
+  const disconnectChatGpt = async () => {
+    setChatgptBusy(true);
+    try {
+      const result = await client.chatgpt.disconnect();
+      await Promise.all([chatgpt.refetch(), aiStatus.refetch()]);
+      toast.success(
+        result.revoked
+          ? "ChatGPT disconnected"
+          : "ChatGPT disconnected locally — remote revocation was not confirmed.",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not disconnect ChatGPT");
+    } finally {
+      setChatgptBusy(false);
+    }
+  };
+
+  const chooseChatGptModel = async (model: string) => {
+    try {
+      await client.chatgpt.setModel({ model });
+      await Promise.all([chatgpt.refetch(), aiStatus.refetch()]);
+      toast.success(`ChatGPT model set to ${model}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not set the model");
+    }
+  };
+
+  const setChatSource = async (source: ChatSource) => {
+    try {
+      await client.chatgpt.setPreference({ source });
+      await Promise.all([chatgpt.refetch(), aiStatus.refetch()]);
+      toast.success("AI backend preference saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the preference");
+    }
+  };
+
+  const exportChatGptCredential = async () => {
+    try {
+      const bundle = await client.chatgpt.exportCredential();
+      downloadTextFile(
+        `lattice-chatgpt-${new Date().toISOString().slice(0, 10)}.json`,
+        JSON.stringify(bundle, null, 2),
+      );
+      toast.success("Credential file exported — store it like a password.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not export the credential");
+    }
+  };
+
+  const importChatGptCredential = async (file: File) => {
+    setChatgptBusy(true);
+    try {
+      const parsed = JSON.parse(await file.text()) as Parameters<
+        typeof client.chatgpt.importCredential
+      >[0];
+      await client.chatgpt.importCredential(parsed);
+      await Promise.all([chatgpt.refetch(), chatgptModels.refetch(), aiStatus.refetch()]);
+      toast.success("ChatGPT credential imported");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not import the credential");
+    } finally {
+      setChatgptBusy(false);
     }
   };
 
@@ -1296,13 +1416,22 @@ export function SettingsView() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-medium">
-                    {aiStatus.data?.enabled ? "Provider connected" : "Local retrieval mode"}
+                    {aiStatus.data?.mode === "chatgpt"
+                      ? "ChatGPT plan connected"
+                      : aiStatus.data?.enabled
+                        ? "Provider connected"
+                        : "Local retrieval mode"}
                   </div>
                   <div className="text-[8px] text-muted-foreground">
                     {aiStatus.data?.enabled
                       ? `Model: ${aiStatus.data.model}`
-                      : "Configure AI_BASE_URL, AI_API_KEY, and AI_MODEL on the server."}
+                      : "Configure AI_BASE_URL, AI_API_KEY, and AI_MODEL on the server, or connect a ChatGPT plan below."}
                   </div>
+                  {aiStatus.data?.degradedReason ? (
+                    <div className="mt-0.5 text-[8px] text-saffron">
+                      {aiStatus.data.degradedReason}
+                    </div>
+                  ) : null}
                 </div>
                 {aiStatus.data?.enabled ? <Check className="size-3.5 text-moss" /> : <WifiOff className="size-3.5 text-saffron" />}
               </div>
@@ -1311,6 +1440,220 @@ export function SettingsView() {
                 <li>• AI never edits your notes without an explicit Apply action.</li>
                 <li>• Local mode uses token overlap and graph structure, not external calls.</li>
               </ul>
+            </SettingsCard>
+
+            <SettingsCard
+              title="ChatGPT plan"
+              description="Use your own ChatGPT Plus or Pro plan for AI answers instead of an API key. Tokens stay on this server, encrypted, and never reach the browser."
+            >
+              {!online ? (
+                <OfflineNotice />
+              ) : !chatgpt.data ? (
+                <LoadingRow />
+              ) : !chatgpt.data.canConnect ? (
+                <p className="text-[9px] text-muted-foreground">
+                  This server cannot complete the ChatGPT sign-in callback.
+                </p>
+              ) : chatgpt.data.connected ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span
+                      className={cn(
+                        "status-dot",
+                        chatgpt.data.planEnabled ? "bg-moss" : "bg-saffron",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[10px] font-medium">
+                        {chatgpt.data.email ?? chatgpt.data.name ?? "ChatGPT account"}
+                      </div>
+                      <div className="text-[8px] text-muted-foreground">
+                        {chatgpt.data.planEnabled
+                          ? "ChatGPT plan usage is enabled"
+                          : "Signed in, but plan usage was not granted"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {chatgptModels.data?.models.length ? (
+                    <div>
+                      <div className="mb-1 text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                        Model
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {chatgptModels.data.models.map((model) => (
+                          <button
+                            key={model.slug}
+                            type="button"
+                            onClick={() => void chooseChatGptModel(model.slug)}
+                            className={cn(
+                              "rounded-md border px-2 py-1 text-[9px]",
+                              chatgpt.data?.model === model.slug
+                                ? "border-saffron/60 bg-saffron/10 text-foreground"
+                                : "border-border/60 bg-card text-muted-foreground hover:bg-muted/50",
+                            )}
+                          >
+                            {model.displayName}
+                          </button>
+                        ))}
+                      </div>
+                      {chatgptModels.data.error ? (
+                        <p className="mt-1 text-[8px] text-muted-foreground">
+                          {chatgptModels.data.error}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <div className="mb-1 text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Preferred AI backend
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {CHAT_SOURCE_CHOICES.map((choice) => (
+                        <button
+                          key={choice.value}
+                          type="button"
+                          title={choice.hint}
+                          onClick={() => void setChatSource(choice.value)}
+                          className={cn(
+                            "rounded-md border px-2 py-1 text-[9px]",
+                            (chatgpt.data?.preference ?? "auto") === choice.value
+                              ? "border-saffron/60 bg-saffron/10 text-foreground"
+                              : "border-border/60 bg-card text-muted-foreground hover:bg-muted/50",
+                          )}
+                        >
+                          {choice.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[8px] text-muted-foreground">
+                      {
+                        CHAT_SOURCE_CHOICES.find(
+                          (choice) => choice.value === (chatgpt.data?.preference ?? "auto"),
+                        )?.hint
+                      }
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px]"
+                      disabled={chatgptBusy}
+                      onClick={() => void connectChatGpt()}
+                    >
+                      Sign in again
+                    </Button>
+                    {!chatgpt.data.planEnabled ? (
+                      <Button
+                        size="sm"
+                        className="h-7 rounded-md text-[9px]"
+                        disabled={chatgptBusy}
+                        onClick={() => void connectChatGpt({ consent: true })}
+                      >
+                        Enable plan usage
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px] text-destructive"
+                      disabled={chatgptBusy}
+                      onClick={() => void disconnectChatGpt()}
+                    >
+                      Disconnect
+                    </Button>
+                    <a
+                      href="https://chatgpt.com/settings/usage"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[8px] text-link hover:underline"
+                    >
+                      Usage and limits
+                    </a>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px]"
+                      disabled={chatgptBusy}
+                      onClick={() => void exportChatGptCredential()}
+                    >
+                      <Download className="size-3" /> Export credential
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px]"
+                      disabled={chatgptBusy}
+                      onClick={() => chatgptCredentialInput.current?.click()}
+                    >
+                      <FolderUp className="size-3" /> Import credential
+                    </Button>
+                    <input
+                      ref={chatgptCredentialInput}
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        if (file) void importChatGptCredential(file);
+                      }}
+                    />
+                    <span className="text-[8px] text-muted-foreground">
+                      Only needed when you run more than one Lattice server.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-lg text-[10px]"
+                    disabled={chatgptBusy}
+                    data-oai-siwc-button
+                    onClick={() => void connectChatGpt()}
+                  >
+                    Continue with ChatGPT
+                  </Button>
+                  <p className="text-[8px] leading-relaxed text-muted-foreground">
+                    Needs a ChatGPT Plus or Pro account. The sign-in completes against the Lattice
+                    server on this computer, because OpenAI only accepts a loopback callback.
+                  </p>
+                  {chatgpt.data.lastError ? (
+                    <p className="text-[8px] text-destructive">
+                      Last error: {chatgpt.data.lastError}
+                    </p>
+                  ) : null}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-[9px]"
+                      disabled={chatgptBusy}
+                      onClick={() => chatgptCredentialInput.current?.click()}
+                    >
+                      <FolderUp className="size-3" /> Import credential
+                    </Button>
+                    <input
+                      ref={chatgptCredentialInput}
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        if (file) void importChatGptCredential(file);
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </SettingsCard>
 
             {["OWNER", "ADMIN"].includes(role ?? "") ? (
@@ -1461,7 +1804,7 @@ export function SettingsView() {
                     <span className="text-[8px] text-muted-foreground">
                       {embeddingStatus.data?.enabled
                         ? "Uses AI_EMBEDDING_MODEL on the server."
-                        : "Add an AI provider to enable embeddings."}
+                        : "ChatGPT plan usage can't create embeddings — add a workspace API key to enable this."}
                     </span>
                   </div>
                   <p className="text-[8px] leading-relaxed text-muted-foreground">

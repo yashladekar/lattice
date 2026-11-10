@@ -4,6 +4,7 @@ import { protectedProcedure, publicProcedure } from "../index";
 import { aiRouter } from "./ai";
 import { canvasRouter } from "./canvas";
 import { captureRouter } from "./capture";
+import { chatGptRouter } from "./chatgpt";
 import { commentRouter } from "./comment";
 import { consoleRouter } from "./console";
 import { graphRouter } from "./graph";
@@ -42,6 +43,7 @@ export const appRouter = {
   sso: ssoRouter,
   search: searchRouter,
   ai: aiRouter,
+  chatgpt: chatGptRouter,
   sync: syncRouter,
   presence: presenceRouter,
   notification: notificationRouter,

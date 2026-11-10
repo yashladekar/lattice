@@ -3,8 +3,10 @@ import type { Database } from "@notes-learning/db";
 
 export type AiConfig = {
   baseUrl: string;
+  /** An API key, or a short-lived OAuth access token when `auth` is "chatgpt". */
   apiKey: string;
   model: string;
+  auth?: "apiKey" | "chatgpt";
   embeddingModel?: string;
   transcribeModel?: string;
 };
@@ -12,7 +14,22 @@ export type AiConfig = {
 export type Context = {
   session: Session | null;
   db: Database;
+  /** Provider used for chat. May be backed by the user's ChatGPT plan. */
   ai: AiConfig | null;
+  /**
+   * Provider used for embeddings and audio transcription. Always API-key
+   * backed: ChatGPT plan usage covers the Responses API only.
+   */
+  aiAux?: AiConfig | null;
+  aiSource?: "chatgpt" | "workspace" | "deployment" | "none";
+  aiChatGpt?: {
+    connected: boolean;
+    email: string | null;
+    name: string | null;
+    planEnabled: boolean;
+    lastError: string | null;
+  } | null;
+  aiDegradedReason?: string | null;
   headers: Headers;
   /** Present when the API is hosted by a server that runs live sessions. */
   collab?: {
@@ -28,5 +45,12 @@ export type Context = {
   /** Present when the host can encrypt workspace secrets (SSO client secrets, AI keys). */
   secrets?: {
     keyMaterial: string;
+  };
+  /**
+   * Present when the host can open a loopback listener for the Sign in with
+   * ChatGPT callback. `redirect_uri` must stay on 127.0.0.1.
+   */
+  chatgpt?: {
+    startListener(): Promise<{ redirectUri: string }>;
   };
 };

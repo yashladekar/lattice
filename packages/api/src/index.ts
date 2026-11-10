@@ -64,16 +64,25 @@ export const workspaceProcedure = (minimumRole: Role = "VIEWER") =>
   });
 
 /**
- * Workspace procedures whose provider comes from the workspace's own AI
- * credentials when it has them, falling back to the deployment configuration.
+ * Workspace procedures whose provider comes from the requesting user's ChatGPT
+ * plan when they connected one, otherwise the workspace's own AI credentials,
+ * otherwise the deployment configuration.
  */
 export const aiWorkspaceProcedure = (minimumRole: Role = "VIEWER") =>
   workspaceProcedure(minimumRole).use(async ({ context, next }) => {
-    const resolved = await resolveAiConfig(
-      context.db,
-      context.workspaceId,
-      context.ai,
-      context.secrets?.keyMaterial,
-    );
-    return next({ context: { ai: resolved.config } });
+    const resolved = await resolveAiConfig(context.db, {
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+      deployment: context.ai,
+      ...(context.secrets?.keyMaterial ? { keyMaterial: context.secrets.keyMaterial } : {}),
+    });
+    return next({
+      context: {
+        ai: resolved.chat,
+        aiAux: resolved.aux,
+        aiSource: resolved.source,
+        aiChatGpt: resolved.chatgpt,
+        aiDegradedReason: resolved.degradedReason,
+      },
+    });
   });

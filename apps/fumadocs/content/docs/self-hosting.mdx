@@ -70,6 +70,15 @@ IndexedDB is not a backup. Browsers can evict non-persistent origins. Grant pers
 
 Add `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` to the API environment. Keep the provider key server-side. Without it, Ask Lattice runs local retrieval. Set `AI_EMBEDDING_MODEL` (default `text-embedding-3-small`) to control the model used by the optional semantic index.
 
+### ChatGPT plan
+
+Members can connect their own ChatGPT Plus or Pro plan instead of using an API key. The server opens a loopback listener on `127.0.0.1:1455` (falling back to an ephemeral port, path always `/auth/callback`) because OpenAI's Sign in with ChatGPT flow only accepts a loopback redirect. Two consequences for a self-hoster:
+
+- **It only works when the server runs on the same machine as the browser** — local Compose, `pnpm dev`, or the desktop build. A remote server cannot receive the callback. For that case, complete the sign-in locally and use **Export credential** / **Import credential** in Settings, which follows OpenAI's self-hosted VM guidance.
+- **Plan usage covers chat only.** It cannot produce embeddings or transcribe audio, so keep `AI_API_KEY` for the semantic index and the inbox transcriber. Without a key, both report that plainly instead of failing silently.
+
+The listener only starts when someone opens the sign-in flow. It is bound to loopback, serves exactly one path, and never returns credentials to the browser. Tokens are encrypted at rest with `BETTER_AUTH_SECRET` as the key material — back that secret up with the database, or existing connections have to be reauthorized.
+
 ### Audio transcription
 
 Audio captures in the inbox can be transcribed when the provider exposes `/audio/transcriptions`. The model comes from `AI_TRANSCRIBE_MODEL` (default `whisper-1`). The server reads the stored upload from `UPLOAD_DIR`, sends it to the provider, and appends the transcript to the capture through the sync change log; files above 25 MB are refused.

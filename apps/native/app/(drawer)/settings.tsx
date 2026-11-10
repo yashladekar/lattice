@@ -461,12 +461,28 @@ export default function SettingsScreen() {
         </Card>
 
         <Card title="Assistant" description="Optional. Local retrieval works without a provider.">
-          <Row label="Mode" value={aiStatus.data?.enabled ? "Provider" : "Local"} />
+          <Row
+            label="Mode"
+            value={
+              aiStatus.data?.mode === "chatgpt"
+                ? "ChatGPT plan"
+                : aiStatus.data?.enabled
+                  ? "Provider"
+                  : "Local"
+            }
+          />
           <Row label="Model" value={aiStatus.data?.model ?? "None"} />
+          {aiStatus.data?.chatgpt?.connected ? (
+            <Row label="ChatGPT" value={aiStatus.data.chatgpt.email ?? "Connected"} />
+          ) : null}
           <Row
             label="Embeddings"
             value={`${embedding.data?.count ?? 0} pages indexed`}
           />
+          <Text className="text-[9px] leading-4 text-muted">
+            Connecting a ChatGPT plan needs a loopback callback, so it is done from the web or
+            desktop app on the server's machine. This device then uses the same connection.
+          </Text>
           <Pressable
             onPress={() => void reindex()}
             className="items-center rounded-xl border border-border py-2"

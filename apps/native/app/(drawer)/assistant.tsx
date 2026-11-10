@@ -78,18 +78,49 @@ export default function AssistantScreen() {
     setMessages((current) => [...current, optimistic]);
     setAsking(true);
     try {
-      const result = await client.ai.ask({ question: value, threadId });
-      setThreadId(result.threadId);
+      const assistantId = `answer-${Date.now()}`;
       setMessages((current) => [
         ...current,
-        {
-          id: `answer-${Date.now()}`,
-          role: "assistant",
-          content: result.answer,
-          citations: result.citations as Message["citations"],
-          provider: result.provider,
-        },
+        { id: assistantId, role: "assistant", content: "", citations: [], provider: null },
       ]);
+
+      let answer = "";
+      let citations: Message["citations"] = [];
+      let provider: string | null = null;
+      let warning: string | null = null;
+      let lastFlush = 0;
+      const flush = (force = false) => {
+        const now = Date.now();
+        if (!force && now - lastFlush < 60) return;
+        lastFlush = now;
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId ? { ...message, content: answer, citations } : message,
+          ),
+        );
+      };
+
+      for await (const event of await client.ai.askStream({ question: value, threadId })) {
+        if (event.type === "citations") {
+          citations = event.citations as Message["citations"];
+        } else if (event.type === "delta") {
+          answer += event.text;
+          flush();
+        } else {
+          setThreadId(event.threadId);
+          citations = event.citations as Message["citations"];
+          provider = event.provider;
+          warning = event.warning?.message ?? null;
+        }
+      }
+
+      flush(true);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId ? { ...message, content: answer, citations, provider } : message,
+        ),
+      );
+      if (warning) toast.show({ variant: "default", label: warning });
       await queryClient.invalidateQueries({ queryKey: ["native-ai-threads", workspace?.id] });
     } catch (error) {
       toast.show({
@@ -123,9 +154,11 @@ export default function AssistantScreen() {
       <ScreenHeader
         title="Assistant"
         subtitle={
-          status.data?.enabled
-            ? `Provider mode · ${status.data.model ?? "configured"}`
-            : "Local retrieval mode · answers cite your notes"
+          status.data?.mode === "chatgpt"
+            ? `ChatGPT plan · ${status.data.model ?? "connected"}`
+            : status.data?.enabled
+              ? `Provider mode · ${status.data.model ?? "configured"}`
+              : "Local retrieval mode · answers cite your notes"
         }
         large
         right={
@@ -190,7 +223,9 @@ export default function AssistantScreen() {
               </Text>
             </View>
           ) : (
-            messages.map((message) => (
+            messages
+              .filter((message) => message.role === "user" || message.content.length > 0)
+              .map((message) => (
               <View
                 key={message.id}
                 className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 ${

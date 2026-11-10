@@ -25,8 +25,17 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
-import { aiEnabled, chatCompletion, embedTexts, localAnswer, transcribeAudio } from "../ai/provider";
-import type { AiConfig } from "../context";
+import {
+  aiEnabled,
+  auxEnabled,
+  chatCompletion,
+  embedTexts,
+  localAnswer,
+  streamChatCompletion,
+  transcribeAudio,
+  type ChatMessage,
+} from "../ai/provider";
+import type { AiConfig, Context } from "../context";
 import { aiWorkspaceProcedure } from "../index";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
 
@@ -228,12 +237,78 @@ async function saveThreadMessage(
   return threadId;
 }
 
+interface AiWorkspaceContext extends Context {
+  workspaceId: string;
+  userId: string;
+  role: Role;
+}
+
+/**
+ * Retrieval plus the prompt, shared by `ask` and `askStream` so citations and
+ * provider selection cannot drift between the streaming and buffered paths.
+ */
+async function prepareAnswer(
+  context: AiWorkspaceContext,
+  input: {
+    question: string;
+    scope?: { notebookId?: string | null; pageIds?: string[] };
+  },
+): Promise<{ citations: AiCitation[]; messages: ChatMessage[] }> {
+  let pages: RetrievedPage[] | null = null;
+  if (auxEnabled(context)) {
+    pages = await retrieveSemantic(
+      context.db,
+      context.aiAux,
+      context.workspaceId,
+      context.userId,
+      context.role,
+      input.question,
+      input.scope,
+    );
+  }
+  if (!pages) {
+    pages = await retrievePages(
+      context.db,
+      context.workspaceId,
+      context.userId,
+      context.role,
+      input.question,
+      input.scope,
+    );
+  }
+  return {
+    citations: citationsFrom(pages),
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `Question: ${input.question}\n\nNotes:\n${contextBlock(pages)}`,
+      },
+    ],
+  };
+}
+
+const askInput = z.object({
+  question: z.string().trim().min(2).max(4000),
+  scope: z
+    .object({
+      notebookId: z.string().nullable().optional(),
+      pageIds: z.array(z.string()).max(50).optional(),
+    })
+    .optional(),
+  threadId: z.string().nullable().optional(),
+});
+
 export const aiRouter = {
   status: aiWorkspaceProcedure("VIEWER").handler(({ context }) => {
+    const enabled = aiEnabled(context);
     return {
-      enabled: aiEnabled(context),
-      mode: aiEnabled(context) ? "provider" : "local",
+      enabled,
+      mode: context.ai?.auth === "chatgpt" ? "chatgpt" : enabled ? "provider" : "local",
       model: context.ai?.model ?? null,
+      source: context.aiSource ?? "none",
+      chatgpt: context.aiChatGpt ?? null,
+      degradedReason: context.aiDegradedReason ?? null,
     };
   }),
 
@@ -247,20 +322,22 @@ export const aiRouter = {
       }),
     ]);
     return {
-      enabled: aiEnabled(context),
-      model: latest?.model ?? context.ai?.embeddingModel ?? "text-embedding-3-small",
+      enabled: auxEnabled(context),
+      model: latest?.model ?? context.aiAux?.embeddingModel ?? "text-embedding-3-small",
       count,
       lastIndexedAt: latest?.updatedAt.toISOString() ?? null,
     };
   }),
 
   reindex: aiWorkspaceProcedure("EDITOR").handler(async ({ context }) => {
-    if (!aiEnabled(context)) {
+    if (!auxEnabled(context)) {
       return {
         ok: false as const,
         indexed: 0,
         skipped: 0,
-        reason: "Semantic search needs an AI provider with an embeddings endpoint.",
+        reason: aiEnabled(context)
+          ? "ChatGPT plan usage can't create embeddings. Add a workspace API key to build the semantic index."
+          : "Semantic search needs an AI provider with an embeddings endpoint.",
       };
     }
     const allowed = await getAccessiblePageIds(
@@ -280,13 +357,13 @@ export const aiRouter = {
     const indexable = pages.filter(
       (page) => page.document && (page.document.plainText.trim() || page.title.trim()),
     );
-    const model = context.ai.embeddingModel ?? "text-embedding-3-small";
+    const model = context.aiAux.embeddingModel ?? "text-embedding-3-small";
     let indexed = 0;
     const batchSize = 32;
     for (let offset = 0; offset < indexable.length; offset += batchSize) {
       const batch = indexable.slice(offset, offset + batchSize);
       const vectors = await embedTexts(
-        context.ai,
+        context.aiAux,
         batch.map((page) => embeddingSource(page.title, page.document?.plainText ?? "")),
       );
       if (!vectors) {
@@ -366,57 +443,27 @@ export const aiRouter = {
     }),
 
   ask: aiWorkspaceProcedure("VIEWER")
-    .input(
-      z.object({
-        question: z.string().trim().min(2).max(4000),
-        scope: z
-          .object({
-            notebookId: z.string().nullable().optional(),
-            pageIds: z.array(z.string()).max(50).optional(),
-          })
-          .optional(),
-        threadId: z.string().nullable().optional(),
-      }),
-    )
+    .input(askInput)
     .handler(async ({ context, input }) => {
-      let pages: RetrievedPage[] | null = null;
+      const { citations, messages } = await prepareAnswer(context, input);
+      let answer = "";
+      let provider = aiEnabled(context) ? context.ai.model : "local";
+      let warning: { code: string; message: string } | null = null;
+
       if (aiEnabled(context)) {
-        pages = await retrieveSemantic(
-          context.db,
-          context.ai,
-          context.workspaceId,
-          context.userId,
-          context.role,
-          input.question,
-          input.scope,
-        );
-      }
-      if (!pages) {
-        pages = await retrievePages(
-          context.db,
-          context.workspaceId,
-          context.userId,
-          context.role,
-          input.question,
-          input.scope,
-        );
-      }
-      let answer = localAnswer(input.question, citationsFrom(pages));
-      let provider = "local";
-      if (aiEnabled(context)) {
-        const result = await chatCompletion(context.ai, [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `Question: ${input.question}\n\nNotes:\n${contextBlock(pages)}`,
-          },
-        ]);
-        if (result) {
+        const result = await chatCompletion(context.ai, messages);
+        if (result.ok) {
           answer = result.content;
           provider = result.provider;
+        } else {
+          // Never retry on another billing path: report the failure and answer locally.
+          warning = { code: result.code, message: result.message };
         }
       }
-      const citations = citationsFrom(pages);
+      if (!answer) {
+        answer = localAnswer(input.question, citations);
+        provider = "local";
+      }
       const threadId = await saveThreadMessage(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
@@ -426,15 +473,69 @@ export const aiRouter = {
         citations,
         provider,
       });
-      return { answer, citations, provider, threadId, local: provider === "local" };
+      return { answer, citations, provider, threadId, local: provider === "local", warning };
+    }),
+
+  askStream: aiWorkspaceProcedure("VIEWER")
+    .input(askInput)
+    .handler(async function* ({ context, input, signal }) {
+      const { citations, messages } = await prepareAnswer(context, input);
+      yield { type: "citations" as const, citations };
+
+      let answer = "";
+      let provider = aiEnabled(context) ? context.ai.model : "local";
+      let warning: { code: string; message: string } | null = null;
+
+      if (aiEnabled(context)) {
+        for await (const event of streamChatCompletion(
+          context.ai,
+          messages,
+          signal ?? undefined,
+        )) {
+          if (event.type === "delta") {
+            answer += event.text;
+            yield { type: "delta" as const, text: event.text };
+          } else if (event.type === "done") {
+            provider = event.provider;
+          } else {
+            warning = { code: event.code, message: event.message };
+          }
+        }
+      }
+
+      if (!answer.trim()) {
+        answer = localAnswer(input.question, citations);
+        provider = "local";
+        yield { type: "delta" as const, text: answer };
+      }
+
+      const threadId = await saveThreadMessage(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        threadId: input.threadId,
+        question: input.question,
+        answer,
+        citations,
+        provider,
+      });
+      yield {
+        type: "done" as const,
+        threadId,
+        provider,
+        citations,
+        local: provider === "local",
+        warning,
+      };
     }),
 
   transcribe: aiWorkspaceProcedure("EDITOR")
     .input(z.object({ captureId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
-      if (!aiEnabled(context)) {
+      if (!auxEnabled(context)) {
         throw new ORPCError("PRECONDITION_FAILED", {
-          message: "Transcription needs an AI provider. Set AI_API_KEY on the server.",
+          message: aiEnabled(context)
+            ? "ChatGPT plan usage can't transcribe audio. Add a workspace API key with a transcription model."
+            : "Transcription needs an AI provider. Set AI_API_KEY on the server.",
         });
       }
       if (!context.uploads) {
@@ -461,7 +562,7 @@ export const aiRouter = {
           message: "Audio files up to 25 MB can be transcribed.",
         });
       }
-      const text = await transcribeAudio(context.ai, upload);
+      const text = await transcribeAudio(context.aiAux, upload);
       if (!text) {
         throw new ORPCError("BAD_GATEWAY", {
           message: "The transcription provider did not return text.",
@@ -471,7 +572,7 @@ export const aiRouter = {
       const metadata = {
         ...(capture.metadata as Record<string, unknown>),
         transcribedAt: new Date().toISOString(),
-        transcribeModel: context.ai.transcribeModel ?? "whisper-1",
+        transcribeModel: context.aiAux.transcribeModel ?? "whisper-1",
       };
       await pushSync(context.db, {
         workspaceId: context.workspaceId,
@@ -730,7 +831,7 @@ export const aiRouter = {
             content: `${prompt}\n\nPage: ${page.title}\n\n${contextBlock(related.length ? related : [{ pageId: page.id, title: page.title, body, score: 1, excerpt: body.slice(0, 700), updatedAt: page.updatedAt.toISOString() }])}`,
           },
         ]);
-        if (result) {
+        if (result.ok) {
           answer = result.content;
           provider = result.provider;
         }

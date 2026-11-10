@@ -7,8 +7,9 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { createPolarClient } from "./lib/payments";
 import { createSsoPlugin } from "./lib/sso-plugin";
 
-export { decryptSsoSecret, discoverOidc, encryptSsoSecret } from "./lib/sso";
+export { createPkcePair, decryptSsoSecret, discoverOidc, encryptSsoSecret } from "./lib/sso";
 export { decryptAiKey, encryptAiKey } from "./lib/sso";
+export { decryptChatGptToken, encryptChatGptToken } from "./lib/chatgpt";
 
 export type AuthConfig = {
   BETTER_AUTH_URL: string;

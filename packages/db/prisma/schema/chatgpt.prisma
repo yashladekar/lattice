@@ -1,0 +1,71 @@
+/// One row per Lattice runtime. The identifier OpenAI receives as
+/// `ext_agent_host_id`: opaque, stable, and never derived from user data.
+model ChatGptHost {
+  id        String   @id @default("default")
+  hostId    String   @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("chatgpt_host")
+}
+
+/// A user's Sign in with ChatGPT registration. Token columns hold
+/// AES-256-GCM ciphertext with the `chatgpt` purpose label; the issued client
+/// id and the verified account identity are kept so a reauthorization can reuse
+/// the same registration instead of creating a new one.
+model ChatGptConnection {
+  id              String    @id
+  userId          String
+  clientId        String
+  hostId          String
+  subject         String
+  email           String?
+  name            String?
+  idToken         String
+  accessToken     String
+  refreshToken    String
+  scopes          Json      @default("[]")
+  accessExpiresAt DateTime  @db.Timestamptz(3)
+  model           String?
+  planEnabled     Boolean   @default(false)
+  lastError       String?
+  lastRequestId   String?
+  lastRefreshedAt DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([userId, clientId])
+  @@index([userId])
+  @@map("chatgpt_connection")
+}
+
+/// One in-flight authorization attempt. Single use, short lived, and bound to
+/// the PKCE verifier and OIDC nonce that produced it. The user id is captured
+/// here because the loopback callback arrives without a session cookie.
+model ChatGptLoginState {
+  id          String   @id
+  userId      String
+  verifier    String
+  nonce       String
+  redirectUri String
+  hostId      String
+  clientId    String?
+  returnTo    String
+  expiresAt   DateTime @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("chatgpt_login_state")
+}
+
+/// Which chat backend a user prefers in a workspace. `auto` follows the
+/// default order: ChatGPT plan, then the workspace provider, then deployment.
+model UserAiPreference {
+  id          String   @id
+  userId      String
+  workspaceId String
+  chatSource  String   @default("auto")
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([userId, workspaceId])
+  @@map("user_ai_preference")
+}

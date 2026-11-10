@@ -66,17 +66,27 @@ export function AiPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"local" | "provider" | "unknown">("unknown");
+  const [mode, setMode] = useState<"local" | "provider" | "chatgpt" | "unknown">("unknown");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (open && online) {
       void client.ai
         .status()
-        .then((status) => setMode(status.enabled ? "provider" : "local"))
+        .then((status) =>
+          setMode(status.mode === "chatgpt" ? "chatgpt" : status.mode === "provider" ? "provider" : "local"),
+        )
         .catch(() => setMode("local"));
     }
   }, [open, online]);
+
+  useEffect(() => {
+    if (open) return;
+    abortRef.current?.abort();
+  }, [open]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
     if (!open) return;
@@ -90,6 +100,12 @@ export function AiPanel({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
+
+  const patchAssistant = (id: string, patch: Partial<ChatMessage>) => {
+    setMessages((current) =>
+      current.map((message) => (message.id === id ? { ...message, ...patch } : message)),
+    );
+  };
 
   const ask = async (value?: string) => {
     const prompt = (value ?? question).trim();
@@ -125,24 +141,57 @@ export function AiPanel({
         return;
       }
       if (online && activeWorkspaceId) {
-        const result = await client.ai.ask({
-          question: prompt,
-          ...(pageId ? { scope: { pageIds: [pageId] } } : {}),
-          threadId,
-        });
-        setThreadId(result.threadId);
+        const assistantId = `assistant-${Date.now()}`;
         setMessages((current) => [
           ...current,
-          {
-            id: `assistant-${Date.now()}`,
-            role: "assistant",
-            content: result.answer,
-            citations: result.citations as Citation[],
-            provider: result.provider,
-            local: result.local,
-          },
+          { id: assistantId, role: "assistant", content: "", citations: [] },
         ]);
-        setMode(result.local ? "local" : "provider");
+
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        let answer = "";
+        let citations: Citation[] = [];
+        let streamedThread: string | null = null;
+        let provider: string | undefined;
+        let local = false;
+        let frame: number | null = null;
+        const flush = () => {
+          frame = null;
+          patchAssistant(assistantId, { content: answer });
+        };
+
+        for await (const event of await client.ai.askStream(
+          {
+            question: prompt,
+            ...(pageId ? { scope: { pageIds: [pageId] } } : {}),
+            threadId,
+          },
+          { signal: controller.signal },
+        )) {
+          if (event.type === "citations") {
+            citations = event.citations as Citation[];
+          } else if (event.type === "delta") {
+            answer += event.text;
+            frame ??= requestAnimationFrame(flush);
+          } else {
+            streamedThread = event.threadId;
+            citations = event.citations as Citation[];
+            provider = event.provider;
+            local = event.local;
+            if (event.warning) toast.error(event.warning.message);
+          }
+        }
+        if (frame !== null) cancelAnimationFrame(frame);
+
+        setThreadId(streamedThread);
+        patchAssistant(assistantId, {
+          content: answer,
+          citations,
+          ...(provider ? { provider } : {}),
+          local,
+        });
+        setMode((current) => (local ? "local" : current === "chatgpt" ? "chatgpt" : "provider"));
       } else {
         const records: SearchableRecord[] = [
           ...index.pages.map((page) => ({
@@ -193,6 +242,7 @@ export function AiPanel({
         setMode("local");
       }
     } catch (error) {
+      if (abortRef.current?.signal.aborted) return;
       toast.error(error instanceof Error ? error.message : "Ask failed");
       setMessages((current) => [
         ...current,
@@ -206,6 +256,7 @@ export function AiPanel({
         },
       ]);
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   };
@@ -246,10 +297,14 @@ export function AiPanel({
                 <span
                   className={cn(
                     "size-1 rounded-full",
-                    mode === "provider" ? "bg-moss" : "bg-saffron",
+                    mode === "provider" || mode === "chatgpt" ? "bg-moss" : "bg-saffron",
                   )}
                 />
-                {mode === "provider" ? "AI provider connected" : "Local mode · retrieval only"}
+                {mode === "chatgpt"
+                  ? "ChatGPT plan"
+                  : mode === "provider"
+                    ? "AI provider connected"
+                    : "Local mode · retrieval only"}
               </div>
             </div>
           </div>
@@ -304,7 +359,9 @@ export function AiPanel({
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((message) =>
+              {messages
+                .filter((message) => message.role === "user" || message.content.length > 0)
+                .map((message) =>
                 message.role === "user" ? (
                   <div key={message.id} className="flex justify-end">
                     <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-3 py-2 text-[11px] text-background">
