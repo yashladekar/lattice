@@ -60,6 +60,17 @@ A `pageLink` node stores the target page id and display title. On save Lattice d
 
 Removing a link soft-deletes its derived edge. Manual typed relations are separate and never removed by link cleanup.
 
+## Sub-pages
+
+A page can contain other pages. The hierarchy is stored on `Page.parentId`, so a sub-page is a normal page with a parent — it keeps its own document, tags, comments, versions, and graph node.
+
+- **Create** one from the **Sub-pages** list at the bottom of a page, the `+` on a sidebar page row, `/sub-page` in the body, `[[` → **Create …**, or **Page actions → New sub-page**.
+- **Navigate** through the nested sidebar tree or the breadcrumb trail; opening a child expands its ancestors, and the page's own children are listed under its body.
+- **Move** a page with **Page actions → Move to…**. The picker excludes the page and its descendants, and a page can return to the top level.
+- **Delete** a parent and its whole subtree moves to Trash together; restoring the parent restores the subtree and the graph edges inside it.
+
+A sub-page inherits its parent's notebook. A private parent creates a private child; otherwise the child is workspace-visible.
+
 ## Images and attachments
 
 Images can be referenced by URL or uploaded. **Upload image** in the `/` menu
