@@ -68,6 +68,7 @@ A page can contain other pages. The hierarchy is stored on `Page.parentId`, so a
 - **Navigate** through the nested sidebar tree or the breadcrumb trail; opening a child expands its ancestors, and the page's own children are listed under its body.
 - **Reorder** by dragging a sidebar page row before or after a sibling, dropping it on another page to nest it, or dropping it on a notebook header to move it there. On touch, long-press a row to start dragging. The list renumbers itself when two neighbours have no integer gap.
 - **Move** a page with **Page actions → Move to…**. The picker excludes the page and its descendants, and a page can return to the top level. This is the keyboard path and remains available when dragging is not.
+- **Duplicate** a page from its menu or the sidebar and its readable sub-pages come with it, including their documents, properties, and covers. The copy sits next to the source with the same relative order below it.
 - **Delete** a parent and its whole subtree moves to Trash together; restoring the parent restores the subtree and the graph edges inside it.
 
 A sub-page inherits its parent's notebook. A private parent creates a private child; otherwise the child is workspace-visible.

@@ -364,6 +364,7 @@ export interface CreatePageLocalInput {
   parentId?: string | null;
   title?: string;
   icon?: string | null;
+  coverUrl?: string | null;
   type?: PageType;
   visibility?: Visibility;
   content?: TipTapDoc;
@@ -389,7 +390,7 @@ export async function createPageLocal(
     type: input.type ?? "DOCUMENT",
     title: input.title?.trim() || "Untitled",
     icon: input.icon ?? "◇",
-    coverUrl: null,
+    coverUrl: input.coverUrl ?? null,
     properties,
     visibility: input.visibility ?? "WORKSPACE",
     sortOrder: input.sortOrder ?? nextOrder(),
@@ -703,8 +704,9 @@ export async function duplicatePageLocal(
   userId: string,
 ): Promise<LocalPage | null> {
   const page = await db.pages.get(pageId);
-  const document = await db.pageDocuments.get(pageId);
-  if (!page || !document) return null;
+  if (!page) return null;
+  const all = await db.pages.where("workspaceId").equals(page.workspaceId).toArray();
+  const sourceDocument = await db.pageDocuments.get(pageId);
   const created = await createPageLocal(db, {
     workspaceId: page.workspaceId,
     userId,
@@ -712,11 +714,39 @@ export async function duplicatePageLocal(
     parentId: page.parentId,
     title: `${page.title} copy`,
     icon: page.icon,
+    coverUrl: page.coverUrl,
     type: page.type,
     visibility: page.visibility,
-    content: document.content,
+    content: sourceDocument?.content ?? emptyDoc(),
+    properties: { ...page.properties },
     sortOrder: page.sortOrder + 1,
   });
+
+  const copyChildren = async (sourceId: string, targetParentId: string) => {
+    const children = all
+      .filter((candidate) => !candidate.deletedAt && candidate.parentId === sourceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
+    for (const child of children) {
+      const childDocument = await db.pageDocuments.get(child.id);
+      const childCopy = await createPageLocal(db, {
+        workspaceId: child.workspaceId,
+        userId,
+        notebookId: child.notebookId,
+        parentId: targetParentId,
+        title: child.title,
+        icon: child.icon,
+        coverUrl: child.coverUrl,
+        type: child.type,
+        visibility: child.visibility,
+        content: childDocument?.content ?? emptyDoc(),
+        properties: { ...child.properties },
+        sortOrder: child.sortOrder,
+      });
+      await copyChildren(child.id, childCopy.page.id);
+    }
+  };
+
+  await copyChildren(page.id, created.page.id);
   return created.page;
 }
 

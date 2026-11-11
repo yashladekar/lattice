@@ -20,6 +20,7 @@ import {
   toJsonSafe,
 } from "../services/changes";
 import { assertPageReadable } from "../services/page-access";
+import { duplicatePageSubtree } from "../services/page-duplicate";
 import { movePageSubtree } from "../services/page-move";
 import { restorePageSubtree } from "../services/page-tree";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
@@ -426,61 +427,12 @@ export const pageRouter = {
   duplicate: workspaceProcedure("EDITOR")
     .input(pageIdInput)
     .handler(async ({ context, input }) => {
-      await assertPageReadable(
-        context.db,
-        context.workspaceId,
-        input.pageId,
-        context.userId,
-        context.role,
-      );
-      const source = await context.db.page.findFirst({
-        where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
-        include: { document: true },
-      });
-      if (!source) throw new ORPCError("NOT_FOUND");
-      const pageId = createId();
-      const content = safeDoc(source.document?.content);
-      await pushSync(context.db, {
+      return duplicatePageSubtree(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
-        ops: [
-          {
-            opId: `api-page-duplicate-${pageId}`,
-            entity: "page",
-            entityId: pageId,
-            op: "UPSERT",
-            payload: {
-              title: `${source.title} copy`,
-              icon: source.icon,
-              notebookId: source.notebookId,
-              parentId: source.parentId,
-              visibility: source.visibility,
-              type: source.type,
-              properties: source.properties,
-              sortOrder: source.sortOrder + 1,
-            },
-          },
-          {
-            opId: `api-doc-duplicate-${pageId}`,
-            entity: "pageDocument",
-            entityId: pageId,
-            op: "UPSERT",
-            baseRev: 0,
-            payload: {
-              content,
-              plainText: extractPlainText(content),
-              schemaVersion: 1,
-              source: "write",
-            },
-          },
-        ],
+        role: context.role,
+        pageId: input.pageId,
       });
-      const page = await context.db.page.findUnique({
-        where: { id: pageId },
-        include: { document: true },
-      });
-      if (!page) throw new ORPCError("INTERNAL_SERVER_ERROR");
-      return page;
     }),
 
   remove: workspaceProcedure("EDITOR")
