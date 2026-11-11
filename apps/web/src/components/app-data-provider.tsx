@@ -261,6 +261,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       },
       onState: (state) => {
         setSyncState(state);
+        // A transient outage is not worth a permanent banner: once the queue is
+        // empty and the engine is idle again, the stale error has been resolved.
+        if (state.status === "idle" && state.pending === 0) setBootError(null);
       },
       onConflict: (conflict) => {
         setConflicts((current) => [
