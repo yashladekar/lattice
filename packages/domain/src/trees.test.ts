@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { descendantPageIds, planPageOrder } from "./trees";
+import {
+  descendantPageIds,
+  pageDropPosition,
+  pageDropTarget,
+  planPageOrder,
+} from "./trees";
 
 const page = (id: string, parentId: string | null, deletedAt: string | null = null) => ({
   id,
@@ -92,5 +97,30 @@ describe("planPageOrder", () => {
       sortOrder: 1500,
       siblingUpdates: [],
     });
+  });
+});
+
+describe("pageDropTarget", () => {
+  const layouts = [
+    { id: "a", y: 100, height: 40 },
+    { id: "b", y: 200, height: 40 },
+  ];
+
+  it("classifies the top, middle, and bottom of a row", () => {
+    expect(pageDropTarget(layouts, 102)).toEqual({ pageId: "a", position: "before" });
+    expect(pageDropTarget(layouts, 120)).toEqual({ pageId: "a", position: "inside" });
+    expect(pageDropTarget(layouts, 138)).toEqual({ pageId: "a", position: "after" });
+  });
+
+  it("returns null in a gap and over a forbidden row", () => {
+    expect(pageDropTarget(layouts, 170)).toBeNull();
+    expect(pageDropTarget(layouts, 120, new Set(["a"]))).toBeNull();
+  });
+
+  it("uses the shared placement thresholds", () => {
+    expect(pageDropPosition(0.29)).toBe("before");
+    expect(pageDropPosition(0.3)).toBe("inside");
+    expect(pageDropPosition(0.75)).toBe("inside");
+    expect(pageDropPosition(0.76)).toBe("after");
   });
 });

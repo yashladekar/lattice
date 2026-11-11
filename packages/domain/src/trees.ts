@@ -129,6 +129,42 @@ export interface PageOrderPlan {
   siblingUpdates: Array<{ id: string; sortOrder: number }>;
 }
 
+export type PageDropPosition = "before" | "inside" | "after";
+
+export interface PageDropLayout {
+  id: string;
+  y: number;
+  height: number;
+}
+
+export function pageDropPosition(ratio: number): PageDropPosition {
+  if (ratio < 0.3) return "before";
+  if (ratio > 0.75) return "after";
+  return "inside";
+}
+
+/**
+ * Resolves a pointer against the measured page rows. The zones are deliberately
+ * shared by the web sidebar and the native long-press drag so both clients put
+ * a drop in the same place.
+ */
+export function pageDropTarget(
+  layouts: PageDropLayout[],
+  absoluteY: number,
+  forbiddenIds?: ReadonlySet<string>,
+): { pageId: string; position: PageDropPosition } | null {
+  for (const layout of layouts) {
+    if (layout.height <= 0) continue;
+    if (absoluteY < layout.y || absoluteY > layout.y + layout.height) continue;
+    if (forbiddenIds?.has(layout.id)) return null;
+    return {
+      pageId: layout.id,
+      position: pageDropPosition((absoluteY - layout.y) / layout.height),
+    };
+  }
+  return null;
+}
+
 /**
  * Chooses an integer sortOrder that places the moved page before/after a
  * sibling without rewriting the list, and falls back to renumbering when the

@@ -4,6 +4,8 @@ import {
   descendantPageIds,
   emptyCanvas,
   flattenPageTree,
+  pageDropPosition,
+  type PageDropPosition,
   type PageTreeNode as PageTreeNodeType,
 } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
@@ -88,8 +90,6 @@ function treeContainsPage(node: PageTreeNodeType, pageId: string | null): boolea
   return node.children.some((child) => treeContainsPage(child, pageId));
 }
 
-type PageDropPosition = "before" | "after" | "inside";
-
 type PageDropTarget =
   | { kind: "page"; pageId: string; position: PageDropPosition }
   | { kind: "notebook"; notebookId: string | null };
@@ -163,10 +163,7 @@ function PageRow({
           event.dataTransfer.dropEffect = "move";
           const rect = event.currentTarget.getBoundingClientRect();
           const ratio = rect.height ? (event.clientY - rect.top) / rect.height : 0.5;
-          drag.onDragOverPage(
-            node.page.id,
-            ratio < 0.3 ? "before" : ratio > 0.8 ? "after" : "inside",
-          );
+          drag.onDragOverPage(node.page.id, pageDropPosition(ratio));
         }}
         onDragLeave={(event) => {
           if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
