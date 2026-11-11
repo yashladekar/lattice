@@ -68,6 +68,11 @@ export default function NativePageScreen() {
     queryFn: async () => client.page.backlinks({ pageId }),
     enabled: Boolean(workspace && pageId),
   });
+  const pages = useQuery({
+    queryKey: ["native-pages", workspace?.id],
+    queryFn: async () => client.page.list(),
+    enabled: Boolean(workspace && pageId),
+  });
   const versions = useQuery({
     queryKey: ["native-versions", workspace?.id, pageId],
     queryFn: async () => client.page.versions({ pageId }),
@@ -77,6 +82,13 @@ export default function NativePageScreen() {
   const detail = page.data;
   const document = detail?.document?.content as never;
   const tags = detail?.tags ?? [];
+  const childPages = useMemo(
+    () =>
+      (pages.data ?? [])
+        .filter((entry) => entry.parentId === pageId)
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title)),
+    [pages.data, pageId],
+  );
 
   const revise = () => {
     void queryClient.invalidateQueries({ queryKey: ["native-page", workspace?.id, pageId] });
@@ -106,6 +118,25 @@ export default function NativePageScreen() {
       toast.show({
         variant: "danger",
         label: error instanceof Error ? error.message : "Could not duplicate",
+      });
+    }
+  };
+
+  const newSubPage = async () => {
+    try {
+      const created = await client.page.create({
+        parentId: pageId,
+        notebookId: detail?.notebookId ?? null,
+        visibility: detail?.visibility === "PRIVATE" ? "PRIVATE" : "WORKSPACE",
+        title: "Untitled",
+        icon: "◇",
+      });
+      revise();
+      router.push(route(`/page/${created.id}/edit`));
+    } catch (error) {
+      toast.show({
+        variant: "danger",
+        label: error instanceof Error ? error.message : "Could not create the sub-page",
       });
     }
   };
@@ -342,6 +373,37 @@ export default function NativePageScreen() {
               </Pressable>
             </View>
 
+            <View className="mt-8">
+              <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted">
+                Sub-pages {childPages.length ? `· ${childPages.length}` : ""}
+              </Text>
+              <View className="mt-2 overflow-hidden rounded-2xl border border-border bg-surface">
+                {childPages.map((child, index) => (
+                  <Pressable
+                    key={child.id}
+                    onPress={() => router.push(route(`/page/${child.id}`))}
+                    className={`flex-row items-center gap-2 px-3 py-2.5 ${
+                      index > 0 ? "border-t border-border" : ""
+                    }`}
+                  >
+                    <Text className="text-sm">{child.icon ?? "◇"}</Text>
+                    <Text numberOfLines={1} className="min-w-0 flex-1 text-[12px] text-foreground">
+                      {child.title || "Untitled"}
+                    </Text>
+                    <Text className="text-[9px] text-muted">{relative(child.updatedAt)}</Text>
+                    <Ionicons name="chevron-forward" size={12} color={muted} />
+                  </Pressable>
+                ))}
+                <Pressable
+                  onPress={() => void newSubPage()}
+                  className="flex-row items-center gap-2 border-t border-border px-3 py-2.5"
+                >
+                  <Ionicons name="add" size={15} color={accent} />
+                  <Text className="text-[12px] text-foreground">Add a sub-page</Text>
+                </Pressable>
+              </View>
+            </View>
+
             {backlinks.data?.length ? (
               <View className="mt-8">
                 <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted">
@@ -453,6 +515,7 @@ export default function NativePageScreen() {
         <View className="mt-2 gap-1">
           {[
             { label: "Edit", onPress: () => router.push(route(`/page/${pageId}/edit`)) },
+            { label: "New sub-page", onPress: () => void newSubPage() },
             { label: "Save a version", onPress: () => void saveVersion() },
             { label: "Version history", onPress: () => setVersionsOpen(true) },
             { label: "Share read-only link", onPress: () => void share() },

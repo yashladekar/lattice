@@ -46,8 +46,10 @@ import {
   Code2,
   Copy,
   Download,
+  FilePlus2,
   FileText,
   Focus,
+  FolderInput,
   GitBranch,
   GitPullRequest,
   GripVertical,
@@ -100,7 +102,7 @@ import {
   addAttachmentLocal,
   createCanvasLocal,
   createFlashcardLocal,
-  createPageLocal,
+  createSubPageLocal,
   createSuggestedEditLocal,
   createTemplateFromPageLocal,
   deletePageLocal,
@@ -123,8 +125,10 @@ import { applyBlockEditsToEditor, replaceDocumentInEditor } from "./editor-block
 import { createEditorExtensions } from "./extensions";
 import { EditorPageContext } from "./editor-page-context";
 import type { EditorMenuItem, EditorMenuKind, EditorMenuState } from "./menu-types";
+import { MovePageDialog } from "./move-page-dialog";
 import { PagePickerDialog } from "./page-picker";
 import { createSlashItems, insertFromPrompt, type InsertKind } from "./slash-items";
+import { SubPagesSection } from "./sub-pages-section";
 
 const INSERT_COPY = {
   equation: {
@@ -257,6 +261,7 @@ export function PageEditor({
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [pluginPickerOpen, setPluginPickerOpen] = useState(false);
   const [confirmTrash, setConfirmTrash] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [clobberBlocked, setClobberBlocked] = useState(false);
   const lastWrittenRev = useRef<number | null>(null);
 
@@ -375,27 +380,58 @@ export function PageEditor({
   const createPageLink = useCallback(
     async (editor: Editor, range: Range, pageTitle: string) => {
       const current = contextRef.current;
-      if (!current.db || !current.user || !current.workspaceId) return;
+      if (!current.db || !current.user) return;
       editor.chain().focus().deleteRange(range).run();
-      const { createPageLocal } = await import("@/lib/local/repository");
-      const created = await createPageLocal(current.db, {
-        workspaceId: current.workspaceId,
-        userId: current.user.id,
-        notebookId: null,
-        title: pageTitle || "Untitled",
-      });
-      editor
-        .chain()
-        .focus()
-        .insertContent([
-          {
-            type: "pageLink",
-            attrs: { pageId: created.page.id, title: created.page.title, icon: created.page.icon ?? "◇" },
-          },
-          { type: "text", text: " " },
-        ])
-        .run();
-      toast.success("Page created and linked");
+      try {
+        const created = await createSubPageLocal(current.db, {
+          parentId: current.pageId,
+          userId: current.user.id,
+          title: pageTitle || "Untitled",
+        });
+        editor
+          .chain()
+          .focus()
+          .insertContent([
+            {
+              type: "pageLink",
+              attrs: { pageId: created.page.id, title: created.page.title, icon: created.page.icon ?? "◇" },
+            },
+            { type: "text", text: " " },
+          ])
+          .run();
+        toast.success("Sub-page created and linked");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not create a sub-page");
+      }
+    },
+    [],
+  );
+
+  const createSubPageFromEditor = useCallback(
+    async (editor: Editor, range: Range) => {
+      const current = contextRef.current;
+      if (!current.db || !current.user) return;
+      editor.chain().focus().deleteRange(range).run();
+      try {
+        const created = await createSubPageLocal(current.db, {
+          parentId: current.pageId,
+          userId: current.user.id,
+        });
+        editor
+          .chain()
+          .focus()
+          .insertContent([
+            {
+              type: "pageLink",
+              attrs: { pageId: created.page.id, title: created.page.title, icon: created.page.icon ?? "◇" },
+            },
+            { type: "text", text: " " },
+          ])
+          .run();
+        toast.success("Sub-page created");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not create a sub-page");
+      }
     },
     [],
   );
@@ -406,6 +442,7 @@ export function PageEditor({
       if (kind === "slash") {
         return createSlashItems({
           requestPage,
+          createSubPage: createSubPageFromEditor,
           requestInsert: (kind, editor, range) => setInsertRequest({ kind, editor, range }),
           uploadImage: () => fileInputRef.current?.click(),
         }).filter((item) => {
@@ -446,7 +483,7 @@ export function PageEditor({
           pageItems.push({
             id: "create-page-link",
             label: `Create “${query.trim()}”`,
-            description: "New page, linked here",
+            description: "New sub-page, linked here",
             group: "Create",
             icon: <FileText className="size-3.5" />,
             select: (editor, range) => {
@@ -493,7 +530,7 @@ export function PageEditor({
         }));
       return [...peopleItems, ...dateItems, ...pageItems];
     },
-    [createPageLink, requestPage],
+    [createPageLink, createSubPageFromEditor, requestPage],
   );
   getItemsRef.current = getItems;
 
@@ -962,6 +999,17 @@ export function PageEditor({
     if (!db || !user) return;
     const created = await duplicatePageLocal(db, pageId, user.id);
     if (created) router.push(appRouteObject({ view: "page", id: created.id }));
+  };
+
+  const createSubPageFromMenu = async () => {
+    if (!db || !user) return;
+    try {
+      const created = await createSubPageLocal(db, { parentId: pageId, userId: user.id });
+      toast.success("Sub-page created");
+      router.push(appRouteObject({ view: "page", id: created.page.id }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create a sub-page");
+    }
   };
 
   const exportMarkdown = async () => {
@@ -1438,6 +1486,12 @@ export function PageEditor({
               <DropdownMenuItem onClick={() => void duplicate()}>
                 <FileText className="size-3.5" /> Duplicate page
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void createSubPageFromMenu()}>
+                <FilePlus2 className="size-3.5" /> New sub-page
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setMoveOpen(true)}>
+                <FolderInput className="size-3.5" /> Move to…
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportMarkdown()}>
                 <Download className="size-3.5" /> Export Markdown
               </DropdownMenuItem>
@@ -1741,6 +1795,8 @@ export function PageEditor({
         </div>
       )}
 
+      <SubPagesSection pageId={pageId} />
+
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3 text-[8.5px] text-muted-foreground">
         <span className="flex items-center gap-2">
           <span className={`status-dot ${saveStatus === "error" ? "bg-destructive" : "bg-moss"}`} />
@@ -1761,9 +1817,14 @@ export function PageEditor({
       <PagePickerDialog
         open={Boolean(pagePicker?.open)}
         mode={pagePicker?.mode ?? "link"}
+        parentId={pageId}
         onClose={() => setPagePicker(null)}
         onPick={applyPagePick}
       />
+
+      {page ? (
+        <MovePageDialog open={moveOpen} page={page} onClose={() => setMoveOpen(false)} />
+      ) : null}
 
       <input
         ref={fileInputRef}

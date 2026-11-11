@@ -9,6 +9,7 @@ import {
   VISIBILITIES,
   canShare,
   decodeCursor,
+  descendantPageIds,
   extractPlainText,
   hasRole,
   isSuggestionStatus,
@@ -286,32 +287,51 @@ async function applyPage(
   if (op.op === "DELETE" || payload.deletedAt) {
     if (!existing) return {};
     if (!hasRole(role, "EDITOR")) throw new ORPCError("FORBIDDEN");
-    const deleted = await tx.page.update({
-      where: { id: existing.id },
-      data: { deletedAt: dateValue(payload.deletedAt) ?? new Date(), updatedById: userId },
+    const deletedAt = dateValue(payload.deletedAt) ?? new Date();
+    const workspacePages = await tx.page.findMany({
+      where: { workspaceId },
+      select: { id: true, parentId: true, deletedAt: true },
     });
-    changes.push({
-      entity: "page",
-      entityId: deleted.id,
-      op: "DELETE",
-      data: toJsonSafe(deleted),
-    });
-    await ensurePageNode(tx, deleted, changes);
-    const edges = await tx.knowledgeEdge.findMany({
-      where: {
-        workspaceId,
-        deletedAt: null,
-        OR: [{ sourceNodeId: deleted.id }, { targetNodeId: deleted.id }],
-      },
-    });
-    for (const edge of edges) {
-      const removed = await tx.knowledgeEdge.update({
-        where: { id: edge.id },
-        data: { deletedAt: new Date() },
-      });
-      changes.push({ entity: "edge", entityId: edge.id, op: "DELETE", data: toJsonSafe(removed) });
+    const allowed = await getAccessiblePageIds(tx, workspaceId, userId, role);
+    const targetIds = new Set<string>([existing.id]);
+    for (const id of descendantPageIds(existing.id, workspacePages, { includeDeleted: true })) {
+      if (!allowed || allowed.has(id)) targetIds.add(id);
     }
-    return { accepted: { entity: "page", entityId: deleted.id, updatedAt: deleted.updatedAt } };
+    const targets = await tx.page.findMany({
+      where: { id: { in: [...targetIds] }, workspaceId },
+    });
+    const ordered = [existing, ...targets.filter((page) => page.id !== existing.id)];
+    let rootUpdatedAt = existing.updatedAt;
+    for (const target of ordered) {
+      if (target.id !== existing.id && target.deletedAt) continue;
+      const deleted = await tx.page.update({
+        where: { id: target.id },
+        data: { deletedAt, updatedById: userId },
+      });
+      if (deleted.id === existing.id) rootUpdatedAt = deleted.updatedAt;
+      changes.push({
+        entity: "page",
+        entityId: deleted.id,
+        op: "DELETE",
+        data: toJsonSafe(deleted),
+      });
+      const nodeId = await ensurePageNode(tx, deleted, changes);
+      const edges = await tx.knowledgeEdge.findMany({
+        where: {
+          workspaceId,
+          deletedAt: null,
+          OR: [{ sourceNodeId: nodeId }, { targetNodeId: nodeId }],
+        },
+      });
+      for (const edge of edges) {
+        const removed = await tx.knowledgeEdge.update({
+          where: { id: edge.id },
+          data: { deletedAt: new Date() },
+        });
+        changes.push({ entity: "edge", entityId: edge.id, op: "DELETE", data: toJsonSafe(removed) });
+      }
+    }
+    return { accepted: { entity: "page", entityId: existing.id, updatedAt: rootUpdatedAt } };
   }
 
   if (!hasRole(role, "EDITOR")) throw new ORPCError("FORBIDDEN");
@@ -1710,7 +1730,7 @@ interface StoredOpResult {
 }
 
 export async function getAccessiblePageIds(
-  db: Database,
+  db: Pick<Database, "page" | "resourcePermission">,
   workspaceId: string,
   userId: string,
   role: Role,

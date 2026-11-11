@@ -20,6 +20,7 @@ import {
   toJsonSafe,
 } from "../services/changes";
 import { assertPageReadable } from "../services/page-access";
+import { restorePageSubtree } from "../services/page-tree";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
 import { versionTimeline } from "../services/version-timeline";
 
@@ -566,20 +567,10 @@ export const pageRouter = {
         },
       });
       if (!page) throw new ORPCError("NOT_FOUND", { message: "Page is not in the trash" });
-      const result = await pushSync(context.db, {
+      return restorePageSubtree(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
-        ops: [
-          {
-            opId: `api-page-restore-${randomUUID()}`,
-            entity: "page",
-            entityId: page.id,
-            op: "UPSERT",
-            payload: {},
-          },
-        ],
+        pageId: page.id,
       });
-      if (result.conflicts.length) throw new ORPCError("CONFLICT");
-      return context.db.page.findUnique({ where: { id: page.id } });
     }),
 };

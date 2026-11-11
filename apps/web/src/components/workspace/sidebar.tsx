@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
+  FileText,
   Frame,
   GraduationCap,
   History,
@@ -41,7 +42,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -53,8 +54,11 @@ import {
   createCanvasLocal,
   createNotebookLocal,
   createPageLocal,
+  createSubPageLocal,
   deleteCanvasLocal,
   deleteNotebookLocal,
+  deletePageLocal,
+  duplicatePageLocal,
   updateNotebookLocal,
 } from "@/lib/local/repository";
 import { appRouteObject, type AppRoute } from "@/lib/navigation";
@@ -72,20 +76,38 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
+function treeContainsPage(node: PageTreeNodeType, pageId: string | null): boolean {
+  if (!pageId) return false;
+  if (node.page.id === pageId) return true;
+  return node.children.some((child) => treeContainsPage(child, pageId));
+}
+
 function PageRow({
   node,
   depth,
   activePageId,
   onNavigate,
+  onCreateChild,
+  onDuplicatePage,
+  onDeletePage,
 }: {
   node: PageTreeNodeType;
   depth: number;
   activePageId: string | null;
   onNavigate: (pageId: string) => void;
+  onCreateChild: (pageId: string) => void;
+  onDuplicatePage: (pageId: string) => void;
+  onDeletePage: (page: PageTreeNodeType["page"]) => void;
 }) {
   const [open, setOpen] = useState(depth < 1);
   const active = node.page.id === activePageId;
   const hasChildren = node.children.length > 0;
+  const containsActive = useMemo(() => treeContainsPage(node, activePageId), [node, activePageId]);
+
+  useEffect(() => {
+    if (containsActive) setOpen(true);
+  }, [containsActive]);
+
   return (
     <div>
       <div
@@ -119,6 +141,41 @@ function PageRow({
           </span>
           <span className="truncate">{node.page.title || "Untitled"}</span>
         </button>
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-md:opacity-100">
+          <button
+            type="button"
+            onClick={() => onCreateChild(node.page.id)}
+            aria-label={`New sub-page in ${node.page.title || "Untitled"}`}
+            className="hidden size-4 place-items-center rounded text-muted-foreground/70 hover:bg-muted md:grid"
+          >
+            <Plus className="size-3" />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`Actions for ${node.page.title || "Untitled"}`}
+                  className="grid size-4 place-items-center rounded text-muted-foreground/70 hover:bg-muted"
+                />
+              }
+            >
+              <MoreHorizontal className="size-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => onCreateChild(node.page.id)}>
+                <Plus className="size-3" /> New sub-page
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDuplicatePage(node.page.id)}>
+                <FileText className="size-3" /> Duplicate page
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onDeletePage(node.page)}>
+                <Trash2 className="size-3" /> Move to trash
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       {open && hasChildren ? (
         <div>
@@ -129,6 +186,9 @@ function PageRow({
               depth={depth + 1}
               activePageId={activePageId}
               onNavigate={onNavigate}
+              onCreateChild={onCreateChild}
+              onDuplicatePage={onDuplicatePage}
+              onDeletePage={onDeletePage}
             />
           ))}
         </div>
@@ -181,6 +241,7 @@ export function WorkspaceSidebar({
   const [pendingDelete, setPendingDelete] = useState<
     | { kind: "notebook"; id: string; name: string }
     | { kind: "canvas"; id: string; title: string }
+    | { kind: "page"; id: string; title: string }
     | null
   >(null);
 
@@ -201,6 +262,23 @@ export function WorkspaceSidebar({
   }, [pageTree]);
 
   const activePageId = route.view === "page" ? route.id : null;
+
+  useEffect(() => {
+    if (!activePageId) return;
+    const find = (nodes: PageTreeNodeType[]): PageTreeNodeType["page"] | null => {
+      for (const node of nodes) {
+        if (node.page.id === activePageId) return node.page;
+        const match = find(node.children);
+        if (match) return match;
+      }
+      return null;
+    };
+    const notebookId = find(pageTree)?.notebookId;
+    if (!notebookId) return;
+    setExpandedNotebooks((current) =>
+      current.has(notebookId) ? current : new Set(current).add(notebookId),
+    );
+  }, [activePageId, pageTree]);
 
   const favoritePages = useMemo(() => {
     const flat: Array<{ id: string; title: string; icon: string | null }> = [];
@@ -225,6 +303,30 @@ export function WorkspaceSidebar({
     });
     go({ view: "page", id: created.page.id });
     toast.success("Page created");
+  };
+
+  const createChildPage = async (parentId: string) => {
+    if (!db || !user) return;
+    try {
+      const created = await createSubPageLocal(db, { parentId, userId: user.id });
+      go({ view: "page", id: created.page.id });
+      toast.success("Sub-page created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create a sub-page");
+    }
+  };
+
+  const duplicatePage = async (pageId: string) => {
+    if (!db || !user) return;
+    const created = await duplicatePageLocal(db, pageId, user.id);
+    if (created) toast.success("Page duplicated");
+  };
+
+  const pageRowHandlers = {
+    onCreateChild: (pageId: string) => void createChildPage(pageId),
+    onDuplicatePage: (pageId: string) => void duplicatePage(pageId),
+    onDeletePage: (page: PageTreeNodeType["page"]) =>
+      setPendingDelete({ kind: "page", id: page.id, title: page.title || "Untitled" }),
   };
 
   const createNotebook = async () => {
@@ -256,6 +358,10 @@ export function WorkspaceSidebar({
       await deleteNotebookLocal(db, pendingDelete.id);
       toast.success("Notebook deleted");
       if (route.notebook === pendingDelete.id) go({ view: "home" });
+    } else if (pendingDelete.kind === "page") {
+      await deletePageLocal(db, pendingDelete.id);
+      toast.success("Page moved to trash");
+      if (route.view === "page" && route.id === pendingDelete.id) go({ view: "home" });
     } else {
       await deleteCanvasLocal(db, pendingDelete.id);
       toast.success("Canvas deleted");
@@ -596,6 +702,7 @@ export function WorkspaceSidebar({
                             depth={1}
                             activePageId={activePageId}
                             onNavigate={(pageId) => go({ view: "page", id: pageId })}
+                            {...pageRowHandlers}
                           />
                         ))
                       ) : (
@@ -627,6 +734,7 @@ export function WorkspaceSidebar({
                 depth={0}
                 activePageId={activePageId}
                 onNavigate={(pageId) => go({ view: "page", id: pageId })}
+                {...pageRowHandlers}
               />
             ))}
           </div>
@@ -881,13 +989,18 @@ export function WorkspaceSidebar({
             ? `Delete “${pendingDelete.name}”?`
             : pendingDelete?.kind === "canvas"
               ? `Delete “${pendingDelete.title}”?`
-              : "Delete"
+              : pendingDelete?.kind === "page"
+                ? `Move “${pendingDelete.title}” to Trash?`
+                : "Delete"
         }
         description={
           pendingDelete?.kind === "notebook"
             ? "Its pages move to Unfiled so nothing is lost."
-            : "The canvas is removed from this workspace."
+            : pendingDelete?.kind === "page"
+              ? "Its sub-pages move too, and can be restored from Trash."
+              : "The canvas is removed from this workspace."
         }
+        confirmLabel={pendingDelete?.kind === "page" ? "Move to trash" : "Delete"}
         onClose={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
       />

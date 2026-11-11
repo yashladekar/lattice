@@ -9,16 +9,18 @@ import { toast } from "sonner";
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
 import { useWorkspacePages } from "@/hooks/use-local-data";
-import { createPageLocal } from "@/lib/local/repository";
+import { createPageLocal, createSubPageLocal } from "@/lib/local/repository";
 
 export function PagePickerDialog({
   open,
   mode,
+  parentId,
   onClose,
   onPick,
 }: {
   open: boolean;
   mode: "link" | "embed" | "live";
+  parentId?: string | null;
   onClose: () => void;
   onPick: (pageId: string, title: string, icon: string | null) => void | Promise<void>;
 }) {
@@ -37,12 +39,15 @@ export function PagePickerDialog({
 
   const createAndPick = async () => {
     if (!db || !user || !activeWorkspaceId) return;
-    const created = await createPageLocal(db, {
-      workspaceId: activeWorkspaceId,
-      userId: user.id,
-      notebookId: null,
-      title: query.trim() || "Linked page",
-    });
+    const title = query.trim() || "Linked page";
+    const created = parentId
+      ? await createSubPageLocal(db, { parentId, userId: user.id, title })
+      : await createPageLocal(db, {
+          workspaceId: activeWorkspaceId,
+          userId: user.id,
+          notebookId: null,
+          title,
+        });
     await onPick(created.page.id, created.page.title, created.page.icon);
     toast.success("Page created and linked");
     setQuery("");

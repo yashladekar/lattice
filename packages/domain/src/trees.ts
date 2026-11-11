@@ -80,20 +80,27 @@ export function pageBreadcrumbs(pageId: string, pages: Page[]): Page[] {
   return trail;
 }
 
-export function descendantPageIds(pageId: string, pages: Page[]): string[] {
+export function descendantPageIds(
+  pageId: string,
+  pages: Array<{ id: string; parentId: string | null; deletedAt?: unknown }>,
+  options: { includeDeleted?: boolean } = {},
+): string[] {
   const children = new Map<string | null, string[]>();
   for (const page of pages) {
-    if (page.deletedAt) continue;
+    if (page.deletedAt && !options.includeDeleted) continue;
     const list = children.get(page.parentId) ?? [];
     list.push(page.id);
     children.set(page.parentId, list);
   }
   const result: string[] = [];
+  const seen = new Set<string>([pageId]);
   const stack = [pageId];
   while (stack.length) {
     const current = stack.pop();
     if (!current) continue;
     for (const child of children.get(current) ?? []) {
+      if (seen.has(child)) continue;
+      seen.add(child);
       result.push(child);
       stack.push(child);
     }

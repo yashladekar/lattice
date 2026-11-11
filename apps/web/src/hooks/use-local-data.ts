@@ -84,6 +84,23 @@ export function usePageTree(): PageTreeNode[] {
   return useMemo(() => buildPageTree(pages), [pages]);
 }
 
+export function useChildPages(pageId: string | null | undefined): LocalPage[] {
+  const { db } = useAppData();
+  return (
+    useLiveQuery(
+      async () => {
+        if (!db || !pageId) return [];
+        const rows = await db.pages.where("parentId").equals(pageId).toArray();
+        return rows
+          .filter((row) => !row.deletedAt)
+          .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
+      },
+      [db, pageId],
+      [],
+    ) ?? []
+  );
+}
+
 export function useRecentPages(limit = 8): LocalPage[] {
   const pages = useWorkspacePages();
   return useMemo(() => sortPagesByRecency(pages, limit), [pages, limit]);

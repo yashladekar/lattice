@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Code2,
   Database,
+  FilePlus2,
   Frame,
   GitBranch,
   Heading1,
@@ -34,6 +35,7 @@ export type InsertKind = "equation" | "image" | "bookmark" | "youtube";
 
 export interface SlashActions {
   requestPage: (mode: "link" | "embed" | "live", editor: Editor, range: Range) => void;
+  createSubPage: (editor: Editor, range: Range) => void;
   requestInsert: (kind: InsertKind, editor: Editor, range: Range) => void;
   uploadImage: () => void;
 }
@@ -294,6 +296,15 @@ export function createSlashItems(actions: SlashActions): EditorMenuItem[] {
       keywords: "internal link backlink",
       icon: <Link2 className="size-3.5" />,
       select: (editor, range) => actions.requestPage("link", editor, range),
+    },
+    {
+      id: "sub-page",
+      label: "Sub-page",
+      description: "Create a page inside this one",
+      group: "Knowledge",
+      keywords: "child nested page",
+      icon: <FilePlus2 className="size-3.5" />,
+      select: (editor, range) => actions.createSubPage(editor, range),
     },
     {
       id: "page-embed",

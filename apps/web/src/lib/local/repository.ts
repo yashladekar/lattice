@@ -1,5 +1,6 @@
 import {
   createId,
+  descendantPageIds,
   docFromText,
   emptyDoc,
   extractPageLinks,
@@ -430,6 +431,40 @@ export async function createPageLocal(
   return { page, document };
 }
 
+export interface CreateSubPageLocalInput {
+  parentId: string;
+  userId: string;
+  title?: string;
+  icon?: string | null;
+  content?: TipTapDoc;
+  templateId?: string | null;
+}
+
+export async function createSubPageLocal(
+  db: LatticeDB,
+  input: CreateSubPageLocalInput,
+): Promise<{ page: LocalPage; document: LocalPageDocument }> {
+  const parent = await db.pages.get(input.parentId);
+  if (!parent || parent.deletedAt) throw new Error("Parent page not found");
+  const siblings = await db.pages
+    .where("[workspaceId+parentId]")
+    .equals([parent.workspaceId, parent.id])
+    .toArray();
+  const sortOrder = Math.max(parent.sortOrder, ...siblings.map((page) => page.sortOrder)) + 1;
+  return createPageLocal(db, {
+    workspaceId: parent.workspaceId,
+    userId: input.userId,
+    notebookId: parent.notebookId,
+    parentId: parent.id,
+    title: input.title,
+    icon: input.icon,
+    visibility: parent.visibility === "PRIVATE" ? "PRIVATE" : "WORKSPACE",
+    content: input.content,
+    templateId: input.templateId,
+    sortOrder,
+  });
+}
+
 export async function updatePageLocal(
   db: LatticeDB,
   input: {
@@ -617,15 +652,39 @@ export async function updatePagePropertiesLocal(
 export async function restorePageLocal(db: LatticeDB, pageId: string): Promise<void> {
   const page = await db.pages.get(pageId);
   if (!page) return;
-  const restored = { ...page, deletedAt: null, updatedAt: now() };
-  await db.transaction("rw", [db.pages, db.nodes, db.outbox], async () => {
-    await db.pages.put(restored);
-    await queuePage(db, restored);
-    const nodes = await db.nodes.where("pageId").equals(pageId).toArray();
-    for (const node of nodes) {
-      const restoredNode = { ...node, deletedAt: null, updatedAt: now() };
-      await db.nodes.put(restoredNode);
-      await queueNode(db, restoredNode);
+  const all = await db.pages.where("workspaceId").equals(page.workspaceId).toArray();
+  const ids = [pageId, ...descendantPageIds(pageId, all, { includeDeleted: true })];
+  const targets = ids
+    .map((id) => all.find((entry) => entry.id === id))
+    .filter((entry): entry is LocalPage => Boolean(entry && (entry.id === pageId || entry.deletedAt)));
+  await db.transaction("rw", [db.pages, db.nodes, db.edges, db.outbox], async () => {
+    const restoredNodeIds = new Set<string>();
+    for (const target of targets) {
+      const restored = { ...target, deletedAt: null, updatedAt: now() };
+      await db.pages.put(restored);
+      await queuePage(db, restored);
+      const nodes = await db.nodes.where("pageId").equals(target.id).toArray();
+      for (const node of nodes) {
+        const restoredNode = { ...node, deletedAt: null, updatedAt: now() };
+        await db.nodes.put(restoredNode);
+        await queueNode(db, restoredNode);
+        restoredNodeIds.add(restoredNode.id);
+      }
+    }
+    const edges = await db.edges
+      .where("workspaceId")
+      .equals(page.workspaceId)
+      .filter(
+        (edge) =>
+          Boolean(edge.deletedAt) &&
+          restoredNodeIds.has(edge.sourceNodeId) &&
+          restoredNodeIds.has(edge.targetNodeId),
+      )
+      .toArray();
+    for (const edge of edges) {
+      const restoredEdge = { ...edge, deletedAt: null, updatedAt: now() };
+      await db.edges.put(restoredEdge);
+      await queueEdge(db, restoredEdge);
     }
   });
 }

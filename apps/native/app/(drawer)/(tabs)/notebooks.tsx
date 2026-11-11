@@ -1,8 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import {
+  buildPageTree,
+  type Page as DomainPage,
+  type PageTreeNode,
+} from "@notes-learning/domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useThemeColor, useToast } from "heroui-native";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -67,6 +72,14 @@ export default function NotebooksScreen() {
     }
     return map;
   }, [pages.data]);
+
+  const pageTreeByNotebook = useMemo(() => {
+    const map = new Map<string, PageTreeNode[]>();
+    for (const [notebookId, list] of pageByNotebook) {
+      map.set(notebookId, buildPageTree(list as unknown as DomainPage[]));
+    }
+    return map;
+  }, [pageByNotebook]);
 
   const canvasByNotebook = useMemo(() => {
     const map = new Map<string, typeof canvases.data>();
@@ -180,6 +193,61 @@ export default function NotebooksScreen() {
     }
   };
 
+  const newSubPage = async (parent: {
+    id: string;
+    notebookId: string | null;
+    visibility: string;
+  }) => {
+    try {
+      const page = await client.page.create({
+        parentId: parent.id,
+        notebookId: parent.notebookId,
+        visibility: parent.visibility === "PRIVATE" ? "PRIVATE" : "WORKSPACE",
+        title: "Untitled",
+        icon: "◇",
+      });
+      setExpanded((current) => new Set(current).add(parent.id));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["native-pages", workspace?.id] }),
+        queryClient.invalidateQueries({ queryKey: ["native-recent", workspace?.id] }),
+      ]);
+      router.push(route(`/page/${page.id}/edit`));
+    } catch (error) {
+      toast.show({
+        variant: "danger",
+        label: error instanceof Error ? error.message : "Could not create the sub-page",
+      });
+    }
+  };
+
+  const removePage = (page: { id: string; title: string }) => {
+    Alert.alert(
+      `Move “${page.title || "Untitled"}” to trash?`,
+      "Its sub-pages move too. You can restore them from Trash.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Move to trash",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await client.page.remove({ pageId: page.id });
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["native-pages", workspace?.id] }),
+                queryClient.invalidateQueries({ queryKey: ["native-recent", workspace?.id] }),
+              ]);
+            } catch (error) {
+              toast.show({
+                variant: "danger",
+                label: error instanceof Error ? error.message : "Could not delete the page",
+              });
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const newCanvas = async (notebook: Notebook) => {
     try {
       const canvas = await client.canvas.create({
@@ -206,9 +274,75 @@ export default function NotebooksScreen() {
     });
   };
 
+  const renderPage = (node: PageTreeNode, depth: number, index: number): ReactNode => {
+    const page = node.page;
+    const hasChildren = node.children.length > 0;
+    const isOpen = depth === 0 || expanded.has(page.id);
+    const showBorder = depth > 0 || index > 0;
+    return (
+      <View key={page.id}>
+        <Pressable
+          onPress={() => router.push(route(`/page/${page.id}`))}
+          className={`flex-row items-center gap-2 py-2.5 pr-3 ${
+            showBorder ? "border-t border-border" : ""
+          }`}
+          style={{ paddingLeft: 12 + depth * 14 }}
+        >
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              toggle(page.id);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isOpen ? `Collapse ${page.title}` : `Expand ${page.title}`}
+            className="h-5 w-5 items-center justify-center"
+            style={{ opacity: hasChildren ? 1 : 0 }}
+          >
+            <Ionicons
+              name={isOpen ? "chevron-down" : "chevron-forward"}
+              size={12}
+              color={muted}
+            />
+          </Pressable>
+          <Text className="w-5 text-center text-xs">{page.icon ?? "◇"}</Text>
+          <Text numberOfLines={1} className="min-w-0 flex-1 text-[12px] text-foreground">
+            {page.title || "Untitled"}
+          </Text>
+          <Text className="text-[9px] text-muted">
+            {new Date(page.updatedAt).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}
+          </Text>
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              Alert.alert(page.title || "Untitled", "Choose an action", [
+                { text: "Cancel", style: "cancel" },
+                { text: "New sub-page", onPress: () => void newSubPage(page) },
+                { text: "Delete", style: "destructive", onPress: () => removePage(page) },
+              ]);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Actions for ${page.title || "Untitled"}`}
+            className="h-7 w-7 items-center justify-center rounded-full"
+          >
+            <Ionicons name="ellipsis-horizontal" size={14} color={muted} />
+          </Pressable>
+        </Pressable>
+        {hasChildren && isOpen
+          ? node.children.map((child, childIndex) => renderPage(child, depth + 1, childIndex))
+          : null}
+      </View>
+    );
+  };
+
   const renderNotebook = (notebook: Notebook, depth: number) => {
     const notebookChildren = children.get(notebook.id) ?? [];
     const pagesIn = pageByNotebook.get(notebook.id) ?? [];
+    const pageTree = pageTreeByNotebook.get(notebook.id) ?? [];
     const canvasesIn = canvasByNotebook.get(notebook.id) ?? [];
     const isOpen = expanded.has(notebook.id) || depth === 0;
 
@@ -269,27 +403,7 @@ export default function NotebooksScreen() {
             className="mt-2 overflow-hidden rounded-2xl border border-border bg-surface"
             style={{ marginLeft: depth * 12 }}
           >
-            {pagesIn.map((page, index) => (
-              <Pressable
-                key={page.id}
-                onPress={() => router.push(route(`/page/${page.id}`))}
-                className={`flex-row items-center gap-2 px-3 py-2.5 ${
-                  index > 0 ? "border-t border-border" : ""
-                }`}
-              >
-                <Text className="w-5 text-center text-xs">{page.icon ?? "◇"}</Text>
-                <Text numberOfLines={1} className="min-w-0 flex-1 text-[12px] text-foreground">
-                  {page.title}
-                </Text>
-                <Text className="text-[9px] text-muted">
-                  {new Date(page.updatedAt).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </Text>
-                <Ionicons name="chevron-forward" size={12} color={muted} />
-              </Pressable>
-            ))}
+            {pageTree.map((node, index) => renderPage(node, 0, index))}
             {canvasesIn.map((canvas) => (
               <Pressable
                 key={canvas.id}
