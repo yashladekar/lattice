@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dedupeChanges, decodeCursor, encodeCursor, isAfterCursor, normalizedSyncOps } from "./sync";
+import { dedupeChanges, decodeCursor, encodeCursor, isAfterCursor, normalizedSyncOps, orderSyncOps, type SyncOpShape } from "./sync";
 
 describe("sync cursors", () => {
   it("round-trips a composite cursor", () => {
@@ -75,5 +75,42 @@ describe("normalizedSyncOps", () => {
       { opId: "a", entity: "page" },
     ] as never;
     expect(normalizedSyncOps(ops)).toHaveLength(2);
+  });
+});
+
+describe("orderSyncOps", () => {
+  const op = (
+    entity: SyncOpShape["entity"],
+    entityId: string,
+    payload: Record<string, unknown> = {},
+    kind: SyncOpShape["op"] = "UPSERT",
+  ): SyncOpShape => ({ entity, entityId, op: kind, payload });
+
+  it("puts pages before their nodes, documents, and edges", () => {
+    const ordered = orderSyncOps([
+      op("edge", "e1", { sourceNodeId: "p1", targetNodeId: "p2" }),
+      op("node", "p1", { pageId: "p1" }),
+      op("pageDocument", "p1"),
+      op("page", "p1", { title: "One" }),
+    ]);
+    expect(ordered.map((entry) => entry.entity)).toEqual([
+      "page",
+      "node",
+      "pageDocument",
+      "edge",
+    ]);
+  });
+
+  it("puts a parent page before its child inside one batch", () => {
+    const ordered = orderSyncOps([
+      op("page", "child", { parentId: "parent" }),
+      op("page", "parent"),
+    ]);
+    expect(ordered.map((entry) => entry.entityId)).toEqual(["parent", "child"]);
+  });
+
+  it("leaves unrelated order alone within a layer", () => {
+    const ordered = orderSyncOps([op("page", "b"), op("page", "a")]);
+    expect(ordered.map((entry) => entry.entityId)).toEqual(["b", "a"]);
   });
 });

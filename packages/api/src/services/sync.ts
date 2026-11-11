@@ -13,6 +13,7 @@ import {
   extractPlainText,
   hasRole,
   isSuggestionStatus,
+  orderSyncOps,
   parsePropertyDefinitions,
   safeDoc,
   type Role,
@@ -1818,10 +1819,11 @@ export async function pushSync(
   // viewer-level writes; every entity apply enforces its own required role.
   const membership = await requireMembership(db, input.userId, input.workspaceId, "VIEWER");
   const staleCollab: string[] = [];
+  const orderedOps = orderSyncOps(input.ops);
   const response = await db.$transaction(
     async (tx) => {
       const duplicateOps = await tx.syncOp.findMany({
-        where: { id: { in: input.ops.map((op) => op.opId) } },
+        where: { id: { in: orderedOps.map((op) => op.opId) } },
       });
       const duplicateById = new Map(duplicateOps.map((op) => [op.id, op]));
       const accepted: SyncPushResponse["accepted"] = [];
@@ -1829,7 +1831,7 @@ export async function pushSync(
       const changes: PendingChange[] = [];
       const results: Array<{ opId: string; result: StoredOpResult }> = [];
 
-      for (const op of input.ops) {
+      for (const op of orderedOps) {
         const duplicate = duplicateById.get(op.opId);
         if (duplicate) {
           const stored = duplicate.result as unknown as StoredOpResult;

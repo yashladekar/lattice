@@ -40,6 +40,87 @@ export function normalizedSyncOps(ops: SyncOpInput[]): SyncOpInput[] {
   return [...seen.values()];
 }
 
+const SYNC_ENTITY_LAYER: Record<SyncEntity, number> = {
+  workspace: 0,
+  member: 0,
+  notebook: 0,
+  tag: 0,
+  template: 0,
+  deck: 0,
+  objectType: 0,
+  capture: 0,
+  page: 1,
+  canvas: 1,
+  pageDocument: 2,
+  node: 2,
+  pageTag: 2,
+  flashcard: 2,
+  comment: 2,
+  attachment: 2,
+  suggestedEdit: 2,
+  edge: 3,
+};
+
+export interface SyncOpShape {
+  entity: SyncEntity;
+  entityId: string;
+  op: "UPSERT" | "DELETE";
+  payload: Record<string, unknown>;
+}
+
+/**
+ * Puts a sync batch in dependency order. The server applies ops one by one
+ * inside one transaction, so a node, document, or edge that arrives before the
+ * row it points at rejects the whole batch. Callers preserve their own order
+ * inside each layer (for the client, oldest write first), and pages inside one
+ * batch are ordered parent-first.
+ */
+export function orderSyncOps<T extends SyncOpShape>(ops: T[]): T[] {
+  const roots: T[] = [];
+  const pageOps: T[] = [];
+  const records: T[] = [];
+  const edges: T[] = [];
+  for (const op of ops) {
+    const layer = SYNC_ENTITY_LAYER[op.entity];
+    if (layer === 0) roots.push(op);
+    else if (layer === 1) pageOps.push(op);
+    else if (layer === 2) records.push(op);
+    else edges.push(op);
+  }
+
+  const pageIds = new Set(
+    pageOps
+      .filter((op) => op.entity === "page" && op.op === "UPSERT")
+      .map((op) => op.entityId),
+  );
+  const emitted = new Set<string>();
+  const orderedPages: T[] = [];
+  const pending = [...pageOps];
+  while (pending.length) {
+    const index = pending.findIndex((op) => {
+      if (op.entity !== "page" || op.op !== "UPSERT") return true;
+      const parentId = typeof op.payload.parentId === "string" ? op.payload.parentId : null;
+      return !parentId || !pageIds.has(parentId) || emitted.has(parentId);
+    });
+    if (index === -1) {
+      // A corrupt cycle: send the rest in their existing order and let the
+      // server's cycle guard reject them with a useful message.
+      orderedPages.push(...pending);
+      break;
+    }
+    const op = pending[index];
+    if (!op) {
+      orderedPages.push(...pending);
+      break;
+    }
+    pending.splice(index, 1);
+    orderedPages.push(op);
+    if (op.entity === "page") emitted.add(op.entityId);
+  }
+
+  return [...roots, ...orderedPages, ...records, ...edges];
+}
+
 export interface PendingSyncChange {
   entity: string;
   entityId: string;

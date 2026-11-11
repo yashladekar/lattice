@@ -1,6 +1,7 @@
 import {
   createId,
   encodeCursor,
+  orderSyncOps,
   type SyncChange,
   type SyncCursor,
   type SyncEntity,
@@ -273,7 +274,7 @@ export class SyncEngine {
       .toArray();
     if (!rows.length) return;
     rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const batch = rows.slice(0, 40);
+    const batch = orderSyncOps(rows).slice(0, 40);
     const prepared: Array<{ row: OutboxItem; opId: string }> = [];
     for (const row of batch) {
       let opId = row.opId;
