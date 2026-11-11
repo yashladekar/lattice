@@ -10,12 +10,13 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useThemeColor, useToast } from "heroui-native";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -65,6 +66,15 @@ export default function NotebooksScreen() {
   const updateDragRef = useRef<(absoluteY: number) => void>(() => {});
   const endDragRef = useRef<() => void>(() => {});
   const dragEndedAt = useRef(0);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollOffsetRef = useRef(0);
+  const scrollMaxRef = useRef(0);
+  const contentHeightRef = useRef(0);
+  const viewportHeightRef = useRef(0);
+  const viewportBoundsRef = useRef<{ top: number; bottom: number } | null>(null);
+  const viewportRef = useRef<View | null>(null);
+  const dragPointYRef = useRef<number | null>(null);
+  const scrollFrame = useRef<number | null>(null);
 
   const notebooks = useQuery({
     queryKey: ["native-notebooks", workspace?.id],
@@ -329,16 +339,69 @@ export default function NotebooksScreen() {
     }
   };
 
+  const stopNativeAutoScroll = () => {
+    if (scrollFrame.current !== null) {
+      cancelAnimationFrame(scrollFrame.current);
+      scrollFrame.current = null;
+    }
+  };
+
+  const updateDragTarget = (absoluteY: number) => {
+    const next = pageDropTarget(rowLayouts.current, absoluteY, forbiddenRef.current);
+    const current = dropRef.current;
+    if (current?.pageId === next?.pageId && current?.position === next?.position) return;
+    dropRef.current = next;
+    setDropTarget(next);
+  };
+
+  const autoScrollTick = () => {
+    scrollFrame.current = null;
+    if (!draggingRef.current) return;
+    const y = dragPointYRef.current;
+    const viewport = viewportBoundsRef.current;
+    if (y === null || !viewport) return;
+    if (y < viewport.top || y > viewport.bottom) return;
+    const edge = 48;
+    let delta = 0;
+    if (y < viewport.top + edge) {
+      delta = -Math.max(4, Math.ceil((viewport.top + edge - y) / 4));
+    } else if (y > viewport.bottom - edge) {
+      delta = Math.max(4, Math.ceil((y - (viewport.bottom - edge)) / 4));
+    }
+    if (!delta) return;
+    const next = Math.max(0, Math.min(scrollMaxRef.current, scrollOffsetRef.current + delta));
+    const applied = next - scrollOffsetRef.current;
+    if (!applied) return;
+    rowLayouts.current = rowLayouts.current.map((layout) => ({
+      ...layout,
+      y: layout.y - applied,
+    }));
+    scrollOffsetRef.current = next;
+    scrollRef.current?.scrollTo({ y: next, animated: false });
+    updateDragTarget(y);
+    scrollFrame.current = requestAnimationFrame(autoScrollTick);
+  };
+
+  const ensureNativeAutoScroll = () => {
+    if (scrollFrame.current !== null || !draggingRef.current) return;
+    scrollFrame.current = requestAnimationFrame(autoScrollTick);
+  };
+
   const startDrag = (pageId: string) => {
+    stopNativeAutoScroll();
     forbiddenRef.current = new Set([
       pageId,
       ...descendantPageIds(pageId, pages.data ?? []),
     ]);
     draggingRef.current = pageId;
+    dragPointYRef.current = null;
     dropRef.current = null;
     rowLayouts.current = [];
     setDragId(pageId);
     setDropTarget(null);
+    viewportRef.current?.measureInWindow((_x, y, _width, height) => {
+      viewportBoundsRef.current = { top: y, bottom: y + height };
+    });
     const entries = Array.from(rowRefs.current.entries());
     void Promise.all(
       entries.map(
@@ -358,16 +421,16 @@ export default function NotebooksScreen() {
   };
 
   const updateDrag = (absoluteY: number) => {
+    dragPointYRef.current = absoluteY;
     if (!draggingRef.current) return;
-    const next = pageDropTarget(rowLayouts.current, absoluteY, forbiddenRef.current);
-    const current = dropRef.current;
-    if (current?.pageId === next?.pageId && current?.position === next?.position) return;
-    dropRef.current = next;
-    setDropTarget(next);
+    updateDragTarget(absoluteY);
+    ensureNativeAutoScroll();
   };
 
   const endDrag = () => {
     if (!draggingRef.current) return;
+    stopNativeAutoScroll();
+    dragPointYRef.current = null;
     const pageId = draggingRef.current;
     const target = dropRef.current;
     draggingRef.current = null;
@@ -378,6 +441,12 @@ export default function NotebooksScreen() {
     if (!pageId || !target) return;
     void moveDraggedPage(pageId, target);
   };
+
+  useEffect(() => {
+    return () => {
+      stopNativeAutoScroll();
+    };
+  }, []);
 
   startDragRef.current = startDrag;
   updateDragRef.current = updateDrag;
@@ -600,7 +669,26 @@ export default function NotebooksScreen() {
 
   return (
     <Container
+      scrollRef={scrollRef}
+      viewportRef={viewportRef}
       scrollViewProps={{
+        scrollEventThrottle: 16,
+        onScroll: (event) => {
+          const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+          scrollOffsetRef.current = contentOffset.y;
+          scrollMaxRef.current = Math.max(0, contentSize.height - layoutMeasurement.height);
+        },
+        onContentSizeChange: (_width, height) => {
+          contentHeightRef.current = height;
+          scrollMaxRef.current = Math.max(0, contentHeightRef.current - viewportHeightRef.current);
+        },
+        onLayout: (event) => {
+          viewportHeightRef.current = event.nativeEvent.layout.height;
+          scrollMaxRef.current = Math.max(0, contentHeightRef.current - viewportHeightRef.current);
+          viewportRef.current?.measureInWindow((_x, y, _width, height) => {
+            viewportBoundsRef.current = { top: y, bottom: y + height };
+          });
+        },
         refreshControl: (
           <RefreshControl
             refreshing={notebooks.isFetching || pages.isFetching}

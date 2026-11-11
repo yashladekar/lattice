@@ -49,7 +49,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -100,7 +100,12 @@ interface PageDragHandlers {
   revealParentIds: Set<string>;
   dropTarget: PageDropTarget | null;
   onDragStart: (pageId: string) => void;
-  onDragOverPage: (pageId: string, position: PageDropPosition) => void;
+  onDragOverPage: (
+    pageId: string,
+    position: PageDropPosition,
+    clientX: number,
+    clientY: number,
+  ) => void;
   onDragLeavePage: (pageId: string) => void;
   onDrop: () => void;
   onDragEnd: () => void;
@@ -145,6 +150,7 @@ function PageRow({
     <div>
       <div
         draggable
+        data-page-row-id={node.page.id}
         onDragStart={(event) => {
           event.stopPropagation();
           event.dataTransfer.effectAllowed = "move";
@@ -163,7 +169,12 @@ function PageRow({
           event.dataTransfer.dropEffect = "move";
           const rect = event.currentTarget.getBoundingClientRect();
           const ratio = rect.height ? (event.clientY - rect.top) / rect.height : 0.5;
-          drag.onDragOverPage(node.page.id, pageDropPosition(ratio));
+          drag.onDragOverPage(
+            node.page.id,
+            pageDropPosition(ratio),
+            event.clientX,
+            event.clientY,
+          );
         }}
         onDragLeave={(event) => {
           if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
@@ -332,6 +343,22 @@ export function WorkspaceSidebar({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<PageDropTarget | null>(null);
   const [revealParentIds, setRevealParentIds] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const dragPointRef = useRef<{ x: number; y: number } | null>(null);
+  const autoScrollFrame = useRef<number | null>(null);
+  const draggingRef = useRef(false);
+  const forbiddenIdsRef = useRef<Set<string>>(new Set());
+  const dropTargetRef = useRef<PageDropTarget | null>(null);
+
+  useEffect(() => {
+    dropTargetRef.current = dropTarget;
+  }, [dropTarget]);
+
+  useEffect(() => {
+    return () => {
+      if (autoScrollFrame.current !== null) cancelAnimationFrame(autoScrollFrame.current);
+    };
+  }, []);
 
   const go = (next: Partial<AppRoute> & { view: AppRoute["view"] }) => {
     router.push(appRouteObject(next));
@@ -422,31 +449,140 @@ export function WorkspaceSidebar({
     [draggingId, pages],
   );
 
-  const handleDragStart = (pageId: string) => {
-    setDraggingId(pageId);
-    setDropTarget(null);
+  const stopAutoScroll = () => {
+    if (autoScrollFrame.current !== null) {
+      cancelAnimationFrame(autoScrollFrame.current);
+      autoScrollFrame.current = null;
+    }
   };
 
-  const handleDragOverPage = (pageId: string, position: PageDropPosition) => {
-    setDropTarget({ kind: "page", pageId, position });
+  const applyDropTarget = (next: PageDropTarget | null) => {
+    const current = dropTargetRef.current;
+    if (current === next) return;
+    if (
+      current?.kind === "page" &&
+      next?.kind === "page" &&
+      current.pageId === next.pageId &&
+      current.position === next.position
+    ) {
+      return;
+    }
+    if (
+      current?.kind === "notebook" &&
+      next?.kind === "notebook" &&
+      current.notebookId === next.notebookId
+    ) {
+      return;
+    }
+    dropTargetRef.current = next;
+    setDropTarget(next);
+  };
+
+  const updateDropTargetAtPoint = () => {
+    const point = dragPointRef.current;
+    if (!point || !draggingRef.current) return;
+    const element = document.elementFromPoint(point.x, point.y) as HTMLElement | null;
+    const row = element?.closest<HTMLElement>("[data-page-row-id]");
+    if (row?.dataset.pageRowId) {
+      const pageId = row.dataset.pageRowId;
+      if (forbiddenIdsRef.current.has(pageId)) {
+        applyDropTarget(null);
+        return;
+      }
+      const rect = row.getBoundingClientRect();
+      const ratio = rect.height ? (point.y - rect.top) / rect.height : 0.5;
+      applyDropTarget({ kind: "page", pageId, position: pageDropPosition(ratio) });
+      return;
+    }
+    const notebook = element?.closest<HTMLElement>("[data-notebook-drop-id]");
+    if (notebook) {
+      const value = notebook.dataset.notebookDropId;
+      applyDropTarget({
+        kind: "notebook",
+        notebookId: value === "unfiled" ? null : (value ?? null),
+      });
+      return;
+    }
+    applyDropTarget(null);
+  };
+
+  const autoScrollTick = () => {
+    autoScrollFrame.current = null;
+    const container = scrollRef.current;
+    const point = dragPointRef.current;
+    if (!container || !point || !draggingRef.current) return;
+    const rect = container.getBoundingClientRect();
+    const edge = 48;
+    let delta = 0;
+    if (point.y < rect.top + edge) {
+      delta = -Math.max(4, Math.ceil((rect.top + edge - point.y) / 4));
+    } else if (point.y > rect.bottom - edge) {
+      delta = Math.max(4, Math.ceil((point.y - (rect.bottom - edge)) / 4));
+    }
+    if (!delta) return;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    if (
+      (delta < 0 && container.scrollTop <= 0) ||
+      (delta > 0 && container.scrollTop >= maxScroll)
+    ) {
+      return;
+    }
+    container.scrollTop = Math.max(0, Math.min(maxScroll, container.scrollTop + delta));
+    updateDropTargetAtPoint();
+    autoScrollFrame.current = requestAnimationFrame(autoScrollTick);
+  };
+
+  const ensureAutoScroll = () => {
+    if (autoScrollFrame.current !== null || !draggingRef.current) return;
+    autoScrollFrame.current = requestAnimationFrame(autoScrollTick);
+  };
+
+  const handleDragStart = (pageId: string) => {
+    draggingRef.current = true;
+    dragPointRef.current = null;
+    forbiddenIdsRef.current = new Set([pageId, ...descendantPageIds(pageId, pages)]);
+    setDraggingId(pageId);
+    setDropTarget(null);
+    dropTargetRef.current = null;
+  };
+
+  const handleDragOverPage = (
+    pageId: string,
+    position: PageDropPosition,
+    clientX: number,
+    clientY: number,
+  ) => {
+    dragPointRef.current = { x: clientX, y: clientY };
+    applyDropTarget({ kind: "page", pageId, position });
+    ensureAutoScroll();
   };
 
   const handleDragLeavePage = (pageId: string) => {
-    setDropTarget((current) =>
-      current?.kind === "page" && current.pageId === pageId ? null : current,
-    );
+    if (dropTargetRef.current?.kind === "page" && dropTargetRef.current.pageId === pageId) {
+      applyDropTarget(null);
+    }
   };
 
   const handleDragEnd = () => {
+    stopAutoScroll();
+    draggingRef.current = false;
+    dragPointRef.current = null;
+    forbiddenIdsRef.current = new Set();
     setDraggingId(null);
     setDropTarget(null);
+    dropTargetRef.current = null;
   };
 
   const finishDrop = async () => {
+    stopAutoScroll();
+    draggingRef.current = false;
+    dragPointRef.current = null;
+    forbiddenIdsRef.current = new Set();
     const draggedId = draggingId;
     const target = dropTarget;
     setDraggingId(null);
     setDropTarget(null);
+    dropTargetRef.current = null;
     if (!draggedId || !target || !db) return;
     try {
       if (target.kind === "notebook") {
@@ -726,7 +862,22 @@ export function WorkspaceSidebar({
 
       <div className="mx-2 my-2 border-t border-sidebar-border" />
 
-      <div className="flex-1 overflow-y-auto px-2 pb-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-2 pb-3"
+        onDragOver={(event) => {
+          if (!draggingId) return;
+          event.preventDefault();
+          dragPointRef.current = { x: event.clientX, y: event.clientY };
+          applyDropTarget(null);
+          ensureAutoScroll();
+        }}
+        onDragLeave={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          stopAutoScroll();
+          applyDropTarget(null);
+        }}
+      >
         <div className="flex items-center justify-between px-1.5 pb-1.5">
           <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
             Notebooks
@@ -757,6 +908,7 @@ export function WorkspaceSidebar({
               return (
                 <div key={notebook.id}>
                   <div
+                    data-notebook-drop-id={notebook.id}
                     className={cn(
                       "group flex h-7 items-center gap-1 rounded-md px-1.5 text-[11.5px] transition-colors",
                       route.notebook === notebook.id
@@ -771,15 +923,18 @@ export function WorkspaceSidebar({
                       event.preventDefault();
                       event.stopPropagation();
                       event.dataTransfer.dropEffect = "move";
-                      setDropTarget({ kind: "notebook", notebookId: notebook.id });
+                      dragPointRef.current = { x: event.clientX, y: event.clientY };
+                      applyDropTarget({ kind: "notebook", notebookId: notebook.id });
+                      ensureAutoScroll();
                     }}
                     onDragLeave={(event) => {
                       if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-                      setDropTarget((current) =>
-                        current?.kind === "notebook" && current.notebookId === notebook.id
-                          ? null
-                          : current,
-                      );
+                      if (
+                        dropTargetRef.current?.kind === "notebook" &&
+                        dropTargetRef.current.notebookId === notebook.id
+                      ) {
+                        applyDropTarget(null);
+                      }
                     }}
                     onDrop={(event) => {
                       event.preventDefault();
@@ -924,6 +1079,7 @@ export function WorkspaceSidebar({
         {(rootsByNotebook.get(null) ?? []).length ? (
           <div className="mt-2">
             <div
+              data-notebook-drop-id="unfiled"
               className={cn(
                 "px-1.5 pb-1 text-[9px] uppercase tracking-[0.14em] text-muted-foreground/50",
                 dropTarget?.kind === "notebook" &&
@@ -935,13 +1091,15 @@ export function WorkspaceSidebar({
                 event.preventDefault();
                 event.stopPropagation();
                 event.dataTransfer.dropEffect = "move";
-                setDropTarget({ kind: "notebook", notebookId: null });
+                dragPointRef.current = { x: event.clientX, y: event.clientY };
+                applyDropTarget({ kind: "notebook", notebookId: null });
+                ensureAutoScroll();
               }}
               onDragLeave={(event) => {
                 if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-                setDropTarget((current) =>
-                  current?.kind === "notebook" && current.notebookId === null ? null : current,
-                );
+                if (dropTargetRef.current?.kind === "notebook" && dropTargetRef.current.notebookId === null) {
+                  applyDropTarget(null);
+                }
               }}
               onDrop={(event) => {
                 event.preventDefault();
