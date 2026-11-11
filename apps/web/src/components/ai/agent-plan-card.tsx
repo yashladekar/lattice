@@ -57,6 +57,8 @@ export function AgentPlanCard({
   warnings,
   pageTitles,
   appliedAt,
+  missingPages = 0,
+  onRepair,
   onApply,
   onDiscard,
 }: {
@@ -66,11 +68,16 @@ export function AgentPlanCard({
   pageTitles: Record<string, string>;
   /** Set once this plan has been applied, locally or on another device. */
   appliedAt?: string;
+  /** Pages this plan created that exist but have no body — a partial apply. */
+  missingPages?: number;
+  onRepair?: () => Promise<ApplyAgentPlanResult>;
   onApply: () => Promise<ApplyAgentPlanResult>;
   onDiscard: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ApplyAgentPlanResult | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [repaired, setRepaired] = useState(false);
   // A ref, not state: two clicks in the same tick would both pass a state check.
   const applying = useRef(false);
 
@@ -90,6 +97,17 @@ export function AgentPlanCard({
     } finally {
       applying.current = false;
       setBusy(false);
+    }
+  };
+
+  const repair = async () => {
+    if (!onRepair || repairing) return;
+    setRepairing(true);
+    try {
+      setResult(await onRepair());
+      setRepaired(true);
+    } finally {
+      setRepairing(false);
     }
   };
 
@@ -179,6 +197,23 @@ export function AgentPlanCard({
           </span>
         </div>
       )}
+
+      {onRepair && missingPages > 0 && !repaired ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-2 py-1.5">
+          <span className="text-[8px] text-amber-600">
+            {missingPages} page{missingPages === 1 ? "" : "s"} from this plan exist but are empty.
+          </span>
+          <Button
+            size="sm"
+            className="ml-auto h-6 rounded-md px-2 text-[9px]"
+            disabled={repairing}
+            onClick={() => void repair()}
+          >
+            {repairing ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
+            Fill {missingPages} empty page{missingPages === 1 ? "" : "s"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

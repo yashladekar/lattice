@@ -363,6 +363,56 @@ export function AiPanel({
     );
   };
 
+  // A plan can land partially: the pages exist but their bodies never arrived.
+  // Matching a blank page by title lets the approved markdown be restored
+  // exactly, instead of regenerating an approximation.
+  const blankPageIdByTitle = (() => {
+    const textByPage = new Map(
+      index.documents.map((document) => [document.pageId, document.plainText]),
+    );
+    const map = new Map<string, string>();
+    for (const page of index.pages) {
+      if ((textByPage.get(page.id) ?? "").length > 0) continue;
+      if (!map.has(page.title)) map.set(page.title, page.id);
+    }
+    return map;
+  })();
+
+  const missingPagesFor = (message: ChatMessage): Array<{ pageId: string; markdown: string }> => {
+    if (!message.plan) return [];
+    const missing: Array<{ pageId: string; markdown: string }> = [];
+    for (const op of message.plan.ops) {
+      if (op.kind !== "create_page") continue;
+      const blankPageId = blankPageIdByTitle.get(op.title);
+      if (blankPageId) missing.push({ pageId: blankPageId, markdown: op.markdown });
+    }
+    return missing;
+  };
+
+  const repairPlan = async (message: ChatMessage) => {
+    if (!db || !user || !activeWorkspaceId) return { applied: 0, skipped: [] };
+    const missing = missingPagesFor(message);
+    if (!missing.length) return { applied: 0, skipped: [] };
+    const notebookId =
+      (pageId ? index.pages.find((page) => page.id === pageId)?.notebookId : null) ?? null;
+    const result = await applyAgentPlan(db, {
+      workspaceId: activeWorkspaceId,
+      userId: user.id,
+      notebookId,
+      ops: missing.map((entry) => ({
+        kind: "replace_page" as const,
+        pageId: entry.pageId,
+        markdown: entry.markdown,
+      })),
+    });
+    if (result.applied) {
+      toast.success(
+        `Restored content on ${result.applied} page${result.applied === 1 ? "" : "s"}`,
+      );
+    }
+    return result;
+  };
+
   const openThread = async (id: string) => {
     try {
       const thread = await client.ai.thread({ threadId: id });
@@ -609,6 +659,8 @@ export function AiPanel({
                         warnings={message.plan.warnings}
                         pageTitles={pageTitles}
                         appliedAt={message.plan.appliedAt}
+                        missingPages={missingPagesFor(message).length}
+                        onRepair={() => repairPlan(message)}
                         onApply={() => applyPlan(message)}
                         onDiscard={() => discardPlan(message.id)}
                       />
