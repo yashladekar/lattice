@@ -1,13 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
+import { buildTrashTree, type TrashPageGroup } from "@notes-learning/domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useThemeColor, useToast } from "heroui-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { Container } from "@/components/container";
 import { ScreenHeader } from "@/components/ui/screen-header";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { client } from "@/utils/orpc";
+
+type TrashPage = Awaited<ReturnType<typeof client.page.trash>>[number];
 
 export default function TrashScreen() {
   const { workspace } = useWorkspace();
@@ -28,6 +31,7 @@ export default function TrashScreen() {
     queryFn: async () => client.canvas.trash(),
     enabled: Boolean(workspace),
   });
+  const groups = useMemo(() => buildTrashTree(pages.data ?? []), [pages.data]);
 
   const restorePage = async (pageId: string) => {
     setBusy(pageId);
@@ -70,6 +74,27 @@ export default function TrashScreen() {
 
   const data = tab === "pages" ? pages : canvases;
 
+  const renderTrashChild = (group: TrashPageGroup<TrashPage>, depth: number) => (
+    <View key={group.page.id}>
+      <View className="flex-row items-center gap-2 py-1" style={{ paddingLeft: 4 + depth * 14 }}>
+        <Text className="w-4 text-center text-xs">{group.page.icon ?? "◇"}</Text>
+        <Text numberOfLines={1} className="min-w-0 flex-1 text-[11px] text-foreground">
+          {group.page.title || "Untitled"}
+        </Text>
+        <Pressable
+          onPress={() => void restorePage(group.page.id)}
+          disabled={busy === group.page.id}
+          className="rounded-md border border-border px-1.5 py-0.5"
+        >
+          <Text className="text-[9px] text-foreground">
+            {busy === group.page.id ? "…" : "Restore"}
+          </Text>
+        </Pressable>
+      </View>
+      {group.children.map((child) => renderTrashChild(child, depth + 1))}
+    </View>
+  );
+
   return (
     <Container>
       <ScreenHeader
@@ -105,39 +130,60 @@ export default function TrashScreen() {
 
         {data.isLoading ? (
           <ActivityIndicator color={accent} className="py-12" />
-        ) : tab === "pages" && pages.data?.length ? (
+        ) : tab === "pages" && groups.length ? (
           <View className="mt-4 gap-2">
-            {pages.data.map((page) => (
+            {groups.map((group) => (
               <View
-                key={page.id}
-                className="flex-row items-center gap-3 rounded-2xl border border-border bg-surface p-3"
+                key={group.page.id}
+                className="overflow-hidden rounded-2xl border border-border bg-surface"
               >
-                <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-secondary">
-                  <Text className="text-sm">{page.icon ?? "◇"}</Text>
+                <View className="flex-row items-center gap-3 p-3">
+                  <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-secondary">
+                    <Text className="text-sm">{group.page.icon ?? "◇"}</Text>
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <View className="flex-row items-center gap-2">
+                      <Text
+                        numberOfLines={1}
+                        className="min-w-0 flex-1 text-[12px] font-medium text-foreground"
+                      >
+                        {group.page.title || "Untitled"}
+                      </Text>
+                      {group.descendantCount ? (
+                        <Text className="text-[8px] text-muted">
+                          {group.descendantCount} sub-page
+                          {group.descendantCount === 1 ? "" : "s"}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text className="text-[9px] text-muted">
+                      deleted{" "}
+                      {group.page.deletedAt
+                        ? new Date(group.page.deletedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "recently"}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => void restorePage(group.page.id)}
+                    disabled={busy === group.page.id}
+                    className="rounded-lg border border-border px-2 py-1"
+                  >
+                    <Text className="text-[10px] text-foreground">
+                      {busy === group.page.id ? "…" : "Restore"}
+                    </Text>
+                  </Pressable>
                 </View>
-                <View className="min-w-0 flex-1">
-                  <Text numberOfLines={1} className="text-[12px] font-medium text-foreground">
-                    {page.title}
-                  </Text>
-                  <Text className="text-[9px] text-muted">
-                    deleted{" "}
-                    {page.deletedAt
-                      ? new Date(page.deletedAt).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : "recently"}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => void restorePage(page.id)}
-                  disabled={busy === page.id}
-                  className="rounded-lg border border-border px-2 py-1"
-                >
-                  <Text className="text-[10px] text-foreground">
-                    {busy === page.id ? "…" : "Restore"}
-                  </Text>
-                </Pressable>
+                {group.children.length ? (
+                  <View className="border-t border-border px-3 pb-2 pt-1">
+                    <Text className="text-[8px] uppercase tracking-widest text-muted">
+                      Sub-pages · {group.descendantCount}
+                    </Text>
+                    {group.children.map((child) => renderTrashChild(child, 0))}
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>

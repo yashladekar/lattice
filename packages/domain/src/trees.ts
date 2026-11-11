@@ -43,6 +43,73 @@ export function flattenPageTree(nodes: PageTreeNode[]): Page[] {
   return nodes.flatMap((node) => [node.page, ...flattenPageTree(node.children)]);
 }
 
+export interface TrashPageLike {
+  id: string;
+  parentId: string | null;
+  deletedAt?: string | Date | null;
+  sortOrder: number;
+  title: string;
+}
+
+export interface TrashPageGroup<T extends TrashPageLike> {
+  page: T;
+  children: TrashPageGroup<T>[];
+  descendantCount: number;
+}
+
+/**
+ * Groups trashed pages into subtree roots. A page whose parent is not also in
+ * the trash becomes a root of its own group, so a restored or purged parent
+ * never hides its children. Roots sort newest deletion first; siblings keep
+ * their page order.
+ */
+export function buildTrashTree<T extends TrashPageLike>(pages: T[]): TrashPageGroup<T>[] {
+  const trashed = pages.filter((page) => page.deletedAt);
+  const byId = new Map(trashed.map((page) => [page.id, page]));
+  const byParent = new Map<string, T[]>();
+  const roots: T[] = [];
+
+  for (const page of trashed) {
+    if (page.parentId && byId.has(page.parentId)) {
+      const list = byParent.get(page.parentId) ?? [];
+      list.push(page);
+      byParent.set(page.parentId, list);
+    } else {
+      roots.push(page);
+    }
+  }
+
+  for (const list of byParent.values()) {
+    list.sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
+  }
+  roots.sort((a, b) => deletedTime(b) - deletedTime(a) || a.title.localeCompare(b.title));
+
+  const visited = new Set<string>();
+  const build = (page: T): TrashPageGroup<T> => {
+    visited.add(page.id);
+    const children = (byParent.get(page.id) ?? [])
+      .filter((child) => !visited.has(child.id))
+      .map(build);
+    return {
+      page,
+      children,
+      descendantCount: children.reduce((count, child) => count + 1 + child.descendantCount, 0),
+    };
+  };
+
+  const groups = roots.map(build);
+  for (const page of trashed) {
+    if (!visited.has(page.id)) groups.push(build(page));
+  }
+  return groups;
+}
+
+function deletedTime(page: TrashPageLike): number {
+  if (!page.deletedAt) return 0;
+  const time = new Date(page.deletedAt).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export interface NotebookTreeNode {
   notebook: Notebook;
   children: NotebookTreeNode[];
