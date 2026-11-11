@@ -118,6 +118,60 @@ export function wouldCreatePageCycle(
   return descendantPageIds(pageId, pages).includes(nextParentId);
 }
 
+export interface PageOrderCandidate {
+  id: string;
+  sortOrder: number;
+  title: string;
+}
+
+export interface PageOrderPlan {
+  sortOrder: number;
+  siblingUpdates: Array<{ id: string; sortOrder: number }>;
+}
+
+/**
+ * Chooses an integer sortOrder that places the moved page before/after a
+ * sibling without rewriting the list, and falls back to renumbering when the
+ * two neighbours have no integer gap. `siblings` must exclude the moved page.
+ */
+export function planPageOrder(
+  siblings: PageOrderCandidate[],
+  options: { beforeId?: string | null; afterId?: string | null } = {},
+): PageOrderPlan {
+  const ordered = [...siblings].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title),
+  );
+  let index = ordered.length;
+  if (options.beforeId) {
+    const found = ordered.findIndex((sibling) => sibling.id === options.beforeId);
+    if (found >= 0) index = found;
+  } else if (options.afterId) {
+    const found = ordered.findIndex((sibling) => sibling.id === options.afterId);
+    if (found >= 0) index = found + 1;
+  }
+
+  const previous = ordered[index - 1];
+  const next = ordered[index];
+  if (previous && next && next.sortOrder - previous.sortOrder <= 1) {
+    const sortOrder = (index + 1) * 1000;
+    const siblingUpdates: Array<{ id: string; sortOrder: number }> = [];
+    ordered.forEach((sibling, siblingIndex) => {
+      const order = (siblingIndex < index ? siblingIndex + 1 : siblingIndex + 2) * 1000;
+      if (sibling.sortOrder !== order) siblingUpdates.push({ id: sibling.id, sortOrder: order });
+    });
+    return { sortOrder, siblingUpdates };
+  }
+  if (previous && next) {
+    return {
+      sortOrder: Math.floor((previous.sortOrder + next.sortOrder) / 2),
+      siblingUpdates: [],
+    };
+  }
+  if (previous) return { sortOrder: previous.sortOrder + 1000, siblingUpdates: [] };
+  if (next) return { sortOrder: next.sortOrder - 1000, siblingUpdates: [] };
+  return { sortOrder: 1000, siblingUpdates: [] };
+}
+
 export function sortPagesByRecency(pages: Page[], limit = 10): Page[] {
   return [...pages]
     .filter((page) => !page.deletedAt)

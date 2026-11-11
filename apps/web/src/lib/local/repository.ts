@@ -6,6 +6,7 @@ import {
   extractPageLinks,
   extractPlainText,
   generateFlashcardsFromDoc,
+  planPageOrder,
   safeDoc,
   scheduleReview,
   templateById,
@@ -58,6 +59,24 @@ function pagePayload(page: LocalPage): Record<string, unknown> {
     sortOrder: page.sortOrder,
     publishedAt: page.publishedAt,
   };
+}
+
+function assertPageMove(
+  pages: LocalPage[],
+  pageId: string,
+  parentId: string | null,
+): void {
+  if (!parentId) return;
+  if (parentId === pageId) throw new Error("A page cannot be its own parent");
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  let cursor: string | null = parentId;
+  const seen = new Set<string>();
+  while (cursor) {
+    if (cursor === pageId) throw new Error("Page move would create a cycle");
+    if (seen.has(cursor)) break;
+    seen.add(cursor);
+    cursor = byId.get(cursor)?.parentId ?? null;
+  }
 }
 
 function documentPayload(document: LocalPageDocument): Record<string, unknown> {
@@ -483,16 +502,7 @@ export async function updatePageLocal(
   if (!existing) return null;
   if (input.parentId !== undefined) {
     const pages = await db.pages.where("workspaceId").equals(existing.workspaceId).toArray();
-    if (input.parentId === existing.id) throw new Error("A page cannot be its own parent");
-    let cursor = input.parentId;
-    const seen = new Set<string>();
-    const byId = new Map(pages.map((page) => [page.id, page]));
-    while (cursor) {
-      if (cursor === existing.id) throw new Error("Page move would create a cycle");
-      if (seen.has(cursor)) break;
-      seen.add(cursor);
-      cursor = byId.get(cursor)?.parentId ?? null;
-    }
+    assertPageMove(pages, existing.id, input.parentId);
   }
   const page: LocalPage = {
     ...existing,
@@ -520,6 +530,75 @@ export async function updatePageLocal(
     }
   });
   return page;
+}
+
+export interface MovePageLocalInput {
+  pageId: string;
+  parentId: string | null;
+  notebookId: string | null;
+  beforeId?: string | null;
+  afterId?: string | null;
+}
+
+/**
+ * Reparents and reorders a page in one transaction. The destination siblings
+ * are read from the local store; when there is no integer gap between two
+ * neighbours, the whole sibling list is renumbered. Descendants follow the
+ * page into its new notebook.
+ */
+export async function movePageLocal(
+  db: LatticeDB,
+  input: MovePageLocalInput,
+): Promise<LocalPage | null> {
+  const page = await db.pages.get(input.pageId);
+  if (!page) return null;
+  const all = await db.pages.where("workspaceId").equals(page.workspaceId).toArray();
+  assertPageMove(all, page.id, input.parentId);
+
+  const siblings = all.filter(
+    (candidate) =>
+      candidate.id !== page.id &&
+      !candidate.deletedAt &&
+      candidate.parentId === input.parentId &&
+      (input.parentId !== null || candidate.notebookId === input.notebookId),
+  );
+  const order = planPageOrder(siblings, {
+    beforeId: input.beforeId,
+    afterId: input.afterId,
+  });
+
+  const timestamp = now();
+  const moved: LocalPage = {
+    ...page,
+    parentId: input.parentId,
+    notebookId: input.notebookId,
+    sortOrder: order.sortOrder,
+    updatedAt: timestamp,
+  };
+  const updates: LocalPage[] = [moved];
+
+  for (const siblingOrder of order.siblingUpdates) {
+    const sibling = all.find((candidate) => candidate.id === siblingOrder.id);
+    if (sibling) {
+      updates.push({ ...sibling, sortOrder: siblingOrder.sortOrder, updatedAt: timestamp });
+    }
+  }
+
+  const descendants = new Set(descendantPageIds(page.id, all));
+  for (const candidate of all) {
+    if (!descendants.has(candidate.id) || candidate.deletedAt) continue;
+    if (candidate.notebookId === input.notebookId) continue;
+    updates.push({ ...candidate, notebookId: input.notebookId, updatedAt: timestamp });
+  }
+
+  await db.transaction("rw", [db.pages, db.outbox], async () => {
+    for (const update of updates) {
+      await db.pages.put(update);
+      await queuePage(db, update);
+    }
+  });
+
+  return moved;
 }
 
 export async function deletePageLocal(

@@ -1,6 +1,11 @@
 "use client";
 
-import { emptyCanvas, type PageTreeNode as PageTreeNodeType } from "@notes-learning/domain";
+import {
+  descendantPageIds,
+  emptyCanvas,
+  flattenPageTree,
+  type PageTreeNode as PageTreeNodeType,
+} from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import {
   DropdownMenu,
@@ -59,6 +64,7 @@ import {
   deleteNotebookLocal,
   deletePageLocal,
   duplicatePageLocal,
+  movePageLocal,
   updateNotebookLocal,
 } from "@/lib/local/repository";
 import { appRouteObject, type AppRoute } from "@/lib/navigation";
@@ -82,6 +88,24 @@ function treeContainsPage(node: PageTreeNodeType, pageId: string | null): boolea
   return node.children.some((child) => treeContainsPage(child, pageId));
 }
 
+type PageDropPosition = "before" | "after" | "inside";
+
+type PageDropTarget =
+  | { kind: "page"; pageId: string; position: PageDropPosition }
+  | { kind: "notebook"; notebookId: string | null };
+
+interface PageDragHandlers {
+  draggingId: string | null;
+  forbiddenIds: Set<string>;
+  revealParentIds: Set<string>;
+  dropTarget: PageDropTarget | null;
+  onDragStart: (pageId: string) => void;
+  onDragOverPage: (pageId: string, position: PageDropPosition) => void;
+  onDragLeavePage: (pageId: string) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
+}
+
 function PageRow({
   node,
   depth,
@@ -90,6 +114,7 @@ function PageRow({
   onCreateChild,
   onDuplicatePage,
   onDeletePage,
+  drag,
 }: {
   node: PageTreeNodeType;
   depth: number;
@@ -98,25 +123,85 @@ function PageRow({
   onCreateChild: (pageId: string) => void;
   onDuplicatePage: (pageId: string) => void;
   onDeletePage: (page: PageTreeNodeType["page"]) => void;
+  drag: PageDragHandlers;
 }) {
   const [open, setOpen] = useState(depth < 1);
   const active = node.page.id === activePageId;
   const hasChildren = node.children.length > 0;
   const containsActive = useMemo(() => treeContainsPage(node, activePageId), [node, activePageId]);
+  const dragging = drag.draggingId === node.page.id;
+  const forbidden = Boolean(drag.draggingId && drag.forbiddenIds.has(node.page.id));
+  const position =
+    drag.dropTarget?.kind === "page" && drag.dropTarget.pageId === node.page.id
+      ? drag.dropTarget.position
+      : null;
+  const reveal = drag.revealParentIds.has(node.page.id);
 
   useEffect(() => {
-    if (containsActive) setOpen(true);
-  }, [containsActive]);
+    if (containsActive || reveal) setOpen(true);
+  }, [containsActive, reveal]);
 
   return (
     <div>
       <div
+        draggable
+        onDragStart={(event) => {
+          event.stopPropagation();
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", node.page.id);
+          drag.onDragStart(node.page.id);
+        }}
+        onDragOver={(event) => {
+          if (!drag.draggingId) return;
+          if (forbidden) {
+            event.dataTransfer.dropEffect = "none";
+            drag.onDragLeavePage(node.page.id);
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          event.dataTransfer.dropEffect = "move";
+          const rect = event.currentTarget.getBoundingClientRect();
+          const ratio = rect.height ? (event.clientY - rect.top) / rect.height : 0.5;
+          drag.onDragOverPage(
+            node.page.id,
+            ratio < 0.3 ? "before" : ratio > 0.8 ? "after" : "inside",
+          );
+        }}
+        onDragLeave={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          drag.onDragLeavePage(node.page.id);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          drag.onDrop();
+        }}
+        onDragEnd={(event) => {
+          event.stopPropagation();
+          drag.onDragEnd();
+        }}
         className={cn(
-          "group flex h-7 items-center gap-0.5 rounded-md pr-1 text-[11.5px] transition-colors",
+          "group relative flex h-7 cursor-grab items-center gap-0.5 rounded-md pr-1 text-[11.5px] transition-colors active:cursor-grabbing",
           active ? "bg-sidebar-accent text-foreground" : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
+          dragging && "opacity-40",
+          forbidden && drag.draggingId ? "cursor-no-drop" : null,
+          position === "inside" && "bg-saffron/10 ring-1 ring-inset ring-saffron/60",
         )}
         style={{ paddingLeft: 6 + depth * 12 }}
       >
+        {position === "before" ? (
+          <span
+            className="pointer-events-none absolute top-0 h-0.5 rounded-full bg-saffron"
+            style={{ left: 28 + depth * 12, right: 4 }}
+          />
+        ) : null}
+        {position === "after" ? (
+          <span
+            className="pointer-events-none absolute bottom-0 h-0.5 rounded-full bg-saffron"
+            style={{ left: 28 + depth * 12, right: 4 }}
+          />
+        ) : null}
         <button
           type="button"
           aria-label={open ? "Collapse page" : "Expand page"}
@@ -130,6 +215,7 @@ function PageRow({
         </button>
         <button
           type="button"
+          draggable
           onClick={() => {
             onNavigate(node.page.id);
             if (hasChildren) setOpen(true);
@@ -189,6 +275,7 @@ function PageRow({
               onCreateChild={onCreateChild}
               onDuplicatePage={onDuplicatePage}
               onDeletePage={onDeletePage}
+              drag={drag}
             />
           ))}
         </div>
@@ -227,6 +314,7 @@ export function WorkspaceSidebar({
   } = useAppData();
   const notebooks = useWorkspaceNotebooks();
   const pageTree = usePageTree();
+  const pages = useMemo(() => flattenPageTree(pageTree), [pageTree]);
   const canvases = useWorkspaceCanvases();
   const tags = useWorkspaceTags();
   const [expandedNotebooks, setExpandedNotebooks] = useState<Set<string>>(new Set());
@@ -244,6 +332,9 @@ export function WorkspaceSidebar({
     | { kind: "page"; id: string; title: string }
     | null
   >(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<PageDropTarget | null>(null);
+  const [revealParentIds, setRevealParentIds] = useState<Set<string>>(new Set());
 
   const go = (next: Partial<AppRoute> & { view: AppRoute["view"] }) => {
     router.push(appRouteObject(next));
@@ -327,6 +418,93 @@ export function WorkspaceSidebar({
     onDuplicatePage: (pageId: string) => void duplicatePage(pageId),
     onDeletePage: (page: PageTreeNodeType["page"]) =>
       setPendingDelete({ kind: "page", id: page.id, title: page.title || "Untitled" }),
+  };
+
+  const forbiddenIds = useMemo(
+    () => new Set(draggingId ? [draggingId, ...descendantPageIds(draggingId, pages)] : []),
+    [draggingId, pages],
+  );
+
+  const handleDragStart = (pageId: string) => {
+    setDraggingId(pageId);
+    setDropTarget(null);
+  };
+
+  const handleDragOverPage = (pageId: string, position: PageDropPosition) => {
+    setDropTarget({ kind: "page", pageId, position });
+  };
+
+  const handleDragLeavePage = (pageId: string) => {
+    setDropTarget((current) =>
+      current?.kind === "page" && current.pageId === pageId ? null : current,
+    );
+  };
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setDropTarget(null);
+  };
+
+  const finishDrop = async () => {
+    const draggedId = draggingId;
+    const target = dropTarget;
+    setDraggingId(null);
+    setDropTarget(null);
+    if (!draggedId || !target || !db) return;
+    try {
+      if (target.kind === "notebook") {
+        await movePageLocal(db, {
+          pageId: draggedId,
+          parentId: null,
+          notebookId: target.notebookId,
+        });
+        const notebookId = target.notebookId;
+        if (notebookId) {
+          setExpandedNotebooks((current) => new Set(current).add(notebookId));
+        }
+        toast.success("Page moved");
+        return;
+      }
+      if (forbiddenIds.has(target.pageId)) return;
+      const targetPage = pages.find((page) => page.id === target.pageId);
+      if (!targetPage) return;
+      if (target.position === "inside") {
+        await movePageLocal(db, {
+          pageId: draggedId,
+          parentId: targetPage.id,
+          notebookId: targetPage.notebookId,
+        });
+        setRevealParentIds(new Set([targetPage.id]));
+      } else {
+        await movePageLocal(db, {
+          pageId: draggedId,
+          parentId: targetPage.parentId,
+          notebookId: targetPage.notebookId,
+          beforeId: target.position === "before" ? targetPage.id : null,
+          afterId: target.position === "after" ? targetPage.id : null,
+        });
+        if (targetPage.parentId) setRevealParentIds(new Set([targetPage.parentId]));
+      }
+      const notebookId = targetPage.notebookId;
+      if (notebookId) {
+        setExpandedNotebooks((current) => new Set(current).add(notebookId));
+      }
+      toast.success("Page moved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not move the page");
+    }
+  };
+
+  const drag: PageDragHandlers = {
+    draggingId,
+    forbiddenIds,
+    revealParentIds,
+    dropTarget,
+    onDragStart: handleDragStart,
+    onDragOverPage: handleDragOverPage,
+    onDragLeavePage: handleDragLeavePage,
+    onDrop: () => void finishDrop(),
+    onDragEnd: handleDragEnd,
   };
 
   const createNotebook = async () => {
@@ -587,7 +765,30 @@ export function WorkspaceSidebar({
                       route.notebook === notebook.id
                         ? "bg-sidebar-accent text-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
+                      dropTarget?.kind === "notebook" &&
+                        dropTarget.notebookId === notebook.id &&
+                        "bg-saffron/10 ring-1 ring-inset ring-saffron/60",
                     )}
+                    onDragOver={(event) => {
+                      if (!draggingId) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      event.dataTransfer.dropEffect = "move";
+                      setDropTarget({ kind: "notebook", notebookId: notebook.id });
+                    }}
+                    onDragLeave={(event) => {
+                      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                      setDropTarget((current) =>
+                        current?.kind === "notebook" && current.notebookId === notebook.id
+                          ? null
+                          : current,
+                      );
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void finishDrop();
+                    }}
                   >
                     <button
                       type="button"
@@ -703,6 +904,7 @@ export function WorkspaceSidebar({
                             activePageId={activePageId}
                             onNavigate={(pageId) => go({ view: "page", id: pageId })}
                             {...pageRowHandlers}
+                            drag={drag}
                           />
                         ))
                       ) : (
@@ -724,7 +926,32 @@ export function WorkspaceSidebar({
 
         {(rootsByNotebook.get(null) ?? []).length ? (
           <div className="mt-2">
-            <div className="px-1.5 pb-1 text-[9px] uppercase tracking-[0.14em] text-muted-foreground/50">
+            <div
+              className={cn(
+                "px-1.5 pb-1 text-[9px] uppercase tracking-[0.14em] text-muted-foreground/50",
+                dropTarget?.kind === "notebook" &&
+                  dropTarget.notebookId === null &&
+                  "rounded bg-saffron/10 ring-1 ring-inset ring-saffron/60",
+              )}
+              onDragOver={(event) => {
+                if (!draggingId) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = "move";
+                setDropTarget({ kind: "notebook", notebookId: null });
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setDropTarget((current) =>
+                  current?.kind === "notebook" && current.notebookId === null ? null : current,
+                );
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void finishDrop();
+              }}
+            >
               Unfiled
             </div>
             {(rootsByNotebook.get(null) ?? []).map((node) => (
@@ -735,6 +962,7 @@ export function WorkspaceSidebar({
                 activePageId={activePageId}
                 onNavigate={(pageId) => go({ view: "page", id: pageId })}
                 {...pageRowHandlers}
+                drag={drag}
               />
             ))}
           </div>
