@@ -255,6 +255,82 @@ describeWithDatabase("page creation", () => {
   });
 });
 
+describeWithDatabase("sync batch ordering", () => {
+  let db: Database;
+  let workspace: TestWorkspace;
+
+  beforeAll(async () => {
+    db = createTestDatabase();
+    workspace = await createTestWorkspace(db);
+  });
+
+  afterAll(async () => {
+    await cleanupTestWorkspace(db, workspace.id);
+    await db.$disconnect();
+  });
+
+  it("applies nodes and edges sent before the pages they depend on", async () => {
+    const parentId = randomUUID();
+    const childId = randomUUID();
+
+    const result = await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `e-${randomUUID()}`,
+          entity: "edge",
+          entityId: randomUUID(),
+          op: "UPSERT",
+          payload: {
+            sourceNodeId: parentId,
+            targetNodeId: childId,
+            relationType: "PART_OF",
+          },
+        },
+        {
+          opId: `n-${randomUUID()}`,
+          entity: "node",
+          entityId: childId,
+          op: "UPSERT",
+          payload: { kind: "PAGE", title: "Child", pageId: childId },
+        },
+        {
+          opId: `pc-${randomUUID()}`,
+          entity: "page",
+          entityId: childId,
+          op: "UPSERT",
+          payload: { title: "Child", parentId },
+        },
+        {
+          opId: `n2-${randomUUID()}`,
+          entity: "node",
+          entityId: parentId,
+          op: "UPSERT",
+          payload: { kind: "PAGE", title: "Parent", pageId: parentId },
+        },
+        {
+          opId: `pp-${randomUUID()}`,
+          entity: "page",
+          entityId: parentId,
+          op: "UPSERT",
+          payload: { title: "Parent" },
+        },
+      ],
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.accepted).toHaveLength(5);
+    expect(
+      await db.page.count({ where: { id: { in: [parentId, childId] }, workspaceId: workspace.id } }),
+    ).toBe(2);
+    const edge = await db.knowledgeEdge.findFirst({
+      where: { workspaceId: workspace.id, sourceNodeId: parentId, targetNodeId: childId },
+    });
+    expect(edge?.deletedAt).toBeNull();
+  });
+});
+
 describeWithDatabase("edge endpoints", () => {
   let db: Database;
   let workspace: TestWorkspace;
