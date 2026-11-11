@@ -20,6 +20,7 @@ import {
   toJsonSafe,
 } from "../services/changes";
 import { assertPageReadable } from "../services/page-access";
+import { movePageSubtree } from "../services/page-move";
 import { restorePageSubtree } from "../services/page-tree";
 import { getAccessiblePageIds, pushSync } from "../services/sync";
 import { versionTimeline } from "../services/version-timeline";
@@ -225,6 +226,25 @@ export const pageRouter = {
       const page = await context.db.page.findUnique({ where: { id: input.pageId } });
       if (!page) throw new ORPCError("NOT_FOUND");
       return page;
+    }),
+
+  move: workspaceProcedure("EDITOR")
+    .input(
+      z.object({
+        pageId: z.string().min(1),
+        parentId: z.string().nullable(),
+        notebookId: z.string().nullable(),
+        beforeId: z.string().nullable().optional(),
+        afterId: z.string().nullable().optional(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      return movePageSubtree(context.db, {
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+        role: context.role,
+        ...input,
+      });
     }),
 
   saveDocument: workspaceProcedure("EDITOR")

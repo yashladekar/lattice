@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { descendantPageIds } from "@notes-learning/domain";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Spinner, useThemeColor, useToast } from "heroui-native";
@@ -52,6 +53,8 @@ export default function NativePageScreen() {
   const [comment, setComment] = useState("");
   const [posting, setPosting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveQuery, setMoveQuery] = useState("");
 
   const page = useQuery({
     queryKey: ["native-page", workspace?.id, pageId],
@@ -89,6 +92,30 @@ export default function NativePageScreen() {
         .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title)),
     [pages.data, pageId],
   );
+  const forbiddenMoveIds = useMemo(
+    () => new Set([pageId, ...descendantPageIds(pageId, pages.data ?? [])]),
+    [pageId, pages.data],
+  );
+  const moveTargets = useMemo(
+    () =>
+      (pages.data ?? [])
+        .filter((entry) => !forbiddenMoveIds.has(entry.id))
+        .filter((entry) => entry.title.toLowerCase().includes(moveQuery.trim().toLowerCase()))
+        .sort((a, b) => a.title.localeCompare(b.title))
+        .slice(0, 80),
+    [pages.data, forbiddenMoveIds, moveQuery],
+  );
+  const siblings = useMemo(() => {
+    if (!detail) return [];
+    return (pages.data ?? [])
+      .filter(
+        (entry) =>
+          entry.parentId === detail.parentId &&
+          (detail.parentId !== null || entry.notebookId === detail.notebookId),
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
+  }, [pages.data, detail]);
+  const siblingIndex = siblings.findIndex((entry) => entry.id === pageId);
 
   const revise = () => {
     void queryClient.invalidateQueries({ queryKey: ["native-page", workspace?.id, pageId] });
@@ -139,6 +166,55 @@ export default function NativePageScreen() {
         label: error instanceof Error ? error.message : "Could not create the sub-page",
       });
     }
+  };
+
+  const movePage = async (input: {
+    parentId: string | null;
+    notebookId: string | null;
+    beforeId?: string;
+    afterId?: string;
+  }) => {
+    try {
+      await client.page.move({ pageId, ...input });
+      revise();
+      setMoveOpen(false);
+      setMoveQuery("");
+      toast.show({ variant: "success", label: "Page moved" });
+    } catch (error) {
+      toast.show({
+        variant: "danger",
+        label: error instanceof Error ? error.message : "Could not move the page",
+      });
+    }
+  };
+
+  const moveTo = (target: { id: string; notebookId: string | null } | null) => {
+    void movePage({
+      parentId: target?.id ?? null,
+      notebookId: target ? target.notebookId : (detail?.notebookId ?? null),
+    });
+  };
+
+  const moveUp = () => {
+    if (siblingIndex <= 0) return;
+    const previous = siblings[siblingIndex - 1];
+    if (!previous) return;
+    void movePage({
+      parentId: detail?.parentId ?? null,
+      notebookId: detail?.notebookId ?? null,
+      beforeId: previous.id,
+    });
+  };
+
+  const moveDown = () => {
+    if (siblingIndex < 0) return;
+    const next = siblings[siblingIndex + 1];
+    if (!next) return;
+    void movePage({
+      parentId: detail?.parentId ?? null,
+      notebookId: detail?.notebookId ?? null,
+      afterId: next.id,
+    });
   };
 
   const share = async () => {
@@ -516,6 +592,9 @@ export default function NativePageScreen() {
           {[
             { label: "Edit", onPress: () => router.push(route(`/page/${pageId}/edit`)) },
             { label: "New sub-page", onPress: () => void newSubPage() },
+            { label: "Move up", onPress: moveUp },
+            { label: "Move down", onPress: moveDown },
+            { label: "Move to…", onPress: () => setMoveOpen(true) },
             { label: "Save a version", onPress: () => void saveVersion() },
             { label: "Version history", onPress: () => setVersionsOpen(true) },
             { label: "Share read-only link", onPress: () => void share() },
@@ -539,6 +618,41 @@ export default function NativePageScreen() {
               </Text>
             </Pressable>
           ))}
+        </View>
+      </Sheet>
+
+      <Sheet open={moveOpen} onOpenChange={setMoveOpen} title="Move page" snapPoints={["85%"]}>
+        <View className="mt-2 gap-2">
+          <TextInput
+            value={moveQuery}
+            onChangeText={setMoveQuery}
+            placeholder="Find a parent page…"
+            placeholderTextColor={muted}
+            className="h-10 rounded-xl border border-border bg-surface px-3 text-[12px] text-foreground"
+          />
+          <Pressable
+            onPress={() => moveTo(null)}
+            className="flex-row items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
+          >
+            <Ionicons name="arrow-up-circle-outline" size={16} color={accent} />
+            <Text className="text-[13px] text-foreground">No parent (top level)</Text>
+          </Pressable>
+          {moveTargets.map((target) => (
+            <Pressable
+              key={target.id}
+              onPress={() => moveTo(target)}
+              className="flex-row items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
+            >
+              <Text className="w-5 text-center text-sm">{target.icon ?? "◇"}</Text>
+              <Text numberOfLines={1} className="min-w-0 flex-1 text-[12px] text-foreground">
+                {target.title || "Untitled"}
+              </Text>
+              <Text className="text-[9px] text-muted">Page</Text>
+            </Pressable>
+          ))}
+          {!moveTargets.length ? (
+            <Text className="py-6 text-center text-[11px] text-muted">No other pages match.</Text>
+          ) : null}
         </View>
       </Sheet>
 

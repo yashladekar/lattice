@@ -198,7 +198,7 @@ The Expo client is a full Lattice client, not a companion:
 - **Graph** — force layout, filters (kind, notebook, relation, recency, orphans), cluster coloring, relation editing, and AI link suggestions.
 - **Inbox** — notes, links with previews, image/PDF/file uploads, voice-note recording with optional transcription, PDF text extraction, organize-to-page, and tag/page suggestions.
 - **Learning** — SM-2 review, decks and cards, multiple-choice quizzes, learning paths, and knowledge gaps.
-- **Everything else** — search with type filters, timeline with version restore, trash with restore, templates, assistant with citations and reindexing, comments, notifications, and settings (workspace, members/invites, devices, sync conflicts, AI, appearance).
+- **Everything else** — search with type filters, page moves (up/down and move to a parent), timeline with version restore, trash with restore, templates, assistant with citations and reindexing, comments, notifications, and settings (workspace, members/invites, devices, sync conflicts, AI, appearance).
 - **iPad / tablet** — permanent sidebar at ≥ 900 pt, portrait and landscape orientations, pointer/trackpad support, and hardware-keyboard-friendly layouts.
 - **Offline edits** — document and canvas writes queue in a persisted outbox and flush when the network returns; reads stay in the persisted query cache.
 
