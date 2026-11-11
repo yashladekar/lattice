@@ -160,6 +160,40 @@ export async function applyAgentPlan(
         continue;
       }
 
+      if (op.kind === "replace_page") {
+        if (!pageId) continue;
+        const editorApplier = getEditorBlockApplier(pageId);
+        if (editorApplier?.replaceDocument) {
+          await snapshotOnce(pageId);
+          const viaEditor = editorApplier.replaceDocument(op.markdown);
+          if (viaEditor.applied) {
+            applied += 1;
+            continue;
+          }
+          skipped.push(...viaEditor.skipped);
+        }
+
+        const document = await db.pageDocuments.get(pageId);
+        if (!document) {
+          skipped.push("A page in the plan no longer exists.");
+          continue;
+        }
+        await snapshotOnce(pageId);
+        const saved = await savePageContentLocal(db, {
+          pageId,
+          content: safeDoc(simpleMarkdownToDoc(op.markdown)),
+          userId: input.userId,
+          source: "write",
+        });
+        if (!saved) {
+          skipped.push("A page could not be updated.");
+          continue;
+        }
+        notifyDocumentReplaced(pageId, saved.content, saved.rev);
+        applied += 1;
+        continue;
+      }
+
       if (op.kind === "link_pages") {
         const sourceId = resolvePageId(op.sourcePageId);
         const targetId = resolvePageId(op.targetPageId);

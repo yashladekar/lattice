@@ -119,7 +119,7 @@ import { client } from "@/utils/orpc";
 
 import { EditorMenu } from "./editor-menu";
 import { CanvasPlanPreview } from "./canvas-plan-preview";
-import { applyBlockEditsToEditor } from "./editor-block-edits";
+import { applyBlockEditsToEditor, replaceDocumentInEditor } from "./editor-block-edits";
 import { createEditorExtensions } from "./extensions";
 import { EditorPageContext } from "./editor-page-context";
 import type { EditorMenuItem, EditorMenuKind, EditorMenuState } from "./menu-types";
@@ -764,6 +764,10 @@ export function PageEditor({
         editor.isDestroyed
           ? { applied: 0, skipped: ["The editor is closed."] }
           : applyBlockEditsToEditor(editor, edits),
+      replaceDocument: (markdown) =>
+        editor.isDestroyed
+          ? { applied: 0, skipped: ["The editor is closed."] }
+          : replaceDocumentInEditor(editor, markdown),
     });
   }, [editor, pageId]);
 

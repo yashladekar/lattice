@@ -17,6 +17,10 @@ function previewOf(op: AgentOp): string {
       .trim();
     return text.length > 160 ? `${text.slice(0, 160)}…` : text || "Empty block";
   }
+  if (op.kind === "replace_page") {
+    const text = op.markdown.replace(/\s+/g, " ").trim();
+    return text.length > 160 ? `${text.slice(0, 160)}…` : text;
+  }
   if (op.kind === "create_page") {
     const text = op.markdown.replace(/\s+/g, " ").trim();
     return text.length > 160 ? `${text.slice(0, 160)}…` : text;
@@ -37,6 +41,7 @@ function targetOf(
     case "append_blocks":
     case "insert_blocks":
     case "replace_blocks":
+    case "replace_page":
     case "create_flashcards":
       return title(op.pageId);
     case "link_pages":

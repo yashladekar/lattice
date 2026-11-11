@@ -48,7 +48,10 @@ const TOOL_INPUTS = {
   read_page: readPageInput,
   related_pages: readPageInput,
   graph_neighbors: readPageInput,
-  list_pages: z.object({ limit: z.coerce.number().int().min(1).max(20).optional() }),
+  list_pages: z.object({
+    limit: z.coerce.number().int().min(1).max(20).optional(),
+    blankOnly: z.coerce.boolean().optional(),
+  }),
 } as const;
 
 export type AgentToolName = keyof typeof TOOL_INPUTS;
@@ -68,8 +71,9 @@ export const AGENT_TOOL_CATALOGUE = `- search_pages { "query": string, "limit"?:
     Pages that share vocabulary with the given page.
 - graph_neighbors { "pageId": string }
     Typed relations in and out of this page's graph node.
-- list_pages { "limit"?: 1-20 }
-    The most recently updated pages the reader can access.`;
+- list_pages { "limit"?: 1-20, "blankOnly"?: boolean }
+    The most recently updated pages the reader can access, with a "chars" count.
+    Pass "blankOnly": true to list only pages whose body is empty.`;
 
 function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}…` : value;
@@ -270,16 +274,26 @@ async function listPages(
       workspaceId: context.workspaceId,
       deletedAt: null,
       ...(allowed ? { id: { in: [...allowed] } } : {}),
+      ...(input.blankOnly
+        ? { OR: [{ document: { is: { plainText: "" } } }, { document: { is: null } }] }
+        : {}),
     },
     orderBy: { updatedAt: "desc" },
     take: input.limit ?? 10,
-    select: { id: true, title: true, updatedAt: true },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      document: { select: { plainText: true } },
+    },
   });
   return {
     label: `Listed ${pages.length} recent page${pages.length === 1 ? "" : "s"}`,
     data: pages.map((page) => ({
       pageId: page.id,
       title: page.title,
+      // Lets the model spot blank pages without reading every one of them.
+      chars: page.document?.plainText.length ?? 0,
       updatedAt: page.updatedAt.toISOString(),
     })),
   };

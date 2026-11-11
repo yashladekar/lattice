@@ -59,6 +59,11 @@ export type AgentOp =
       nodes: TipTapNode[];
     }
   | {
+      kind: "replace_page";
+      pageId: string;
+      markdown: string;
+    }
+  | {
       kind: "create_page";
       /** Plan-local alias so later ops can target a page that does not exist yet. */
       ref?: string;
@@ -220,6 +225,11 @@ const agentOpShape = z.discriminatedUnion("kind", [
     nodes: nodesField,
   }),
   z.object({
+    kind: z.literal("replace_page"),
+    pageId: pageIdSchema,
+    markdown: z.string().min(1).max(AGENT_LIMITS.maxMarkdownChars),
+  }),
+  z.object({
     kind: z.literal("create_page"),
     ref: z.string().trim().min(1).max(80).optional(),
     title: z.string().trim().min(1).max(120),
@@ -275,6 +285,7 @@ function canonicalizeOpRefs(op: AgentOp, canonical: Map<string, string>): AgentO
     case "append_blocks":
     case "insert_blocks":
     case "replace_blocks":
+    case "replace_page":
     case "create_flashcards":
       return { ...op, pageId: fix(op.pageId) };
     case "create_page":
@@ -307,6 +318,9 @@ function normalizeOp(
       };
     }
     return { kind: raw.kind, pageId: raw.pageId, blockIds: raw.blockIds, nodes };
+  }
+  if (raw.kind === "replace_page") {
+    return { kind: raw.kind, pageId: raw.pageId, markdown: raw.markdown };
   }
   if (raw.kind === "create_page") {
     const ref = raw.ref ? normalizePlanRef(raw.ref) : null;
@@ -465,6 +479,8 @@ export function describeAgentOp(op: AgentOp): string {
       return `Insert ${op.nodes.length} block${op.nodes.length === 1 ? "" : "s"}`;
     case "replace_blocks":
       return `Replace ${op.blockIds.length} block${op.blockIds.length === 1 ? "" : "s"}`;
+    case "replace_page":
+      return "Rewrite the page body";
     case "create_page":
       return `Create page “${op.title}”`;
     case "link_pages":

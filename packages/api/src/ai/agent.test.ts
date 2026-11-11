@@ -118,6 +118,37 @@ describe("agent replies", () => {
     ).toBeNull();
   });
 
+  it("accepts a replace_page op used to repair a blank page", () => {
+    const reply = parseAgentReply(
+      JSON.stringify({
+        action: "plan",
+        title: "Fill the blank pages",
+        ops: [
+          {
+            kind: "replace_page",
+            pageId: "p1",
+            markdown: "# System Design Foundations\n\nWhat system design is.",
+          },
+        ],
+      }),
+    );
+    expect(reply?.action).toBe("plan");
+    if (reply?.action !== "plan") throw new Error("expected a plan");
+    expect(reply.plan.ops[0]).toMatchObject({ kind: "replace_page", pageId: "p1" });
+  });
+
+  it("rejects a replace_page op with no body", () => {
+    expect(
+      parseAgentReply(
+        JSON.stringify({
+          action: "plan",
+          title: "Empty",
+          ops: [{ kind: "replace_page", pageId: "p1", markdown: "" }],
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it("parses a plan whose page bodies contain mermaid fences", () => {
     const reply = parseAgentReply(
       JSON.stringify({

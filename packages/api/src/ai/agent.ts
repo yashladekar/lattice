@@ -153,6 +153,7 @@ function opPageIds(op: AgentOp): { write: string[]; read: string[] } {
     case "append_blocks":
     case "insert_blocks":
     case "replace_blocks":
+    case "replace_page":
       return { write: [op.pageId], read: [] };
     case "create_page":
       return { write: op.parentPageId ? [op.parentPageId] : [], read: [] };
@@ -254,6 +255,7 @@ Plan ops (every id must come from a tool result, never invented):
 {"kind":"append_blocks","pageId":"…","nodes":[<blocks>]}
 {"kind":"insert_blocks","pageId":"…","afterBlockId":"…","nodes":[<blocks>]}
 {"kind":"replace_blocks","pageId":"…","blockIds":["…"],"nodes":[<blocks>]}
+{"kind":"replace_page","pageId":"…","markdown":"…"}
 {"kind":"create_page","ref":"ref:short-name","title":"…","markdown":"…"}
 {"kind":"link_pages","sourcePageId":"…","targetPageId":"…","relationType":"RELATED_TO"}
 {"kind":"create_flashcards","pageId":"…","cards":[{"front":"…","back":"…"}]}
@@ -278,6 +280,8 @@ Authoring new notes:
 - A page body is markdown: headings, paragraphs, bullet and numbered lists, task lists, blockquotes and fenced code. Aim for a genuinely useful outline with real explanations, not a table of contents.
 - Diagrams belong in a fenced \`\`\`mermaid block inside the page markdown; it becomes a rendered flowchart, not code. Use flowchart for request paths, sequenceDiagram for request lifecycles, and erDiagram for data models. Keep each diagram small enough to read.
 - To link or extend pages this plan creates, give each create_page a "ref" such as "ref:fundamentals" and use that exact string wherever an op expects a page id. Refs live only inside one plan, so never invent them for pages you did not create here. Declare a page before another op uses its ref.
+- If the person says pages came out blank, call list_pages with "blankOnly": true and fill the ones whose title states the subject with replace_page. Do not ask what to write — the title is the brief. Only ask when the title is uninformative, such as "Untitled".
+- replace_page replaces the whole body. Use it to repair a blank page or to restructure one, not to add a section to a page that already has content.
 ${pageContext}`;
 }
 

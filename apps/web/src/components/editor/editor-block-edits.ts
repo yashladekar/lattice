@@ -1,6 +1,12 @@
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { nodePlainText, type BlockEdit, type TipTapNode } from "@notes-learning/domain";
+import {
+  nodePlainText,
+  safeDoc,
+  simpleMarkdownToDoc,
+  type BlockEdit,
+  type TipTapNode,
+} from "@notes-learning/domain";
 
 import type { BlockApplyResult } from "@/lib/local/editor-bridge";
 
@@ -42,6 +48,25 @@ function topLevelBlocks(editor: Editor): TopLevelBlock[] {
     blocks.push({ blockId, from: offset, to: offset + node.nodeSize });
   });
   return blocks;
+}
+
+/**
+ * Replaces the whole body in one transaction. Used to repair a page whose
+ * content never arrived, and to restructure a note the person asked to rewrite.
+ */
+export function replaceDocumentInEditor(editor: Editor, markdown: string): BlockApplyResult {
+  if (editor.isDestroyed) {
+    return { applied: 0, skipped: ["The editor is closed."] };
+  }
+  const nodes = safeDoc(simpleMarkdownToDoc(markdown)).content.map((node) =>
+    toProseMirror(editor.schema, node),
+  );
+  if (!nodes.length) {
+    return { applied: 0, skipped: ["There was nothing to write."] };
+  }
+  const tr = editor.state.tr.replaceWith(0, editor.state.doc.content.size, nodes);
+  editor.view.dispatch(tr);
+  return { applied: 1, skipped: [] };
 }
 
 /**

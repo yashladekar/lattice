@@ -15,6 +15,8 @@ export interface BlockApplyResult {
 export interface EditorBlockApplier {
   pageId: string;
   apply(edits: readonly BlockEdit[]): BlockApplyResult;
+  /** Replaces the entire body from markdown, as one transaction. */
+  replaceDocument?(markdown: string): BlockApplyResult;
 }
 
 const appliers = new Map<string, EditorBlockApplier>();

@@ -149,6 +149,21 @@ describeWithDatabase("agent run", () => {
     expect(done.warnings).toEqual([]);
   });
 
+  it("proposes rewriting a page body", async () => {
+    await setup();
+    runChat.mockResolvedValueOnce(
+      reply({
+        action: "plan",
+        title: "Fill it",
+        ops: [{ kind: "replace_page", pageId, markdown: "# Filled\n\nReal content." }],
+      }),
+    );
+
+    const done = finalPlan(await run("fill the blank page"));
+    expect(done.plan?.ops[0]?.kind).toBe("replace_page");
+    expect(done.warnings).toEqual([]);
+  });
+
   it("keeps a plan that links the pages it is creating", async () => {
     await setup();
     runChat.mockResolvedValueOnce(
