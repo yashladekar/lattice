@@ -1,4 +1,5 @@
 import { createId } from "./ids";
+import { CANVAS_LAYOUTS } from "./plugins";
 import type {
   CanvasCanvasElement,
   CanvasConnectorElement,
@@ -14,6 +15,30 @@ import type {
 
 export function emptyCanvas(): CanvasDocument {
   return { version: 1, elements: [], background: "dots" };
+}
+
+/** The layouts a plugin manifest may request, reused here for agent plans. */
+export type CanvasLayout = (typeof CANVAS_LAYOUTS)[number];
+
+/**
+ * Builds a whiteboard from an outline, with positions decided here rather than
+ * by the caller — a model that placed elements itself would produce overlaps.
+ * Shared by the mind-map page action and the plan-mode `create_canvas` op.
+ */
+export function buildCanvasFromOutline(
+  layout: CanvasLayout,
+  title: string,
+  nodes: ReadonlyArray<{ text: string; level?: number }>,
+): CanvasDocument {
+  const outline: OutlineItem[] = nodes.map((node, index) => ({
+    id: createId(),
+    level: Math.min(4, Math.max(1, node.level ?? 1)),
+    text: node.text,
+    pos: index,
+  }));
+  if (layout === "flow") return createFlowFromOutline(title, outline);
+  if (layout === "concept") return createConceptMap(title, outline);
+  return createMindMap(title, outline);
 }
 
 export function canvasDocument(value: unknown): CanvasDocument {

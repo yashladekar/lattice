@@ -1,5 +1,6 @@
 import {
   applyBlockEdits,
+  buildCanvasFromOutline,
   isPlanRef,
   safeDoc,
   simpleMarkdownToDoc,
@@ -11,6 +12,7 @@ import { client } from "@/utils/orpc";
 import type { LatticeDB } from "./db";
 import { getEditorBlockApplier } from "./editor-bridge";
 import {
+  createCanvasLocal,
   createFlashcardLocal,
   createPageLocal,
   ensureDeckLocal,
@@ -190,6 +192,21 @@ export async function applyAgentPlan(
           continue;
         }
         notifyDocumentReplaced(pageId, saved.content, saved.rev);
+        applied += 1;
+        continue;
+      }
+
+      if (op.kind === "create_canvas") {
+        // createCanvasLocal also queues the canvas op and its graph node, so the
+        // whiteboard syncs and appears in the graph without anything else here.
+        await createCanvasLocal(db, {
+          workspaceId: input.workspaceId,
+          userId: input.userId,
+          notebookId: input.notebookId,
+          title: op.title,
+          data: buildCanvasFromOutline(op.layout, op.title, op.nodes),
+          icon: "◈",
+        });
         applied += 1;
         continue;
       }

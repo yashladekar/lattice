@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+import { type CanvasLayout } from "./canvas";
 import { isKnownDiagramSource, normalizeDiagramSource } from "./diagrams";
 import { createId } from "./ids";
+import { CANVAS_LAYOUTS } from "./plugins";
 import { RELATION_TYPES, type TipTapDoc, type TipTapNode } from "./types";
 
 /**
@@ -22,6 +24,8 @@ export const AGENT_LIMITS = {
   maxReadChars: 6_000,
   maxTotalReadChars: 24_000,
   maxMarkdownChars: 20_000,
+  /** Outline entries one whiteboard can be built from. */
+  maxCanvasNodes: 30,
   /**
    * Output budget for one plan turn. A reply carries the JSON wrapper plus every
    * page body, and the default chat budget truncates it mid-object.
@@ -70,6 +74,12 @@ export type AgentOp =
       title: string;
       markdown: string;
       parentPageId?: string;
+    }
+  | {
+      kind: "create_canvas";
+      title: string;
+      layout: CanvasLayout;
+      nodes: Array<{ text: string; level?: number }>;
     }
   | {
       kind: "link_pages";
@@ -237,6 +247,20 @@ const agentOpShape = z.discriminatedUnion("kind", [
     parentPageId: pageIdSchema.optional(),
   }),
   z.object({
+    kind: z.literal("create_canvas"),
+    title: z.string().trim().min(1).max(120),
+    layout: z.enum([...CANVAS_LAYOUTS]),
+    nodes: z
+      .array(
+        z.object({
+          text: z.string().trim().min(1).max(200),
+          level: z.coerce.number().int().min(1).max(4).optional(),
+        }),
+      )
+      .min(1)
+      .max(AGENT_LIMITS.maxCanvasNodes),
+  }),
+  z.object({
     kind: z.literal("link_pages"),
     sourcePageId: pageIdSchema,
     targetPageId: pageIdSchema,
@@ -295,6 +319,8 @@ function canonicalizeOpRefs(op: AgentOp, canonical: Map<string, string>): AgentO
       };
     case "link_pages":
       return { ...op, sourcePageId: fix(op.sourcePageId), targetPageId: fix(op.targetPageId) };
+    case "create_canvas":
+      return op;
   }
 }
 
@@ -330,6 +356,17 @@ function normalizeOp(
       markdown: raw.markdown,
       ...(ref ? { ref } : {}),
       ...(raw.parentPageId ? { parentPageId: raw.parentPageId } : {}),
+    };
+  }
+  if (raw.kind === "create_canvas") {
+    return {
+      kind: raw.kind,
+      title: raw.title,
+      layout: raw.layout,
+      nodes: raw.nodes.map((node) => ({
+        text: node.text,
+        ...(node.level ? { level: node.level } : {}),
+      })),
     };
   }
   if (raw.kind === "link_pages") {
@@ -483,6 +520,8 @@ export function describeAgentOp(op: AgentOp): string {
       return "Rewrite the page body";
     case "create_page":
       return `Create page “${op.title}”`;
+    case "create_canvas":
+      return `Create whiteboard “${op.title}”`;
     case "link_pages":
       return `Link pages (${op.relationType.toLowerCase().replace(/_/g, " ")})`;
     case "create_flashcards":

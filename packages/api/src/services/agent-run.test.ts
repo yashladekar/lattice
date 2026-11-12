@@ -149,6 +149,38 @@ describeWithDatabase("agent run", () => {
     expect(done.warnings).toEqual([]);
   });
 
+  it("keeps a whiteboard op alongside the pages it illustrates", async () => {
+    await setup();
+    runChat.mockResolvedValueOnce(
+      reply({
+        action: "plan",
+        title: "Guide with a map",
+        ops: [
+          {
+            kind: "create_page",
+            ref: "ref:one",
+            title: "One",
+            markdown: "# One\n\nBody.",
+          },
+          {
+            kind: "create_canvas",
+            title: "Overview",
+            layout: "mindmap",
+            nodes: [
+              { text: "Overview", level: 1 },
+              { text: "One", level: 2 },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const done = finalPlan(await run("write it and draw it"));
+    expect(done.plan?.ops).toHaveLength(2);
+    expect(done.plan?.ops[1]).toMatchObject({ kind: "create_canvas", layout: "mindmap" });
+    expect(done.warnings).toEqual([]);
+  });
+
   it("proposes rewriting a page body", async () => {
     await setup();
     runChat.mockResolvedValueOnce(

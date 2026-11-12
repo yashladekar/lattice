@@ -21,6 +21,9 @@ function previewOf(op: AgentOp): string {
     const text = op.markdown.replace(/\s+/g, " ").trim();
     return text.length > 160 ? `${text.slice(0, 160)}…` : text;
   }
+  if (op.kind === "create_canvas") {
+    return `${op.layout} · ${op.nodes.length} entr${op.nodes.length === 1 ? "y" : "ies"}`;
+  }
   if (op.kind === "create_page") {
     const text = op.markdown.replace(/\s+/g, " ").trim();
     return text.length > 160 ? `${text.slice(0, 160)}…` : text;
@@ -48,6 +51,8 @@ function targetOf(
       return `${title(op.sourcePageId)} → ${title(op.targetPageId)}`;
     case "create_page":
       return op.parentPageId ? `under ${title(op.parentPageId)}` : "workspace";
+    case "create_canvas":
+      return "whiteboard";
   }
 }
 

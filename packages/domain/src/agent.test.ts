@@ -111,6 +111,40 @@ describe("plan validation", () => {
     expect(plan?.ops).toHaveLength(2);
   });
 
+  it("accepts a create_canvas op and keeps its outline", () => {
+    const { plan, warnings } = normalizeAgentPlan({
+      title: "Whiteboard",
+      ops: [
+        {
+          kind: "create_canvas",
+          title: "System design",
+          layout: "mindmap",
+          nodes: [
+            { text: "System design", level: 1 },
+            { text: "Scaling", level: 2 },
+          ],
+        },
+      ],
+    });
+    expect(warnings).toEqual([]);
+    expect(plan?.ops[0]).toMatchObject({ kind: "create_canvas", layout: "mindmap" });
+  });
+
+  it("rejects an unknown canvas layout and an empty outline", () => {
+    expect(
+      normalizeAgentPlan({
+        title: "x",
+        ops: [{ kind: "create_canvas", title: "x", layout: "spiral", nodes: [{ text: "a" }] }],
+      }).plan,
+    ).toBeNull();
+    expect(
+      normalizeAgentPlan({
+        title: "x",
+        ops: [{ kind: "create_canvas", title: "x", layout: "flow", nodes: [] }],
+      }).plan,
+    ).toBeNull();
+  });
+
   it("rejects unknown relation types", () => {
     const { plan } = normalizeAgentPlan({
       title: "x",

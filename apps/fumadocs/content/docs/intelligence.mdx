@@ -119,6 +119,7 @@ hide the whole surface; the code stays in place and nothing else is affected.
 | Append / insert / replace blocks | Edits one page's body |
 | Replace page body | Rewrites a whole page — for repair or a restructure |
 | Create page | A new page from Markdown |
+| Create whiteboard | A mind map, flow, or concept map built from an outline |
 | Link pages | A typed graph relation, marked `origin: AI` |
 | Create flashcards | Cards in the daily-review deck |
 
@@ -145,6 +146,12 @@ notes get their request paths, sequence diagrams and data models. A fence
 Mermaid would not understand stays a code block instead of an error box. Images
 are not available — a model-supplied image URL is exactly the kind of thing the
 block allowlist exists to stop.
+
+A plan can also create a whiteboard: mind map, flow, or concept map. The model
+supplies only an outline and a layout name; positions come from the same layout
+code the mind-map action uses, so elements never overlap. Whiteboards are
+create-only for now — the assistant cannot add to or rearrange one you already
+drew.
 
 Plain **Ask** answers from your notes and cites them. When they do not cover the
 question it says so in one line, then continues from general knowledge under a

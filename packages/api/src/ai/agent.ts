@@ -157,6 +157,9 @@ function opPageIds(op: AgentOp): { write: string[]; read: string[] } {
       return { write: [op.pageId], read: [] };
     case "create_page":
       return { write: op.parentPageId ? [op.parentPageId] : [], read: [] };
+    case "create_canvas":
+      // A whiteboard is a new workspace object; it touches no page.
+      return { write: [], read: [] };
     case "link_pages":
       return { write: [op.sourcePageId], read: [op.targetPageId] };
     case "create_flashcards":
@@ -257,6 +260,7 @@ Plan ops (every id must come from a tool result, never invented):
 {"kind":"replace_blocks","pageId":"…","blockIds":["…"],"nodes":[<blocks>]}
 {"kind":"replace_page","pageId":"…","markdown":"…"}
 {"kind":"create_page","ref":"ref:short-name","title":"…","markdown":"…"}
+{"kind":"create_canvas","title":"…","layout":"mindmap","nodes":[{"text":"…","level":1}]}
 {"kind":"link_pages","sourcePageId":"…","targetPageId":"…","relationType":"RELATED_TO"}
 {"kind":"create_flashcards","pageId":"…","cards":[{"front":"…","back":"…"}]}
 
@@ -282,6 +286,7 @@ Authoring new notes:
 - To link or extend pages this plan creates, give each create_page a "ref" such as "ref:fundamentals" and use that exact string wherever an op expects a page id. Refs live only inside one plan, so never invent them for pages you did not create here. Declare a page before another op uses its ref.
 - If the person says pages came out blank, call list_pages with "blankOnly": true and fill the ones whose title states the subject with replace_page. Do not ask what to write — the title is the brief. Only ask when the title is uninformative, such as "Untitled".
 - replace_page replaces the whole body. Use it to repair a blank page or to restructure one, not to add a section to a page that already has content.
+- Whiteboards: when a topic is structural, offer a create_canvas op alongside the pages. "mindmap" for a topic and its parts (set levels 1-4 to nest), "flow" for a sequence, "concept" for a hub with related ideas. Give outline text only — positions are computed for you. At most ${AGENT_LIMITS.maxCanvasNodes} entries.
 ${pageContext}`;
 }
 
