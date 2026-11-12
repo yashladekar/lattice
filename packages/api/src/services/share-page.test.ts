@@ -79,6 +79,30 @@ describeWithDatabase("public page share", () => {
         },
       });
     }
+
+    await db.pageDocument.update({
+      where: { pageId: publicChildId },
+      data: {
+        content: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "pageLink", attrs: { pageId: grandchildId, title: "Grandchild", icon: "◇" } },
+              ],
+            },
+            {
+              type: "paragraph",
+              content: [
+                { type: "pageLink", attrs: { pageId: privateChildId, title: "Private child", icon: "◇" } },
+              ],
+            },
+          ],
+        },
+        plainText: "Grandchild Linked page",
+      },
+    });
   });
 
   afterAll(async () => {
@@ -128,6 +152,26 @@ describeWithDatabase("public page share", () => {
         }),
       ).rejects.toThrow(/not shared/);
     }
+  });
+
+  it("keeps links to shared pages and strips links to hidden ones", async () => {
+    const resolved = await resolvePublicPage(db, {
+      workspaceId: workspace.id,
+      rootPageId: rootId,
+      includeSubPages: true,
+      pageId: publicChildId,
+    });
+
+    const firstParagraph = resolved.page.document.content[0];
+    const secondParagraph = resolved.page.document.content[1];
+    expect(firstParagraph?.content?.[0]).toMatchObject({
+      type: "pageLink",
+      attrs: { pageId: grandchildId },
+    });
+    expect(secondParagraph?.content?.[0]).toMatchObject({
+      type: "text",
+      text: "Linked page",
+    });
   });
 
   it("does not expose a child when the link only shared the root", async () => {

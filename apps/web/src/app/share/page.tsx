@@ -5,7 +5,7 @@ import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
 import { AlertTriangle, ArrowLeft, BookOpen, Calendar, ChevronRight, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 
 import { LatticeLogo, LatticeMark } from "@/components/brand/logo";
@@ -163,6 +163,7 @@ function PublicCanvasView({ canvas }: { canvas: PublicCanvas }) {
 
 function SharedContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get("token");
   const pageParam = searchParams.get("page");
   const [payload, setPayload] = useState<PublicPayload | null>(null);
@@ -174,6 +175,15 @@ function SharedContent() {
     payload?.type === "PAGE"
       ? payload.subPages.filter((entry) => entry.parentId === payload.page.id)
       : [];
+
+  const sharedPageIds =
+    payload?.type === "PAGE"
+      ? new Set([
+          payload.page.id,
+          ...payload.trail.map((entry) => entry.id),
+          ...payload.subPages.map((entry) => entry.id),
+        ])
+      : new Set<string>();
 
   const shareHref = (pageId?: string) => {
     const params = new URLSearchParams();
@@ -346,7 +356,13 @@ function SharedContent() {
                 <p className="mb-8 text-[10px] text-[#6b6a60]">
                   By {payload.page.authorName} · hosted with Lattice
                 </p>
-                <ReadOnlyDocument doc={payload.page.document} />
+                <ReadOnlyDocument
+                  doc={payload.page.document}
+                  onPageLink={(linkedId) => {
+                    if (!sharedPageIds.has(linkedId)) return;
+                    router.push(shareHref(linkedId));
+                  }}
+                />
               </article>
             ) : null}
 

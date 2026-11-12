@@ -128,7 +128,7 @@ export async function resolvePublicPage(db: Database, input: ResolvePublicPageIn
 
   const document = await db.pageDocument.findUnique({ where: { pageId: current.id } });
   if (!document) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
-  const publicDoc = publicDocument(document.content, new Set([current.id]));
+  const publicDoc = publicDocument(document.content, allowedIds);
   const author = await db.user.findUnique({
     where: { id: current.createdById },
     select: { name: true },
