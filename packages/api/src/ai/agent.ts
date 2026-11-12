@@ -287,6 +287,7 @@ Authoring new notes:
 - If the person says pages came out blank, call list_pages with "blankOnly": true and fill the ones whose title states the subject with replace_page. Do not ask what to write — the title is the brief. Only ask when the title is uninformative, such as "Untitled".
 - replace_page replaces the whole body. Use it to repair a blank page or to restructure one, not to add a section to a page that already has content.
 - Whiteboards: when a topic is structural, offer a create_canvas op alongside the pages. "mindmap" for a topic and its parts (set levels 1-4 to nest), "flow" for a sequence, "concept" for a hub with related ideas. Give outline text only — positions are computed for you. At most ${AGENT_LIMITS.maxCanvasNodes} entries.
+- Before proposing a whiteboard, call list_canvases. If one already fits the topic, say so and offer to work from it instead of creating a duplicate. Use read_canvas when the person asks about a board they already drew.
 ${pageContext}`;
 }
 

@@ -181,6 +181,66 @@ describeWithDatabase("agent run", () => {
     expect(done.warnings).toEqual([]);
   });
 
+  it("reads an existing whiteboard when asked about it", async () => {
+    await setup();
+    const canvasId = randomUUID();
+    await db.canvas.create({
+      data: {
+        id: canvasId,
+        workspaceId: workspace.id,
+        title: "System design board",
+        createdById: workspace.ownerId,
+        data: {
+          version: 1,
+          background: "dots",
+          elements: [
+            {
+              id: "n1",
+              type: "note",
+              x: 0,
+              y: 0,
+              width: 200,
+              height: 120,
+              text: "Load balancer",
+              color: "saffron",
+            },
+            {
+              id: "n2",
+              type: "note",
+              x: 300,
+              y: 0,
+              width: 200,
+              height: 120,
+              text: "Database",
+              color: "moss",
+            },
+            {
+              id: "c1",
+              type: "connector",
+              from: { elementId: "n2" },
+              to: { elementId: "n1" },
+            },
+          ],
+        },
+      },
+    });
+
+    runChat
+      .mockResolvedValueOnce(reply({ action: "tool", tool: "read_canvas", input: { canvasId } }))
+      .mockResolvedValueOnce(reply({ action: "answer", text: "The board shows a load balancer and a database." }));
+
+    const events = await run("what is on my system design board?");
+    expect(events.filter((event) => event.type === "step")).toHaveLength(1);
+
+    // The tool result is fed back to the model on the second turn.
+    const secondTurn = JSON.stringify(runChat.mock.calls[1]?.[1] ?? []);
+    expect(secondTurn).toContain("Load balancer");
+    expect(secondTurn).toContain("Database");
+
+    const done = finalPlan(events);
+    expect(done.answer).toMatch(/load balancer/i);
+  });
+
   it("proposes rewriting a page body", async () => {
     await setup();
     runChat.mockResolvedValueOnce(

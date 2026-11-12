@@ -2,9 +2,11 @@ import type { Database } from "@notes-learning/db";
 import {
   AGENT_LIMITS,
   blockIdOf,
+  canvasDocument,
   nodePlainText,
   relatedDocuments,
   safeDoc,
+  type CanvasElement,
   type Role,
 } from "@notes-learning/domain";
 import { z } from "zod";
@@ -52,6 +54,8 @@ const TOOL_INPUTS = {
     limit: z.coerce.number().int().min(1).max(20).optional(),
     blankOnly: z.coerce.boolean().optional(),
   }),
+  list_canvases: z.object({ limit: z.coerce.number().int().min(1).max(20).optional() }),
+  read_canvas: z.object({ canvasId: pageIdField }),
 } as const;
 
 export type AgentToolName = keyof typeof TOOL_INPUTS;
@@ -73,7 +77,13 @@ export const AGENT_TOOL_CATALOGUE = `- search_pages { "query": string, "limit"?:
     Typed relations in and out of this page's graph node.
 - list_pages { "limit"?: 1-20, "blankOnly"?: boolean }
     The most recently updated pages the reader can access, with a "chars" count.
-    Pass "blankOnly": true to list only pages whose body is empty.`;
+    Pass "blankOnly": true to list only pages whose body is empty.
+- list_canvases { "limit"?: 1-20 }
+    Whiteboards in this workspace, with an element count. Check this before
+    proposing a new canvas so you extend rather than duplicate one.
+- read_canvas { "canvasId": string }
+    A whiteboard's nodes and connectors as text, so you can summarise or reason
+    about a board the person already drew.`;
 
 function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}…` : value;
@@ -299,6 +309,93 @@ async function listPages(
   };
 }
 
+function canvasElementText(element: CanvasElement): string {
+  switch (element.type) {
+    case "note":
+    case "shape":
+    case "text":
+      return element.text;
+    case "frame":
+      return element.title;
+    case "page":
+      return "linked page";
+    case "canvas":
+      return "nested whiteboard";
+    case "image":
+      return element.alt ?? "image";
+    case "freehand":
+      return "sketch";
+    default:
+      return "";
+  }
+}
+
+async function listCanvases(
+  context: AgentToolContext,
+  input: z.infer<typeof TOOL_INPUTS.list_canvases>,
+): Promise<AgentToolResult> {
+  const canvases = await context.db.canvas.findMany({
+    where: { workspaceId: context.workspaceId, deletedAt: null },
+    orderBy: { updatedAt: "desc" },
+    take: input.limit ?? 10,
+    select: { id: true, title: true, updatedAt: true, data: true },
+  });
+  return {
+    label: `Listed ${canvases.length} whiteboard${canvases.length === 1 ? "" : "s"}`,
+    data: canvases.map((canvas) => ({
+      canvasId: canvas.id,
+      title: canvas.title,
+      elements: canvasDocument(canvas.data).elements.length,
+      updatedAt: canvas.updatedAt.toISOString(),
+    })),
+  };
+}
+
+async function readCanvas(
+  context: AgentToolContext,
+  input: z.infer<typeof TOOL_INPUTS.read_canvas>,
+): Promise<AgentToolResult> {
+  const canvas = await context.db.canvas.findFirst({
+    where: { id: input.canvasId, workspaceId: context.workspaceId, deletedAt: null },
+    select: { title: true, data: true },
+  });
+  if (!canvas) throw new Error("That whiteboard does not exist.");
+
+  const elements = canvasDocument(canvas.data).elements;
+  const nodes = elements
+    .filter((element) => element.type !== "connector" && element.type !== "freehand")
+    .slice(0, AGENT_LIMITS.maxCanvasNodes)
+    .map((element) => ({
+      elementId: element.id,
+      kind: element.type,
+      text: truncate(canvasElementText(element), 160),
+    }));
+  const connectors = elements
+    .flatMap((element) =>
+      element.type === "connector"
+        ? [
+            {
+              from: element.from.elementId ?? null,
+              to: element.to.elementId ?? null,
+              ...(element.label ? { label: element.label } : {}),
+            },
+          ]
+        : [],
+    )
+    .slice(0, AGENT_LIMITS.maxCanvasNodes * 2);
+
+  return {
+    label: `Read whiteboard “${truncate(canvas.title, 60)}”`,
+    data: {
+      canvasId: input.canvasId,
+      title: canvas.title,
+      nodes,
+      connectors,
+      truncated: elements.length > nodes.length + connectors.length,
+    },
+  };
+}
+
 /**
  * Runs one tool call. Failures are returned as tool data rather than thrown so
  * the model can recover, and so a missing page never leaks whether it exists.
@@ -337,6 +434,13 @@ export async function runAgentTool(
         );
       case "list_pages":
         return await listPages(context, parsed.data as z.infer<typeof TOOL_INPUTS.list_pages>);
+      case "list_canvases":
+        return await listCanvases(
+          context,
+          parsed.data as z.infer<typeof TOOL_INPUTS.list_canvases>,
+        );
+      case "read_canvas":
+        return await readCanvas(context, parsed.data as z.infer<typeof TOOL_INPUTS.read_canvas>);
     }
   } catch {
     return { label: `Could not run ${name}`, data: { error: `${name} could not be completed.` } };
