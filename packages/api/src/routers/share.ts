@@ -150,6 +150,44 @@ export const shareRouter = {
       return shares.map(({ tokenHash: _tokenHash, ...share }) => share);
     }),
 
+  update: workspaceProcedure("MEMBER")
+    .input(
+      z.object({
+        shareId: z.string().min(1),
+        includeSubPages: z.boolean(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const share = await context.db.shareLink.findFirst({
+        where: { id: input.shareId, workspaceId: context.workspaceId },
+      });
+      if (!share) throw new ORPCError("NOT_FOUND");
+      if (share.resourceType !== "PAGE") {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Only page links can include sub-pages",
+        });
+      }
+      if (
+        share.createdById !== context.userId &&
+        context.role !== "OWNER" &&
+        context.role !== "ADMIN"
+      ) {
+        throw new ORPCError("FORBIDDEN");
+      }
+      const updated = await context.db.shareLink.update({
+        where: { id: share.id },
+        data: { includeSubPages: input.includeSubPages },
+      });
+      await writeAudit(context.db, {
+        workspaceId: context.workspaceId,
+        actorId: context.userId,
+        action: "share.updated",
+        resourceType: "PAGE",
+        resourceId: share.resourceId,
+      });
+      return { id: updated.id, includeSubPages: updated.includeSubPages };
+    }),
+
   revoke: workspaceProcedure("MEMBER")
     .input(z.object({ shareId: z.string().min(1) }))
     .handler(async ({ context, input }) => {

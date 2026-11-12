@@ -34,6 +34,7 @@ export function ShareDialog({
   const [createdIncludesSubPages, setCreatedIncludesSubPages] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [updatingShareId, setUpdatingShareId] = useState<string | null>(null);
 
   useEffect(() => {
     setIncludeSubPages(false);
@@ -85,6 +86,21 @@ export function ShareDialog({
       toast.success("Link revoked");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not revoke");
+    }
+  };
+
+  const toggleSubPages = async (shareId: string, includeSubPages: boolean) => {
+    setUpdatingShareId(shareId);
+    try {
+      await client.share.update({ shareId, includeSubPages });
+      await queryClient.invalidateQueries({
+        queryKey: ["shares", activeWorkspace?.id, resourceType, resourceId],
+      });
+      toast.success(includeSubPages ? "Sub-pages enabled" : "Sub-pages disabled");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update the link");
+    } finally {
+      setUpdatingShareId(null);
     }
   };
 
@@ -222,6 +238,24 @@ export function ShareDialog({
                           {share.includeSubPages ? " · includes sub-pages" : ""}
                         </div>
                       </div>
+                      {resourceType === "PAGE" && !revoked ? (
+                        <label
+                          title="Include sub-pages"
+                          className="flex shrink-0 cursor-pointer items-center gap-1 text-[8px] text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={share.includeSubPages}
+                            disabled={updatingShareId === share.id || expired}
+                            onChange={(event) =>
+                              void toggleSubPages(share.id, event.target.checked)
+                            }
+                            className="size-3 rounded border-border accent-saffron"
+                            aria-label="Include sub-pages"
+                          />
+                          <Layers className="size-2.5" />
+                        </label>
+                      ) : null}
                       {!revoked ? (
                         <button
                           type="button"
