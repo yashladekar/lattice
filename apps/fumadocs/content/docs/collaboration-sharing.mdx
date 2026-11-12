@@ -84,7 +84,7 @@ Share links are created for a page, canvas, notebook, or graph.
 - Links support expiry and revocation.
 - A page link can include sub-pages. The option is off by default. When on, only `WORKSPACE` and `PUBLIC` descendants are reachable, and a hidden page hides everything beneath it.
 - Public page links navigate the shared subtree with `?page=<id>` and show a breadcrumb back to the shared root.
-- Public page payloads strip page links and embeds that point outside the shared object.
+- Public page payloads replace internal page links and embeds with plain text; the shared breadcrumb and sub-pages list handle navigation.
 - Public notebooks exclude private pages.
 - Public graphs exclude nodes whose source page is private.
 - Public share lookups use a separate anonymous API surface with no workspace metadata beyond the shared resource.
