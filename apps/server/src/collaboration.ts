@@ -50,9 +50,13 @@ function roomKey(resourceType: CollabResource, resourceId: string): string {
   return `${resourceType}:${resourceId}`;
 }
 
-/** Whether this user currently has the page open in a live session. */
-export function isCollaborating(pageId: string, userId: string): boolean {
-  const room = rooms.get(roomKey("page", pageId));
+/** Whether this user currently has the resource open in a live session. */
+export function isCollaborating(
+  resourceType: CollabResource,
+  resourceId: string,
+  userId: string,
+): boolean {
+  const room = rooms.get(roomKey(resourceType, resourceId));
   if (!room) return false;
   for (const connection of room.connections) {
     if (connection.userId === userId) return true;

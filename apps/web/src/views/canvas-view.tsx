@@ -411,7 +411,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (titleTimer.current) clearTimeout(titleTimer.current);
       if (loadedRef.current && db && canvas) {
-        void saveCanvasLocal(db, canvas.id, documentRef.current);
+        void saveCanvasLocal(db, canvas.id, documentRef.current, { source: "session" });
       }
     };
   }, [db, canvas?.id]);
@@ -559,7 +559,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await saveCanvasLocal(db, canvas.id, document);
+        await saveCanvasLocal(db, canvas.id, document, { source: "session" });
         setSaveStatus("saved");
       } catch {
         setSaveStatus("error");

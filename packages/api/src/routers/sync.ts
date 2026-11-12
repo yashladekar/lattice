@@ -60,8 +60,13 @@ export const syncRouter = {
         userId: context.userId,
         ops: input.ops as SyncOpInput[],
         isCollaborating: context.collab
-          ? (pageId: string) =>
-              context.collab!.isActive(context.workspaceId, pageId, context.userId)
+          ? (resourceType, resourceId) =>
+              context.collab!.isActive(
+                context.workspaceId,
+                resourceType,
+                resourceId,
+                context.userId,
+              )
           : undefined,
         invalidateCollab: context.collab
           ? (resourceType, resourceId) =>

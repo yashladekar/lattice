@@ -213,6 +213,93 @@ describeWithDatabase("member role changes through sync", () => {
   });
 });
 
+describeWithDatabase("canvas session writes", () => {
+  let db: Database;
+  let workspace: TestWorkspace;
+
+  beforeAll(async () => {
+    db = createTestDatabase();
+    workspace = await createTestWorkspace(db);
+  });
+
+  afterAll(async () => {
+    await cleanupTestWorkspace(db, workspace.id);
+    await db.$disconnect();
+  });
+
+  const board = (text: string) => ({
+    version: 1,
+    elements: [
+      { id: "n1", type: "note", x: 0, y: 0, width: 200, height: 120, text, color: "saffron" },
+    ],
+  });
+
+  const pushCanvas = async (
+    canvasId: string,
+    payload: Record<string, unknown>,
+    options: { baseRev?: number; collaborating?: boolean } = {},
+  ) =>
+    pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `c-${randomUUID()}`,
+          entity: "canvas",
+          entityId: canvasId,
+          op: "UPSERT",
+          ...(options.baseRev !== undefined ? { baseRev: options.baseRev } : {}),
+          payload,
+        },
+      ],
+      isCollaborating: (resourceType, resourceId) =>
+        Boolean(options.collaborating) && resourceType === "canvas" && resourceId === canvasId,
+    });
+
+  const createBoard = async () => {
+    const canvasId = randomUUID();
+    await pushCanvas(canvasId, { title: "Board", data: board("seed"), schemaVersion: 1 });
+    await pushCanvas(canvasId, { data: board("one"), schemaVersion: 1 }, { baseRev: 0 });
+    return canvasId;
+  };
+
+  it("accepts a stale snapshot from the live session", async () => {
+    const canvasId = await createBoard();
+    const result = await pushCanvas(
+      canvasId,
+      { data: board("two"), schemaVersion: 1, source: "session" },
+      { baseRev: 0, collaborating: true },
+    );
+    expect(result.conflicts).toEqual([]);
+    const canvas = await db.canvas.findUniqueOrThrow({ where: { id: canvasId } });
+    expect(canvas.rev).toBe(2);
+  });
+
+  it("rejects a stale write that is not from the session", async () => {
+    const canvasId = await createBoard();
+    const result = await pushCanvas(
+      canvasId,
+      { data: board("two"), schemaVersion: 1 },
+      { baseRev: 0, collaborating: true },
+    );
+    expect(result.conflicts).toHaveLength(1);
+    const canvas = await db.canvas.findUniqueOrThrow({ where: { id: canvasId } });
+    expect(canvas.rev).toBe(1);
+  });
+
+  it("still rejects a stale write from a peer that is not in the session", async () => {
+    const canvasId = await createBoard();
+    const result = await pushCanvas(
+      canvasId,
+      { data: board("two"), schemaVersion: 1 },
+      { baseRev: 0, collaborating: false },
+    );
+    expect(result.conflicts).toHaveLength(1);
+    const canvas = await db.canvas.findUniqueOrThrow({ where: { id: canvasId } });
+    expect(canvas.rev).toBe(1);
+  });
+});
+
 describeWithDatabase("page creation", () => {
   let db: Database;
   let workspace: TestWorkspace;

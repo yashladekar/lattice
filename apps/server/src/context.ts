@@ -61,8 +61,8 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     chatgpt: chatgptCallback,
     aiAgent: { enabled: aiAgentEnabled },
     collab: {
-      isActive: (_workspaceId: string, pageId: string, userId: string) =>
-        isCollaborating(pageId, userId),
+      isActive: (_workspaceId: string, resourceType, resourceId, userId) =>
+        isCollaborating(resourceType, resourceId, userId),
       invalidate: (_workspaceId: string, resourceType, resourceId) => {
         void invalidateCollabState(resourceType, resourceId);
       },

@@ -47,8 +47,8 @@ interface ApplyContext {
   workspaceId: string;
   userId: string;
   role: Role;
-  /** True when this user has the page open in a live collaborative session. */
-  isCollaborating?: (pageId: string) => boolean;
+  /** True when this user has the resource open in a live collaborative session. */
+  isCollaborating?: (resourceType: "page" | "canvas", resourceId: string) => boolean;
   /** Records a document whose stored CRDT no longer matches the row. */
   markCollabStale?: (resourceType: "page" | "canvas", resourceId: string) => void;
 }
@@ -438,7 +438,7 @@ async function applyPageDocument(
   const content = recordValue(op.payload.content);
   if (!content) throw new ORPCError("BAD_REQUEST", { message: "Document content is required" });
 
-  const collaborating = ctx.isCollaborating?.(page.id) ?? false;
+  const collaborating = ctx.isCollaborating?.("page", page.id) ?? false;
   // Session snapshots carry stale revisions by design; every other writer is
   // checked, so an out-of-band write cannot silently lose to a live peer.
   const fromSession = stringValue(op.payload.source) === "session";
@@ -578,7 +578,11 @@ async function applyCanvas(
   const data = recordValue(payload.data);
   const baseRev = op.baseRev ?? 0;
 
-  if (existing && data && baseRev !== existing.rev) {
+  const collaborating = ctx.isCollaborating?.("canvas", op.entityId) ?? false;
+  // Session snapshots carry stale revisions by design, exactly as for pages.
+  const fromSession = stringValue(payload.source) === "session";
+
+  if (existing && data && baseRev !== existing.rev && !(fromSession && collaborating)) {
     const conflictId = randomUUID();
     const remoteData = toJsonSafe(existing);
     const localData = { data, schemaVersion };
@@ -673,8 +677,9 @@ async function applyCanvas(
 
   changes.push({ entity: "canvas", entityId: canvas.id, op: "UPSERT", data: toJsonSafe(canvas) });
   await ensureCanvasNode(tx, canvas, changes);
-  // A board written outside its live session leaves the stored CRDT stale.
-  ctx.markCollabStale?.("canvas", canvas.id);
+  // A write from the live session is the session; anything else leaves the
+  // stored CRDT stale.
+  if (!collaborating) ctx.markCollabStale?.("canvas", canvas.id);
   return {
     accepted: {
       entity: "canvas",
@@ -1813,7 +1818,7 @@ export async function pushSync(
     workspaceId: string;
     userId: string;
     ops: SyncOpInput[];
-    isCollaborating?: (pageId: string) => boolean;
+    isCollaborating?: (resourceType: "page" | "canvas", resourceId: string) => boolean;
     invalidateCollab?: (resourceType: "page" | "canvas", resourceId: string) => void;
   },
 ): Promise<SyncPushResponse> {

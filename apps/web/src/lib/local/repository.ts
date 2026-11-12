@@ -87,7 +87,10 @@ function documentPayload(document: LocalPageDocument): Record<string, unknown> {
   };
 }
 
-function canvasPayload(canvas: LocalCanvas): Record<string, unknown> {
+function canvasPayload(
+  canvas: LocalCanvas,
+  source?: "session" | "write",
+): Record<string, unknown> {
   return {
     title: canvas.title,
     icon: canvas.icon,
@@ -95,6 +98,7 @@ function canvasPayload(canvas: LocalCanvas): Record<string, unknown> {
     data: canvas.data,
     schemaVersion: canvas.schemaVersion,
     thumbnail: canvas.thumbnail,
+    ...(source ? { source } : {}),
   };
 }
 
@@ -971,6 +975,8 @@ export async function saveCanvasLocal(
   db: LatticeDB,
   canvasId: string,
   data: CanvasDocument,
+  /** `session` marks a live editor's snapshot; anything else is a plain write. */
+  options: { source?: "session" | "write" } = {},
 ): Promise<LocalCanvas | null> {
   const existing = await db.canvases.get(canvasId);
   if (!existing) return null;
@@ -987,7 +993,7 @@ export async function saveCanvasLocal(
       entityId: canvas.id,
       op: "UPSERT",
       baseRev: existing.rev,
-      payload: canvasPayload(canvas),
+      payload: canvasPayload(canvas, options.source),
     });
   });
   return canvas;
