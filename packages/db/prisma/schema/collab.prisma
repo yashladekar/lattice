@@ -46,16 +46,17 @@ model SuggestedEdit {
 /// A proposed replacement body for a page, reviewed explicitly rather than
 /// written straight into the document.
 model ShareLink {
-  id           String    @id
-  workspaceId  String
-  resourceType String
-  resourceId   String
-  tokenHash    String    @unique
-  permission   String    @default("VIEW")
-  expiresAt    DateTime? @db.Timestamptz(3)
-  revokedAt    DateTime? @db.Timestamptz(3)
-  createdById  String
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  id              String    @id
+  workspaceId     String
+  resourceType    String
+  resourceId      String
+  tokenHash       String    @unique
+  permission      String    @default("VIEW")
+  includeSubPages Boolean   @default(false)
+  expiresAt       DateTime? @db.Timestamptz(3)
+  revokedAt       DateTime? @db.Timestamptz(3)
+  createdById     String
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([workspaceId, resourceType, resourceId])
   @@map("share_link")

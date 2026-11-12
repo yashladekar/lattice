@@ -3,10 +3,10 @@
 import type { CanvasDocument, TipTapDoc } from "@notes-learning/domain";
 import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
-import { AlertTriangle, ArrowLeft, BookOpen, Calendar, Loader2, Lock } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpen, Calendar, ChevronRight, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 
 import { LatticeLogo, LatticeMark } from "@/components/brand/logo";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -37,6 +37,18 @@ interface PublicNotebookPage {
   updatedAt: string;
   document: TipTapDoc;
 }
+interface PublicSubPage {
+  id: string;
+  title: string;
+  icon: string | null;
+  parentId: string;
+  updatedAt: string;
+}
+interface PublicTrailPage {
+  id: string;
+  title: string;
+  icon: string | null;
+}
 interface PublicGraphNode {
   id: string;
   title: string;
@@ -55,6 +67,8 @@ type PublicPayload =
       workspace: { name: string; icon: string | null };
       page: PublicPage;
       notebook: { name: string; icon: string | null } | null;
+      subPages: PublicSubPage[];
+      trail: PublicTrailPage[];
       permission: string;
     }
   | {
@@ -150,10 +164,24 @@ function PublicCanvasView({ canvas }: { canvas: PublicCanvas }) {
 function SharedContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const pageParam = searchParams.get("page");
   const [payload, setPayload] = useState<PublicPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPage, setSelectedPage] = useState<string | null>(null);
+
+  const pageChildren =
+    payload?.type === "PAGE"
+      ? payload.subPages.filter((entry) => entry.parentId === payload.page.id)
+      : [];
+
+  const shareHref = (pageId?: string) => {
+    const params = new URLSearchParams();
+    if (token) params.set("token", token);
+    params.set("type", "PAGE");
+    if (pageId) params.set("page", pageId);
+    return `/share?${params.toString()}`;
+  };
 
   useEffect(() => {
     if (!token) {
@@ -162,8 +190,11 @@ function SharedContent() {
       return;
     }
     let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setPayload(null);
     void client.share
-      .public({ token })
+      .public({ token, ...(pageParam ? { pageId: pageParam } : {}) })
       .then((result) => {
         if (cancelled) return;
         const data = result as unknown as PublicPayload;
@@ -180,7 +211,11 @@ function SharedContent() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, pageParam]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [pageParam]);
 
   return (
     <div
@@ -254,8 +289,32 @@ function SharedContent() {
                 <LatticeMark className="size-5" />
                 {payload.workspace.name}
               </span>
-              <span className="opacity-40">/</span>
-              <span className="capitalize">{payload.type.toLowerCase()}</span>
+              {payload.type === "PAGE" ? (
+                payload.trail.map((crumb, index) => (
+                  <Fragment key={crumb.id}>
+                    <span className="opacity-40">/</span>
+                    {index === payload.trail.length - 1 ? (
+                      <span className="inline-flex min-w-0 items-center gap-1">
+                        {crumb.icon ? <span>{crumb.icon}</span> : null}
+                        <span className="truncate">{crumb.title || "Untitled"}</span>
+                      </span>
+                    ) : (
+                      <Link
+                        href={shareHref(index === 0 ? undefined : crumb.id)}
+                        className="inline-flex min-w-0 items-center gap-1 hover:text-[#b45309]"
+                      >
+                        {crumb.icon ? <span>{crumb.icon}</span> : null}
+                        <span className="max-w-40 truncate">{crumb.title || "Untitled"}</span>
+                      </Link>
+                    )}
+                  </Fragment>
+                ))
+              ) : (
+                <>
+                  <span className="opacity-40">/</span>
+                  <span className="capitalize">{payload.type.toLowerCase()}</span>
+                </>
+              )}
               <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-white/60 px-2 py-1">
                 <Calendar className="size-2.5" />
                 {(payload.type === "PAGE"
@@ -289,6 +348,35 @@ function SharedContent() {
                 </p>
                 <ReadOnlyDocument doc={payload.page.document} />
               </article>
+            ) : null}
+
+            {payload.type === "PAGE" && pageChildren.length ? (
+              <section className="mt-6 rounded-2xl border border-[#20201b]/10 bg-[#fffdf8] p-5 shadow-sm md:p-6">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-[#6b6a60]">
+                  Sub-pages · {pageChildren.length}
+                </div>
+                <div className="mt-2 space-y-1">
+                  {pageChildren.map((child) => (
+                    <Link
+                      key={child.id}
+                      href={shareHref(child.id)}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#f2eee4]"
+                    >
+                      <span className="w-4 text-center text-[12px]">{child.icon ?? "◇"}</span>
+                      <span className="min-w-0 flex-1 truncate text-[11.5px]">
+                        {child.title || "Untitled"}
+                      </span>
+                      <span className="text-[9px] text-[#6b6a60]">
+                        {new Date(child.updatedAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      <ChevronRight className="size-3 text-[#6b6a60]" />
+                    </Link>
+                  ))}
+                </div>
+              </section>
             ) : null}
 
             {payload.type === "CANVAS" ? (

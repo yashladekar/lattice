@@ -3,8 +3,8 @@
 import { Button } from "@notes-learning/ui/components/button";
 import { Input } from "@notes-learning/ui/components/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Globe2, Link2, Loader2, Lock, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Check, Copy, Globe2, Layers, Link2, Loader2, Lock, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -30,8 +30,16 @@ export function ShareDialog({
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [expiryDays, setExpiryDays] = useState("30");
+  const [includeSubPages, setIncludeSubPages] = useState(false);
+  const [createdIncludesSubPages, setCreatedIncludesSubPages] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setIncludeSubPages(false);
+    setCreatedIncludesSubPages(false);
+    setToken(null);
+  }, [resourceId]);
 
   const shares = useQuery({
     queryKey: ["shares", activeWorkspace?.id, resourceType, resourceId],
@@ -52,9 +60,11 @@ export function ShareDialog({
         resourceType,
         resourceId,
         permission: "VIEW",
+        ...(resourceType === "PAGE" ? { includeSubPages } : {}),
         expiresInDays: expiryDays === "never" ? null : Number(expiryDays),
       });
       setToken(result.token);
+      setCreatedIncludesSubPages(Boolean(result.includeSubPages));
       await queryClient.invalidateQueries({
         queryKey: ["shares", activeWorkspace?.id, resourceType, resourceId],
       });
@@ -120,6 +130,26 @@ export function ShareDialog({
             </span>
           </div>
 
+          {resourceType === "PAGE" ? (
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+              <input
+                type="checkbox"
+                checked={includeSubPages}
+                onChange={(event) => setIncludeSubPages(event.target.checked)}
+                className="mt-0.5 size-3.5 rounded border-border accent-saffron"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1 text-[10px] font-medium">
+                  <Layers className="size-3 text-muted-foreground" /> Include sub-pages
+                </span>
+                <span className="mt-0.5 block text-[8px] leading-relaxed text-muted-foreground">
+                  Anyone with the link can read workspace and public sub-pages. Private and shared
+                  pages stay hidden, along with everything beneath them.
+                </span>
+              </span>
+            </label>
+          ) : null}
+
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-28 flex-1">
               <label className="mb-1 block text-[9px] text-muted-foreground">Link expires</label>
@@ -161,7 +191,9 @@ export function ShareDialog({
                 </Button>
               </div>
               <p className="mt-1.5 text-[8px] text-muted-foreground">
-                Anyone with this link can read this {resourceType.toLowerCase()}. It can be revoked at any time.
+                Anyone with this link can read this {resourceType.toLowerCase()}
+                {createdIncludesSubPages ? " and its workspace/public sub-pages" : ""}. It can be
+                revoked at any time.
               </p>
             </div>
           ) : null}
@@ -187,6 +219,7 @@ export function ShareDialog({
                         <div className="text-[8px] text-muted-foreground">
                           Created {new Date(share.createdAt).toLocaleDateString()}
                           {share.expiresAt ? ` · expires ${new Date(share.expiresAt).toLocaleDateString()}` : ""}
+                          {share.includeSubPages ? " · includes sub-pages" : ""}
                         </div>
                       </div>
                       {!revoked ? (

@@ -1,40 +1,12 @@
-import { createId, extractPlainText, safeDoc, type TipTapDoc, type TipTapNode } from "@notes-learning/domain";
+import { createId } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { createToken, hashToken, isShareActive, writeAudit } from "../authz";
 import { publicProcedure, workspaceProcedure } from "../index";
 import { appendChanges, toJsonSafe } from "../services/changes";
+import { publicDocument, resolvePublicPage } from "../services/share-page";
 import { getAccessiblePageIds } from "../services/sync";
-
-function sanitizeNode(node: TipTapNode, allowedPageIds: Set<string>): TipTapNode | null {
-  if (node.type === "pageLink") {
-    const pageId = node.attrs?.pageId;
-    if (typeof pageId === "string" && allowedPageIds.has(pageId)) return node;
-    return { type: "text", text: "Linked page", marks: [{ type: "italic" }] };
-  }
-  if (node.type === "pageEmbed" || node.type === "liveBlock") {
-    return { type: "text", text: "Embedded page", marks: [{ type: "italic" }] };
-  }
-  const content: TipTapNode[] = [];
-  for (const child of node.content ?? []) {
-    const sanitized = sanitizeNode(child, allowedPageIds);
-    if (sanitized) content.push(sanitized);
-  }
-  return {
-    ...node,
-    ...(node.content ? { content } : {}),
-    ...(node.attrs ? { attrs: { ...node.attrs } } : {}),
-  };
-}
-
-function publicDocument(doc: unknown, allowedPageIds: Set<string>): TipTapDoc {
-  const source = safeDoc(doc);
-  const content = source.content
-    .map((node) => sanitizeNode(node, allowedPageIds))
-    .filter((node): node is TipTapNode => Boolean(node));
-  return { type: "doc", content };
-}
 
 function publicCanvasData(value: unknown) {
   if (
@@ -60,6 +32,7 @@ export const shareRouter = {
         resourceType: z.enum(["PAGE", "CANVAS", "NOTEBOOK", "GRAPH"]),
         resourceId: z.string().min(1),
         permission: z.enum(["VIEW", "COMMENT", "EDIT"]).default("VIEW"),
+        includeSubPages: z.boolean().default(false),
         expiresInDays: z.number().int().min(1).max(3650).nullable().optional(),
       }),
     )
@@ -115,6 +88,7 @@ export const shareRouter = {
           resourceId: input.resourceId,
           tokenHash,
           permission: input.permission,
+          includeSubPages: input.resourceType === "PAGE" ? input.includeSubPages : false,
           expiresAt,
           createdById: context.userId,
         },
@@ -148,6 +122,7 @@ export const shareRouter = {
         id: share.id,
         token,
         permission: share.permission,
+        includeSubPages: share.includeSubPages,
         expiresAt: share.expiresAt?.toISOString() ?? null,
         resourceType: share.resourceType,
         resourceId: share.resourceId,
@@ -204,6 +179,7 @@ export const shareRouter = {
       z.object({
         token: z.string().min(8).max(256),
         type: z.enum(["PAGE", "CANVAS", "NOTEBOOK", "GRAPH"]).optional(),
+        pageId: z.string().min(1).optional(),
       }),
     )
     .handler(async ({ context, input }) => {
@@ -224,35 +200,16 @@ export const shareRouter = {
       if (!workspace) throw new ORPCError("NOT_FOUND", { message: "Workspace not found" });
 
       if (share.resourceType === "PAGE") {
-        const page = await context.db.page.findFirst({
-          where: { id: share.resourceId, workspaceId: share.workspaceId, deletedAt: null },
-          include: { document: true },
-        });
-        if (!page?.document) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
-        const notebook = page.notebookId
-          ? await context.db.notebook.findFirst({
-              where: { id: page.notebookId, workspaceId: share.workspaceId },
-              select: { name: true, icon: true },
-            })
-          : null;
-        const author = await context.db.user.findUnique({
-          where: { id: page.createdById },
-          select: { name: true },
+        const resolved = await resolvePublicPage(context.db, {
+          workspaceId: share.workspaceId,
+          rootPageId: share.resourceId,
+          includeSubPages: share.includeSubPages,
+          pageId: input.pageId ?? null,
         });
         return {
           type: "PAGE" as const,
           workspace,
-          page: {
-            id: page.id,
-            title: page.title,
-            icon: page.icon,
-            coverUrl: page.coverUrl,
-            updatedAt: page.updatedAt.toISOString(),
-            authorName: author?.name ?? "Anonymous",
-            document: publicDocument(page.document.content, new Set([page.id])),
-            plainText: extractPlainText(publicDocument(page.document.content, new Set([page.id]))),
-          },
-          notebook,
+          ...resolved,
           permission: share.permission,
         };
       }
