@@ -217,25 +217,38 @@ export default function NativePageScreen() {
     });
   };
 
-  const share = async () => {
+  const createShareLink = async (includeSubPages: boolean) => {
     try {
       const created = await client.share.create({
         resourceType: "PAGE",
         resourceId: pageId,
         permission: "VIEW",
+        includeSubPages,
       });
       const url = shareLink(created.token, "PAGE");
       await copyText(url);
-      Alert.alert("Read-only link copied", url, [
-        { text: "Close", style: "cancel" },
-        { text: "Share…", onPress: () => void shareUrl(url, detail?.title ?? "Lattice page") },
-      ]);
+      Alert.alert(
+        "Read-only link copied",
+        includeSubPages ? `${url}\n\nIncludes workspace and public sub-pages.` : url,
+        [
+          { text: "Close", style: "cancel" },
+          { text: "Share…", onPress: () => void shareUrl(url, detail?.title ?? "Lattice page") },
+        ],
+      );
     } catch (error) {
       toast.show({
         variant: "danger",
         label: error instanceof Error ? error.message : "Could not create a share link",
       });
     }
+  };
+
+  const share = () => {
+    Alert.alert("Share this note", "Choose what the read-only link can open.", [
+      { text: "Page only", onPress: () => void createShareLink(false) },
+      { text: "Include sub-pages", onPress: () => void createShareLink(true) },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const remove = () => {
