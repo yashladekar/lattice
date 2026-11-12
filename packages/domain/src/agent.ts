@@ -82,6 +82,13 @@ export type AgentOp =
       nodes: Array<{ text: string; level?: number }>;
     }
   | {
+      kind: "add_to_canvas";
+      canvasId: string;
+      title: string;
+      layout: CanvasLayout;
+      nodes: Array<{ text: string; level?: number }>;
+    }
+  | {
       kind: "link_pages";
       sourcePageId: string;
       targetPageId: string;
@@ -261,6 +268,21 @@ const agentOpShape = z.discriminatedUnion("kind", [
       .max(AGENT_LIMITS.maxCanvasNodes),
   }),
   z.object({
+    kind: z.literal("add_to_canvas"),
+    canvasId: pageIdSchema,
+    title: z.string().trim().min(1).max(120),
+    layout: z.enum([...CANVAS_LAYOUTS]),
+    nodes: z
+      .array(
+        z.object({
+          text: z.string().trim().min(1).max(200),
+          level: z.coerce.number().int().min(1).max(4).optional(),
+        }),
+      )
+      .min(1)
+      .max(AGENT_LIMITS.maxCanvasNodes),
+  }),
+  z.object({
     kind: z.literal("link_pages"),
     sourcePageId: pageIdSchema,
     targetPageId: pageIdSchema,
@@ -320,6 +342,7 @@ function canonicalizeOpRefs(op: AgentOp, canonical: Map<string, string>): AgentO
     case "link_pages":
       return { ...op, sourcePageId: fix(op.sourcePageId), targetPageId: fix(op.targetPageId) };
     case "create_canvas":
+    case "add_to_canvas":
       return op;
   }
 }
@@ -361,6 +384,18 @@ function normalizeOp(
   if (raw.kind === "create_canvas") {
     return {
       kind: raw.kind,
+      title: raw.title,
+      layout: raw.layout,
+      nodes: raw.nodes.map((node) => ({
+        text: node.text,
+        ...(node.level ? { level: node.level } : {}),
+      })),
+    };
+  }
+  if (raw.kind === "add_to_canvas") {
+    return {
+      kind: raw.kind,
+      canvasId: raw.canvasId,
       title: raw.title,
       layout: raw.layout,
       nodes: raw.nodes.map((node) => ({
@@ -522,6 +557,8 @@ export function describeAgentOp(op: AgentOp): string {
       return `Create page “${op.title}”`;
     case "create_canvas":
       return `Create whiteboard “${op.title}”`;
+    case "add_to_canvas":
+      return `Add to whiteboard “${op.title}”`;
     case "link_pages":
       return `Link pages (${op.relationType.toLowerCase().replace(/_/g, " ")})`;
     case "create_flashcards":

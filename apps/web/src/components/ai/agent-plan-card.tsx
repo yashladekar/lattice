@@ -21,7 +21,7 @@ function previewOf(op: AgentOp): string {
     const text = op.markdown.replace(/\s+/g, " ").trim();
     return text.length > 160 ? `${text.slice(0, 160)}…` : text;
   }
-  if (op.kind === "create_canvas") {
+  if (op.kind === "create_canvas" || op.kind === "add_to_canvas") {
     return `${op.layout} · ${op.nodes.length} entr${op.nodes.length === 1 ? "y" : "ies"}`;
   }
   if (op.kind === "create_page") {
@@ -53,6 +53,8 @@ function targetOf(
       return op.parentPageId ? `under ${title(op.parentPageId)}` : "workspace";
     case "create_canvas":
       return "whiteboard";
+    case "add_to_canvas":
+      return "existing whiteboard";
   }
 }
 

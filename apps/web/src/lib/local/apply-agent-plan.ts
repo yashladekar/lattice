@@ -1,4 +1,5 @@
 import {
+  appendCanvasCluster,
   applyBlockEdits,
   buildCanvasFromOutline,
   isPlanRef,
@@ -10,12 +11,14 @@ import {
 import { client } from "@/utils/orpc";
 
 import type { LatticeDB } from "./db";
+import { getCanvasApplier } from "./canvas-bridge";
 import { getEditorBlockApplier } from "./editor-bridge";
 import {
   createCanvasLocal,
   createFlashcardLocal,
   createPageLocal,
   ensureDeckLocal,
+  saveCanvasLocal,
   savePageContentLocal,
   upsertEdgeLocal,
 } from "./repository";
@@ -207,6 +210,41 @@ export async function applyAgentPlan(
           data: buildCanvasFromOutline(op.layout, op.title, op.nodes),
           icon: "◈",
         });
+        applied += 1;
+        continue;
+      }
+
+      if (op.kind === "add_to_canvas") {
+        const canvas = await db.canvases.get(op.canvasId);
+        if (!canvas) {
+          skipped.push("That whiteboard no longer exists.");
+          continue;
+        }
+        const before = canvas.data.elements.length;
+        const next = appendCanvasCluster(canvas.data, op.layout, op.title, op.nodes);
+        const added = next.elements.slice(before);
+
+        // An open board owns its own state; its autosave and CRDT publish carry
+        // the elements to the store and to peers.
+        const applier = getCanvasApplier(op.canvasId);
+        if (applier?.append(added)) {
+          applied += 1;
+          continue;
+        }
+
+        try {
+          await client.canvas.saveVersion({
+            canvasId: op.canvasId,
+            note: "Before AI edit",
+          });
+        } catch {
+          // Best effort, as with page snapshots.
+        }
+        const saved = await saveCanvasLocal(db, op.canvasId, next);
+        if (!saved) {
+          skipped.push("A whiteboard could not be updated.");
+          continue;
+        }
         applied += 1;
         continue;
       }

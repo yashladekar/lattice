@@ -49,8 +49,8 @@ interface ApplyContext {
   role: Role;
   /** True when this user has the page open in a live collaborative session. */
   isCollaborating?: (pageId: string) => boolean;
-  /** Records a page whose stored CRDT no longer matches the document. */
-  markCollabStale?: (pageId: string) => void;
+  /** Records a document whose stored CRDT no longer matches the row. */
+  markCollabStale?: (resourceType: "page" | "canvas", resourceId: string) => void;
 }
 
 interface ApplyResult {
@@ -521,7 +521,7 @@ async function applyPageDocument(
     where: { id: page.id },
     data: { updatedAt: new Date(), updatedById: userId },
   });
-  if (!collaborating) ctx.markCollabStale?.(page.id);
+  if (!collaborating) ctx.markCollabStale?.("page", page.id);
   changes.push({
     entity: "pageDocument",
     entityId: page.id,
@@ -673,6 +673,8 @@ async function applyCanvas(
 
   changes.push({ entity: "canvas", entityId: canvas.id, op: "UPSERT", data: toJsonSafe(canvas) });
   await ensureCanvasNode(tx, canvas, changes);
+  // A board written outside its live session leaves the stored CRDT stale.
+  ctx.markCollabStale?.("canvas", canvas.id);
   return {
     accepted: {
       entity: "canvas",
@@ -1812,13 +1814,13 @@ export async function pushSync(
     userId: string;
     ops: SyncOpInput[];
     isCollaborating?: (pageId: string) => boolean;
-    invalidateCollab?: (pageId: string) => void;
+    invalidateCollab?: (resourceType: "page" | "canvas", resourceId: string) => void;
   },
 ): Promise<SyncPushResponse> {
   // The gateway allows viewers through because comments and suggested edits are
   // viewer-level writes; every entity apply enforces its own required role.
   const membership = await requireMembership(db, input.userId, input.workspaceId, "VIEWER");
-  const staleCollab: string[] = [];
+  const staleCollab: Array<{ resourceType: "page" | "canvas"; resourceId: string }> = [];
   const orderedOps = orderSyncOps(input.ops);
   const response = await db.$transaction(
     async (tx) => {
@@ -1846,7 +1848,8 @@ export async function pushSync(
             userId: input.userId,
             role: membership.role,
             isCollaborating: input.isCollaborating,
-            markCollabStale: (pageId: string) => staleCollab.push(pageId),
+            markCollabStale: (resourceType: "page" | "canvas", resourceId: string) =>
+              staleCollab.push({ resourceType, resourceId }),
           },
           op,
           changes,
@@ -1893,8 +1896,12 @@ export async function pushSync(
 
   // Anything written outside a live session makes a stored CRDT stale, and the
   // drop has to happen after the commit so a rolled back push cannot clear it.
-  for (const pageId of new Set(staleCollab)) {
-    input.invalidateCollab?.(pageId);
+  const seenStale = new Set<string>();
+  for (const entry of staleCollab) {
+    const key = `${entry.resourceType}:${entry.resourceId}`;
+    if (seenStale.has(key)) continue;
+    seenStale.add(key);
+    input.invalidateCollab?.(entry.resourceType, entry.resourceId);
   }
   return response;
 }

@@ -36,9 +36,17 @@ export type Context = {
   /** Present when the API is hosted by a server that runs live sessions. */
   collab?: {
     isActive(workspaceId: string, pageId: string, userId: string): boolean;
-    invalidate(workspaceId: string, pageId: string): void;
-    /** Drops the stored CRDT and any live room for a page, forcing a re-seed. */
-    reset(workspaceId: string, pageId: string): Promise<void>;
+    invalidate(
+      workspaceId: string,
+      resourceType: "page" | "canvas",
+      resourceId: string,
+    ): void;
+    /** Drops the stored CRDT and any live room, forcing a re-seed. */
+    reset(
+      workspaceId: string,
+      resourceType: "page" | "canvas",
+      resourceId: string,
+    ): Promise<void>;
   };
   /** Present when the API is hosted by a server that owns the upload directory. */
   uploads?: {

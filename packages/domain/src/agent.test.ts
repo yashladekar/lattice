@@ -130,6 +130,23 @@ describe("plan validation", () => {
     expect(plan?.ops[0]).toMatchObject({ kind: "create_canvas", layout: "mindmap" });
   });
 
+  it("accepts an add_to_canvas op", () => {
+    const { plan, warnings } = normalizeAgentPlan({
+      title: "Append",
+      ops: [
+        {
+          kind: "add_to_canvas",
+          canvasId: "canvas-1",
+          title: "More",
+          layout: "flow",
+          nodes: [{ text: "One" }],
+        },
+      ],
+    });
+    expect(warnings).toEqual([]);
+    expect(plan?.ops[0]).toMatchObject({ kind: "add_to_canvas", canvasId: "canvas-1" });
+  });
+
   it("rejects an unknown canvas layout and an empty outline", () => {
     expect(
       normalizeAgentPlan({

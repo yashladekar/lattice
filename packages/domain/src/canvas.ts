@@ -41,6 +41,40 @@ export function buildCanvasFromOutline(
   return createMindMap(title, outline);
 }
 
+const APPEND_GAP = 160;
+
+/**
+ * Adds a layout cluster below whatever the board already holds. Positions come
+ * from the same builders as a new canvas, translated so the cluster clears the
+ * existing bounds — the model still supplies text only.
+ */
+export function appendCanvasCluster(
+  existing: CanvasDocument,
+  layout: CanvasLayout,
+  title: string,
+  nodes: ReadonlyArray<{ text: string; level?: number }>,
+): CanvasDocument {
+  const cluster = buildCanvasFromOutline(layout, title, nodes);
+  const hasContent = existing.elements.some((element) => element.type !== "connector");
+
+  let dx = 0;
+  let dy = 0;
+  if (hasContent) {
+    const bounds = canvasBounds(existing);
+    const clusterBounds = canvasBounds(cluster);
+    dx = bounds.x - clusterBounds.x;
+    dy = bounds.y + bounds.height + APPEND_GAP - clusterBounds.y;
+  }
+
+  const moved = cluster.elements.map((element) =>
+    element.type === "connector"
+      ? element
+      : { ...element, x: snap(element.x + dx), y: snap(element.y + dy) },
+  );
+
+  return { ...existing, elements: [...existing.elements, ...moved] };
+}
+
 export function canvasDocument(value: unknown): CanvasDocument {
   if (
     typeof value === "object" &&

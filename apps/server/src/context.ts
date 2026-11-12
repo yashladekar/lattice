@@ -63,11 +63,11 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     collab: {
       isActive: (_workspaceId: string, pageId: string, userId: string) =>
         isCollaborating(pageId, userId),
-      invalidate: (_workspaceId: string, pageId: string) => {
-        void invalidateCollabState(pageId);
+      invalidate: (_workspaceId: string, resourceType, resourceId) => {
+        void invalidateCollabState(resourceType, resourceId);
       },
-      reset: async (_workspaceId: string, pageId: string) => {
-        await resetCollabState(pageId);
+      reset: async (_workspaceId: string, resourceType, resourceId) => {
+        await resetCollabState(resourceType, resourceId);
       },
     },
   };

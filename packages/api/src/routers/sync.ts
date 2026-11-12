@@ -19,7 +19,7 @@ export const syncRouter = {
         select: { id: true },
       });
       if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
-      await context.collab?.reset(context.workspaceId, input.pageId);
+      await context.collab?.reset(context.workspaceId, "page", input.pageId);
       return { ok: true };
     }),
 
@@ -64,7 +64,8 @@ export const syncRouter = {
               context.collab!.isActive(context.workspaceId, pageId, context.userId)
           : undefined,
         invalidateCollab: context.collab
-          ? (pageId: string) => context.collab!.invalidate(context.workspaceId, pageId)
+          ? (resourceType, resourceId) =>
+              context.collab!.invalidate(context.workspaceId, resourceType, resourceId)
           : undefined,
       });
     }),

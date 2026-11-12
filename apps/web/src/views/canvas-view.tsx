@@ -111,6 +111,7 @@ import {
   printCanvas,
 } from "@/lib/canvas-export";
 import { saveCanvasLocal, createCanvasLocal, createPageLocal, updateCanvasLocal } from "@/lib/local/repository";
+import { registerCanvasApplier } from "@/lib/local/canvas-bridge";
 import { uploadFile } from "@/lib/upload";
 import { useCanvasCollaboration } from "@/lib/canvas-collab";
 import { appRouteObject } from "@/lib/navigation";
@@ -612,6 +613,22 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       future: [],
     }));
   }, []);
+
+  // Lets an approved AI plan append to this board while it is open: the change
+  // lands in the same state the autosave and the CRDT publish read from.
+  const appendElements = useCallback(
+    (elements: CanvasElement[]) => {
+      if (!loadedRef.current) return false;
+      mutate((current) => ({ ...current, elements: [...current.elements, ...elements] }));
+      return true;
+    },
+    [mutate],
+  );
+
+  useEffect(() => {
+    if (!canvasId) return;
+    return registerCanvasApplier({ canvasId, append: appendElements });
+  }, [canvasId, appendElements]);
 
   const historyRef = useRef(history);
   historyRef.current = history;

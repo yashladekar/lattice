@@ -120,6 +120,7 @@ hide the whole surface; the code stays in place and nothing else is affected.
 | Replace page body | Rewrites a whole page — for repair or a restructure |
 | Create page | A new page from Markdown |
 | Create whiteboard | A mind map, flow, or concept map built from an outline |
+| Add to whiteboard | A new cluster placed below what is already on a board |
 | Link pages | A typed graph relation, marked `origin: AI` |
 | Create flashcards | Cards in the daily-review deck |
 
@@ -150,9 +151,12 @@ block allowlist exists to stop.
 A plan can also create a whiteboard: mind map, flow, or concept map. The model
 supplies only an outline and a layout name; positions come from the same layout
 code the mind-map action uses, so elements never overlap. It can list and read
-existing whiteboards too, so it will offer to work from one you already drew
-rather than adding a duplicate. Whiteboards are create-only for now — the
-assistant cannot add to or rearrange something you made.
+existing whiteboards too, and prefers adding to one you already drew over making
+a duplicate — the new cluster is placed below the existing content, and nothing
+you made is moved or removed.
+
+Additions are additive. The assistant cannot edit or delete elements on a
+whiteboard, and it cannot rearrange one.
 
 Plain **Ask** answers from your notes and cites them. When they do not cover the
 question it says so in one line, then continues from general knowledge under a

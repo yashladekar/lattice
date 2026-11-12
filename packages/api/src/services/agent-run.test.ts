@@ -241,6 +241,29 @@ describeWithDatabase("agent run", () => {
     expect(done.answer).toMatch(/load balancer/i);
   });
 
+  it("keeps an append-to-whiteboard op through the filter", async () => {
+    await setup();
+    runChat.mockResolvedValueOnce(
+      reply({
+        action: "plan",
+        title: "Extend the board",
+        ops: [
+          {
+            kind: "add_to_canvas",
+            canvasId: randomUUID(),
+            title: "Caching",
+            layout: "flow",
+            nodes: [{ text: "Cache aside" }, { text: "Invalidate" }],
+          },
+        ],
+      }),
+    );
+
+    const done = finalPlan(await run("add a caching slide to my board"));
+    expect(done.plan?.ops[0]).toMatchObject({ kind: "add_to_canvas" });
+    expect(done.warnings).toEqual([]);
+  });
+
   it("proposes rewriting a page body", async () => {
     await setup();
     runChat.mockResolvedValueOnce(

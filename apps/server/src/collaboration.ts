@@ -194,8 +194,11 @@ async function flushPersist(room: Room): Promise<void> {
  * after a write landed outside the session: peers reconnect and pick up the
  * stored document.
  */
-export async function resetCollabState(pageId: string): Promise<void> {
-  const key = roomKey("page", pageId);
+export async function resetCollabState(
+  resourceType: CollabResource,
+  resourceId: string,
+): Promise<void> {
+  const key = roomKey(resourceType, resourceId);
   const room = rooms.get(key);
   if (room) {
     room.reset = true;
@@ -221,7 +224,7 @@ export async function resetCollabState(pageId: string): Promise<void> {
     rooms.delete(key);
   }
   await db.collabDocument.deleteMany({
-    where: { resourceType: "page", resourceId: pageId },
+    where: { resourceType, resourceId },
   });
 }
 
@@ -230,11 +233,14 @@ export async function resetCollabState(pageId: string): Promise<void> {
  * Markdown-mode save, an import — makes the stored CRDT stale, so it is
  * dropped and the next session seeds from that document instead.
  */
-export async function invalidateCollabState(pageId: string): Promise<void> {
-  if (rooms.has(roomKey("page", pageId))) return;
+export async function invalidateCollabState(
+  resourceType: CollabResource,
+  resourceId: string,
+): Promise<void> {
+  if (rooms.has(roomKey(resourceType, resourceId))) return;
   try {
     await db.collabDocument.delete({
-      where: { resourceType_resourceId: { resourceType: "page", resourceId: pageId } },
+      where: { resourceType_resourceId: { resourceType, resourceId } },
     });
   } catch {
     // Nothing stored, nothing to drop.
