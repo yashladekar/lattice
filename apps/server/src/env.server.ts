@@ -45,10 +45,11 @@ const githubRedirectUri =
   new URL("/api/github/callback", ENV.BETTER_AUTH_URL).toString();
 
 export const githubConfig =
-  (process.env.GITHUB_CONNECT_ENABLED === "true" || ENV.GITHUB_CONNECT_ENABLED === true) &&
-  githubClientId
+  process.env.GITHUB_CONNECT_ENABLED === "true" || ENV.GITHUB_CONNECT_ENABLED === true
     ? {
-        clientId: githubClientId,
+        // Present but null when the flag is on and the OAuth App is not set up
+        // yet, so the UI can show what to configure instead of hiding silently.
+        clientId: githubClientId || null,
         clientSecret: githubClientSecret || null,
         redirectUri: githubRedirectUri,
       }

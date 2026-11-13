@@ -36,14 +36,16 @@ function keyMaterialOf(context: { secrets?: { keyMaterial: string } }): string {
   return keyMaterial;
 }
 
-function githubConfigOf(context: { github?: { clientId: string; clientSecret: string | null; redirectUri: string } | null }) {
+function githubConfigOf(context: {
+  github?: { clientId: string | null; clientSecret: string | null; redirectUri: string } | null;
+}) {
   const config = context.github;
-  if (!config) {
+  if (!config?.clientId) {
     throw new ORPCError("PRECONDITION_FAILED", {
-      message: "GitHub sign-in is not configured on this server.",
+      message: "This server has no GitHub OAuth App client id. Set GITHUB_CLIENT_ID.",
     });
   }
-  return config;
+  return { ...config, clientId: config.clientId };
 }
 
 /**
@@ -100,10 +102,16 @@ export const githubRouter = {
       avatarUrl: connection?.avatarUrl ?? null,
       scopes: connection ? readGithubScopes(connection.scopes) : [],
       lastError: connection?.lastError ?? null,
+      enabled: Boolean(context.github),
       canConnect: Boolean(context.github?.clientId && context.secrets),
       configured: Boolean(context.github?.clientId),
       /** `oauth` is the Vercel-style callback flow; `device` needs no callback. */
-      mode: context.github ? (context.github.clientSecret ? "oauth" : "device") : null,
+      mode: context.github?.clientId
+        ? context.github.clientSecret
+          ? "oauth"
+          : "device"
+        : null,
+      callbackUrl: context.github?.redirectUri ?? null,
     };
   }),
 

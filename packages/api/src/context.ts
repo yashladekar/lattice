@@ -74,7 +74,8 @@ export type Context = {
    * keeps the whole connection surface hidden.
    */
   github?: {
-    clientId: string;
+    /** Null when the feature is enabled but the OAuth App is not configured. */
+    clientId: string | null;
     /** Present when the deployment can complete the OAuth callback flow. */
     clientSecret: string | null;
     redirectUri: string;

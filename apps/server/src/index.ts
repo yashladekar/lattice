@@ -138,7 +138,7 @@ app.post(
 
 app.all("/api/auth{/*path}", toNodeHandler(auth));
 
-if (githubConfig?.clientSecret) {
+if (githubConfig?.clientId && githubConfig.clientSecret) {
   app.get(
     "/api/github/callback",
     createGithubCallbackHandler({

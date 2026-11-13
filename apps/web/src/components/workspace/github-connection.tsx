@@ -142,7 +142,7 @@ export function GithubConnectionCard() {
     }
   };
 
-  if (!status.data?.canConnect) return null;
+  if (!status.data?.enabled) return null;
 
   return (
     <div className="rounded-xl border border-border/70 bg-card/35 p-4">
@@ -161,7 +161,24 @@ export function GithubConnectionCard() {
       </div>
 
       <div className="mt-3">
-        {status.data.connected ? (
+        {!status.data.configured ? (
+          <div className="space-y-2 rounded-lg border border-saffron/30 bg-saffron/[0.05] p-2.5">
+            <p className="text-[9px] leading-relaxed">
+              GitHub is enabled on this server, but its OAuth App is not configured yet.
+            </p>
+            <div className="space-y-1 font-mono text-[8.5px] text-muted-foreground">
+              <div>GITHUB_CLIENT_ID=&lt;OAuth App client id&gt;</div>
+              <div>GITHUB_CLIENT_SECRET=&lt;OAuth App client secret&gt;</div>
+            </div>
+            {status.data.callbackUrl ? (
+              <p className="text-[8px] leading-relaxed text-muted-foreground">
+                Register the app with the callback URL{" "}
+                <span className="font-mono">{status.data.callbackUrl}</span>, restart the server,
+                then reload this page.
+              </p>
+            ) : null}
+          </div>
+        ) : status.data.connected ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-[10px]">
               <span className="status-dot bg-moss" />
