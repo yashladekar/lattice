@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: notes-learning
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/notes-learning
+      BETTER_AUTH_SECRET: ci-secret-ci-secret-ci-secret-1234
+      BETTER_AUTH_URL: http://localhost:3100
+      CORS_ORIGIN: http://localhost:3101
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Generate environment types
+        run: pnpm env:generate
+      - name: Generate Prisma client
+        run: pnpm db:generate
+      - name: Apply migrations
+        run: pnpm --filter @notes-learning/db db:migrate:deploy
+      - name: Typecheck
+        run: pnpm check-types
+      - name: Test
+        run: pnpm test

@@ -26,6 +26,12 @@ pnpm docker:down
 
 Postgres data uses the `notes-learning_postgres_data` volume. API uploads are mounted at `/app/apps/server/storage` through the `notes-learning_uploads` volume, so attachments survive container replacement. Point `UPLOAD_DIR` elsewhere if you mount a different path.
 
+The container applies the committed Prisma migrations before the API starts, so a fresh database needs no manual step. A database created earlier with `db push` has no migration history; mark the baseline once against that database, then start the container:
+
+```bash
+pnpm --filter @notes-learning/db exec prisma migrate resolve --applied 20261113000000_init
+```
+
 ## Web runtime configuration
 
 `apps/web/public/config.js`:
