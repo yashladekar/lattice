@@ -2,6 +2,7 @@
 
 import { Button } from "@notes-learning/ui/components/button";
 import { docToMarkdown, hashContent } from "@notes-learning/domain";
+import { useQuery } from "@tanstack/react-query";
 import { GitBranch, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -13,12 +14,14 @@ import { useWorkspaceNotebooks } from "@/hooks/use-local-data";
 import { humanizeError } from "@/lib/errors";
 import { appRouteObject } from "@/lib/navigation";
 import { createNotebookLocal, createPageLocal } from "@/lib/local/repository";
+import type { GithubAuth } from "@/lib/github-api";
 import {
   fetchGithubMarkdown,
   markdownToDoc,
   parseRepoInput,
   type GithubImportProgress,
 } from "@/lib/github-import";
+import { client } from "@/utils/orpc";
 
 export function GithubImportDialog({
   open,
@@ -28,7 +31,7 @@ export function GithubImportDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { db, user, activeWorkspaceId } = useAppData();
+  const { db, user, activeWorkspaceId, online } = useAppData();
   const notebooks = useWorkspaceNotebooks();
   const [repo, setRepo] = useState("");
   const [prefix, setPrefix] = useState("");
@@ -37,7 +40,21 @@ export function GithubImportDialog({
   const [progress, setProgress] = useState<GithubImportProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const github = useQuery({
+    queryKey: ["github-status", user?.id],
+    queryFn: async () => client.github.status(),
+    enabled: online && Boolean(user),
+  });
+  const connected = Boolean(github.data?.connected);
+  const repos = useQuery({
+    queryKey: ["github-repos", user?.id],
+    queryFn: async () => client.github.repos(),
+    enabled: online && connected,
+    staleTime: 5 * 60_000,
+  });
+
   const parsed = parseRepoInput(repo);
+  const auth: GithubAuth = connected ? { kind: "connection" } : { kind: "manual", token };
 
   const run = async () => {
     if (!db || !user || !activeWorkspaceId) return;
@@ -50,7 +67,7 @@ export function GithubImportDialog({
     setProgress(null);
     try {
       const files = await fetchGithubMarkdown(
-        { ...parsed, pathPrefix: prefix || undefined, token: token || undefined },
+        { ...parsed, pathPrefix: prefix || undefined, auth },
         { onProgress: setProgress },
       );
 
@@ -128,7 +145,11 @@ export function GithubImportDialog({
       footer={
         <div className="flex items-center justify-between gap-2">
           <span className="text-[9px] text-muted-foreground">
-            {progress ? `${progress.done}/${progress.total} · ${progress.label}` : "Up to 40 files."}
+            {progress
+              ? `${progress.done}/${progress.total} · ${progress.label}`
+              : connected
+                ? `Using @${github.data?.login} · up to 40 files.`
+                : "Up to 40 files."}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -154,6 +175,18 @@ export function GithubImportDialog({
       }
     >
       <div className="space-y-3">
+        {connected ? (
+          <div className="flex items-center gap-2 rounded-lg border border-moss/25 bg-moss/[0.05] px-2.5 py-2">
+            <span className="status-dot bg-moss" />
+            <span className="min-w-0 flex-1 truncate text-[10px]">
+              Using the connected GitHub account @{github.data?.login}
+            </span>
+            <span className="text-[8px] text-muted-foreground">
+              private repositories included
+            </span>
+          </div>
+        ) : null}
+
         <label className="block">
           <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
             Repository
@@ -163,11 +196,25 @@ export function GithubImportDialog({
             onChange={(event) => setRepo(event.target.value)}
             placeholder="owner/repository"
             spellCheck={false}
+            list={connected && repos.data?.repos.length ? "github-repos" : undefined}
             className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[12px] outline-none focus:border-primary/40"
             autoFocus
           />
+          {connected && repos.data?.repos.length ? (
+            <datalist id="github-repos">
+              {repos.data.repos.map((entry) => (
+                <option key={entry.fullName} value={entry.fullName}>
+                  {entry.private ? "private" : "public"}
+                </option>
+              ))}
+            </datalist>
+          ) : null}
           <span className="mt-1 block text-[8.5px] text-muted-foreground">
-            {parsed ? `github.com/${parsed.owner}/${parsed.repo}` : "A public repository works without a token."}
+            {parsed
+              ? `github.com/${parsed.owner}/${parsed.repo}`
+              : connected
+                ? "Start typing — your repositories are suggested."
+                : "A public repository works without a token."}
           </span>
         </label>
 
@@ -184,22 +231,25 @@ export function GithubImportDialog({
           />
         </label>
 
-        <label className="block">
-          <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-            Token (optional)
-          </span>
-          <input
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            placeholder="ghp_… for private repos or higher limits"
-            type="password"
-            spellCheck={false}
-            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[11px] outline-none focus:border-primary/40"
-          />
-          <span className="mt-1 block text-[8.5px] text-muted-foreground">
-            Used for this request only and never stored.
-          </span>
-        </label>
+        {connected ? null : (
+          <label className="block">
+            <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+              Token (optional)
+            </span>
+            <input
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              placeholder="ghp_… for private repos or higher limits"
+              type="password"
+              spellCheck={false}
+              className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[11px] outline-none focus:border-primary/40"
+            />
+            <span className="mt-1 block text-[8.5px] text-muted-foreground">
+              Used for this request only and never stored. Connect GitHub in Settings → Sync &amp;
+              backup to reuse an account instead.
+            </span>
+          </label>
+        )}
 
         {error ? (
           <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[10px] leading-relaxed text-destructive">

@@ -1,7 +1,9 @@
-import { safeDoc, type TipTapDoc } from "@notes-learning/domain";
+import { decodeBase64Utf8, safeDoc, type TipTapDoc } from "@notes-learning/domain";
 import { generateJSON } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import { marked } from "marked";
+
+import { githubApi, usesStoredGithubToken, type GithubAuth } from "@/lib/github-api";
 
 const MAX_FILES = 40;
 const MAX_FILE_BYTES = 200_000;
@@ -53,13 +55,8 @@ interface TreeEntry {
   sha?: string;
 }
 
-function headers(token?: string): HeadersInit {
-  const base: Record<string, string> = { Accept: "application/vnd.github+json" };
-  if (token?.trim()) base.Authorization = `Bearer ${token.trim()}`;
-  return base;
-}
-
 async function githubError(response: Response): Promise<string> {
+  if (response.status === 401) return "GitHub rejected the token.";
   if (response.status === 404) {
     return "Repository not found. Check the name, or add a token if it is private.";
   }
@@ -87,8 +84,43 @@ function titleFromPath(path: string): string {
   return base.replace(/[-_]/g, " ");
 }
 
+/**
+ * Anonymous imports read raw.githubusercontent.com, which is not rate limited
+ * like the API. Private repositories need the API because raw URLs do not
+ * accept a credential reliably.
+ */
+async function fetchFileMarkdown(input: {
+  auth: GithubAuth;
+  owner: string;
+  repo: string;
+  branch: string;
+  path: string;
+  signal?: AbortSignal;
+}): Promise<string | null> {
+  if (!usesStoredGithubToken(input.auth)) {
+    const encoded = input.path.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(
+      `https://raw.githubusercontent.com/${input.owner}/${input.repo}/${encodeURIComponent(input.branch)}/${encoded}`,
+      input.signal ? { signal: input.signal } : {},
+    );
+    return response.ok ? response.text() : null;
+  }
+
+  const encoded = input.path.split("/").map(encodeURIComponent).join("/");
+  const response = await githubApi(
+    input.auth,
+    "GET",
+    `/repos/${input.owner}/${input.repo}/contents/${encoded}?ref=${encodeURIComponent(input.branch)}`,
+    { ...(input.signal ? { signal: input.signal } : {}) },
+  );
+  if (!response.ok) return null;
+  const body = (await response.json()) as { content?: string; encoding?: string };
+  if (!body.content) return null;
+  return body.encoding === "base64" ? decodeBase64Utf8(body.content) : body.content;
+}
+
 export async function fetchGithubMarkdown(
-  input: GithubRepo & { pathPrefix?: string; token?: string },
+  input: GithubRepo & { pathPrefix?: string; auth: GithubAuth },
   options: { signal?: AbortSignal; onProgress?: (progress: GithubImportProgress) => void } = {},
 ): Promise<GithubMarkdownFile[]> {
   const { owner, repo } = input;
@@ -96,17 +128,18 @@ export async function fetchGithubMarkdown(
 
   onProgress?.({ phase: "listing", done: 0, total: 0, label: "Reading repository…" });
 
-  const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: headers(input.token),
-    signal,
+  const repoResponse = await githubApi(input.auth, "GET", `/repos/${owner}/${repo}`, {
+    ...(signal ? { signal } : {}),
   });
   if (!repoResponse.ok) throw new Error(await githubError(repoResponse));
   const repoInfo = (await repoResponse.json()) as { default_branch?: string };
   const branch = repoInfo.default_branch ?? "main";
 
-  const treeResponse = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
-    { headers: headers(input.token), signal },
+  const treeResponse = await githubApi(
+    input.auth,
+    "GET",
+    `/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+    { ...(signal ? { signal } : {}) },
   );
   if (!treeResponse.ok) throw new Error(await githubError(treeResponse));
   const tree = (await treeResponse.json()) as { tree?: TreeEntry[] };
@@ -135,13 +168,15 @@ export async function fetchGithubMarkdown(
       total: paths.length,
       label: path,
     });
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(branch)}/${path
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/")}`;
-    const response = await fetch(rawUrl, { signal });
-    if (!response.ok) continue;
-    const text = await response.text();
+    const text = await fetchFileMarkdown({
+      auth: input.auth,
+      owner,
+      repo,
+      branch,
+      path,
+      ...(signal ? { signal } : {}),
+    });
+    if (text === null) continue;
     if (text.length > MAX_FILE_BYTES) continue;
     if (!text.trim()) continue;
     files.push({

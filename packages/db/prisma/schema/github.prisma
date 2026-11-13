@@ -1,0 +1,35 @@
+/// A user's GitHub sign-in. The access token is AES-256-GCM ciphertext with
+/// the `github` purpose label, so it cannot be replayed as an SSO secret, an AI
+/// key, or a ChatGPT token. One connection per person, like ChatGPT.
+model GithubConnection {
+  id          String   @id
+  userId      String   @unique
+  login       String
+  name        String?
+  avatarUrl   String?
+  scopes      Json     @default("[]")
+  tokenType   String   @default("bearer")
+  accessToken String
+  lastError   String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("github_connection")
+}
+
+/// One in-flight device-flow authorization. The id is ours; GitHub's device
+/// code is kept server-side so the browser only ever holds the short user
+/// code the person types at github.com/login/device.
+model GithubLoginState {
+  id              String   @id
+  userId          String
+  deviceCode      String   @unique
+  userCode        String
+  intervalSeconds Int      @default(5)
+  expiresAt       DateTime @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("github_login_state")
+}

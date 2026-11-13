@@ -5,7 +5,10 @@ export interface GitSyncConfig {
   repo: string;
   branch: string;
   pathPrefix: string;
+  /** Only meaningful when `useConnection` is false. */
   token: string;
+  /** Use the user's stored GitHub connection instead of a pasted token. */
+  useConnection: boolean;
   commitMessage: string;
   intervalMinutes: number;
   enabled: boolean;
@@ -26,6 +29,7 @@ export function loadGitSyncConfig(workspaceId: string): GitSyncConfig | null {
       branch: parsed.branch ?? "",
       pathPrefix: parsed.pathPrefix ?? "",
       token: parsed.token ?? "",
+      useConnection: Boolean(parsed.useConnection),
       commitMessage: parsed.commitMessage ?? "",
       intervalMinutes: Math.max(15, Number(parsed.intervalMinutes) || 60),
       enabled: Boolean(parsed.enabled),
@@ -69,7 +73,9 @@ export async function runScheduledGitSync(input: {
     repo: input.config.repo,
     branch: input.config.branch,
     pathPrefix: input.config.pathPrefix,
-    token: input.config.token,
+    auth: input.config.useConnection
+      ? { kind: "connection" }
+      : { kind: "manual", token: input.config.token },
   };
   const rows = await planSync(input.db, input.workspaceId, target);
   let pushed = 0;

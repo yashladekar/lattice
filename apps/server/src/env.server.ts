@@ -30,3 +30,15 @@ export const uploadRoot = path.resolve(process.cwd(), uploadDirectory);
  */
 export const aiAgentEnabled =
   process.env.AI_AGENT_ENABLED === "true" || ENV.AI_AGENT_ENABLED === true;
+
+/**
+ * Experimental: the GitHub device-flow connection. Off unless both the flag and
+ * a client id are present, so a deployment without an OAuth App keeps the
+ * existing manual-token import untouched.
+ */
+const githubClientId = process.env.GITHUB_CLIENT_ID ?? ENV.GITHUB_CLIENT_ID;
+export const githubConfig =
+  (process.env.GITHUB_CONNECT_ENABLED === "true" || ENV.GITHUB_CONNECT_ENABLED === true) &&
+  githubClientId
+    ? { clientId: githubClientId }
+    : null;

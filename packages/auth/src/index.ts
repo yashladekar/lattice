@@ -10,6 +10,7 @@ import { createSsoPlugin } from "./lib/sso-plugin";
 export { createPkcePair, decryptSsoSecret, discoverOidc, encryptSsoSecret } from "./lib/sso";
 export { decryptAiKey, encryptAiKey } from "./lib/sso";
 export { decryptChatGptToken, encryptChatGptToken } from "./lib/chatgpt";
+export { decryptGithubToken, encryptGithubToken } from "./lib/github";
 
 export type AuthConfig = {
   BETTER_AUTH_URL: string;

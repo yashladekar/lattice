@@ -2,6 +2,7 @@
 
 import { Button } from "@notes-learning/ui/components/button";
 import { cn } from "@notes-learning/ui/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowDownToLine, ArrowUpFromLine, GitBranch, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -9,8 +10,10 @@ import { toast } from "sonner";
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
 import { humanizeError } from "@/lib/errors";
+import type { GithubAuth } from "@/lib/github-api";
 import { parseRepoInput } from "@/lib/github-import";
 import { planSync, pullRow, pushRow, type GitSyncRow, type GitTarget } from "@/lib/git-sync";
+import { client } from "@/utils/orpc";
 import {
   clearGitSyncConfig,
   loadGitSyncConfig,
@@ -41,7 +44,19 @@ function stateTone(action: GitSyncRow["action"]): string {
 }
 
 export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { db, user, activeWorkspaceId } = useAppData();
+  const { db, user, activeWorkspaceId, online } = useAppData();
+  const github = useQuery({
+    queryKey: ["github-status", user?.id],
+    queryFn: async () => client.github.status(),
+    enabled: online && Boolean(user),
+  });
+  const connected = Boolean(github.data?.connected);
+  const repos = useQuery({
+    queryKey: ["github-repos", user?.id],
+    queryFn: async () => client.github.repos(),
+    enabled: online && connected,
+    staleTime: 5 * 60_000,
+  });
   const [repo, setRepo] = useState("");
   const [branch, setBranch] = useState("");
   const [prefix, setPrefix] = useState("");
@@ -78,7 +93,8 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
       repo: `${parsed.owner}/${parsed.repo}`,
       branch,
       pathPrefix: prefix,
-      token,
+      token: connected ? "" : token,
+      useConnection: connected,
       commitMessage: commitMessage.trim(),
       intervalMinutes: Number(intervalMinutes) || 60,
       enabled: autoSync,
@@ -102,8 +118,9 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
   };
 
   const parsed = parseRepoInput(repo);
+  const auth: GithubAuth = connected ? { kind: "connection" } : { kind: "manual", token };
   const target: GitTarget | null = parsed
-    ? { repo: `${parsed.owner}/${parsed.repo}`, branch, pathPrefix: prefix, token }
+    ? { repo: `${parsed.owner}/${parsed.repo}`, branch, pathPrefix: prefix, auth }
     : null;
 
   const check = async () => {
@@ -207,7 +224,11 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
               ? `${counts.push} to push · ${counts.pull} to pull · ${counts.conflicts} conflicts`
               : savedConfig
                 ? savedConfig.enabled
-                  ? `Scheduled sync every ${savedConfig.intervalMinutes} min · token saved in this browser`
+                  ? `Scheduled sync every ${savedConfig.intervalMinutes} min · ${
+                      savedConfig.useConnection
+                        ? "connected GitHub account"
+                        : "token saved in this browser"
+                    }`
                   : "Saved config · scheduled sync is off"
                 : "The token is used for this session only unless you save it for scheduled sync."}
           </span>
@@ -238,6 +259,15 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
       }
     >
       <div className="space-y-3">
+        {connected && repos.data?.repos.length ? (
+          <datalist id="github-sync-repos">
+            {repos.data.repos.map((entry) => (
+              <option key={entry.fullName} value={entry.fullName}>
+                {entry.private ? "private" : "public"}
+              </option>
+            ))}
+          </datalist>
+        ) : null}
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -248,6 +278,7 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
               onChange={(event) => setRepo(event.target.value)}
               placeholder="owner/repository"
               spellCheck={false}
+              list={connected ? "github-sync-repos" : undefined}
               className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[12px] outline-none focus:border-primary/40"
             />
           </label>
@@ -275,20 +306,34 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
               className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[12px] outline-none focus:border-primary/40"
             />
           </label>
-          <label className="block">
-            <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-              Token
-            </span>
-            <input
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="ghp_… with repo scope"
-              type="password"
-              spellCheck={false}
-              className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[11px] outline-none focus:border-primary/40"
-            />
-          </label>
+          {connected ? (
+            <div className="flex h-9 items-center gap-2 self-end rounded-lg border border-moss/25 bg-moss/[0.05] px-2.5">
+              <span className="status-dot bg-moss" />
+              <span className="truncate text-[10px]">@{github.data?.login}</span>
+            </div>
+          ) : (
+            <label className="block">
+              <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                Token
+              </span>
+              <input
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+                placeholder="ghp_… with repo scope"
+                type="password"
+                spellCheck={false}
+                className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[11px] outline-none focus:border-primary/40"
+              />
+            </label>
+          )}
         </div>
+
+        {connected ? (
+          <p className="text-[8.5px] leading-relaxed text-muted-foreground">
+            Authenticated with the connected GitHub account. The token stays encrypted on the server
+            and is never sent to this browser.
+          </p>
+        ) : null}
 
         <label className="block">
           <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -344,7 +389,10 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
           </div>
           <p className="mt-1.5 text-[8px] leading-relaxed text-muted-foreground">
             Scheduled passes push local edits and pull remote edits; conflicts and unpublished pages
-            still wait for you. The token is stored in this browser so the background run can use it.
+            still wait for you.{" "}
+            {connected
+              ? "The background run calls the server, so it needs a connection but stores no token here."
+              : "The token is stored in this browser so the background run can use it."}
           </p>
         </div>
 

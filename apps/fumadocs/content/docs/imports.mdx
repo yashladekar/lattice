@@ -15,13 +15,35 @@ them for sync, so an import reconciles rather than replaces.
 
 ## GitHub
 
+**Settings → Sync & backup → GitHub** connects an account. It uses GitHub's
+device flow: Lattice shows a short code, opens `github.com/login/device`, and
+polls until you approve. No callback URL or client secret is involved, so the
+same flow works for the web app, the desktop app, and a self-hosted server.
+
+The token is encrypted with the deployment secret and kept on the server. It is
+never sent to the browser: import and sync call a narrow proxy that only
+forwards the repository and contents endpoints they need. Disconnecting deletes
+the stored token.
+
+Connecting is opt-in for a deployment. Register a GitHub OAuth App with device
+flow enabled, then set:
+
+```bash
+GITHUB_CONNECT_ENABLED=true
+GITHUB_CLIENT_ID=Iv1…
+```
+
+Without those two values the GitHub card stays hidden and the dialogs keep
+their manual token field.
+
 **Settings → Sync & backup → Import from GitHub** pulls a repository's Markdown
 into a new notebook.
 
-1. Enter `owner/repository` (a full GitHub URL also works).
-2. Optionally restrict to a folder, and add a token for private repositories or
-   a higher rate limit. The token is used for that request only and never
-   stored.
+1. Enter `owner/repository` (a full GitHub URL also works). While connected,
+   your repositories are suggested and private ones are included.
+2. Optionally restrict to a folder. Without a connection, add a token for
+   private repositories or a higher rate limit; it is used for that request
+   only and never stored.
 3. Lattice reads the default branch, fetches up to 40 Markdown files, converts
    them to blocks, and creates one page per file.
 
@@ -37,8 +59,9 @@ ways afterwards.
 ## Two-way Git sync
 
 Settings → Sync & backup → **Sync with Git** compares the pages bound to a
-repository against its current tree. Checking costs one request, and each page
-comes back as one of:
+repository against its current tree. With a GitHub connection the stored
+credential is used automatically; otherwise paste a token. Checking costs one
+request, and each page comes back as one of:
 
 | State | Meaning | Action offered |
 | --- | --- | --- |
@@ -55,12 +78,14 @@ remotely never deletes the page — the page is the copy you still have.
 
 ### Scheduled sync
 
-The dialog can save the repository config (including the token) in this browser
-and run the same two-way sync on a schedule: every 15 minutes, 30 minutes, an
-hour, or four hours, checked while Lattice is open and online. Scheduled passes
-only push local edits and pull remote edits — conflicts, deleted-remote files,
-and never-published pages still wait for a person. **Forget saved credentials**
-removes the stored config and token.
+The dialog can save the repository config in this browser and run the same
+two-way sync on a schedule: every 15 minutes, 30 minutes, an hour, or four
+hours, checked while Lattice is open and online. With a connection, the saved
+config holds no token and the scheduled pass goes through the server; without
+one, the pasted token is stored in this browser so the background run can use
+it. Scheduled passes only push local edits and pull remote edits — conflicts,
+deleted-remote files, and never-published pages still wait for a person.
+**Forget saved credentials** removes the stored config and token.
 
 ## Obsidian and Notion vaults
 

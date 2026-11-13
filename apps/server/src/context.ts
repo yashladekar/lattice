@@ -7,7 +7,7 @@ import type { Request } from "express";
 
 import { auth, chatgptCallback, db } from "./services";
 import { isCollaborating, invalidateCollabState, resetCollabState } from "./collaboration";
-import { ENV, aiAgentEnabled, aiConfig, uploadRoot } from "./env.server";
+import { ENV, aiAgentEnabled, aiConfig, githubConfig, uploadRoot } from "./env.server";
 
 interface CreateContextOptions {
   req: Request;
@@ -59,6 +59,7 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     uploads: { read: readUpload },
     secrets: { keyMaterial: ENV.BETTER_AUTH_SECRET },
     chatgpt: chatgptCallback,
+    ...(githubConfig ? { github: githubConfig } : {}),
     aiAgent: { enabled: aiAgentEnabled },
     collab: {
       isActive: (_workspaceId: string, resourceType, resourceId, userId) =>

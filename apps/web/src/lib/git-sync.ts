@@ -10,17 +10,16 @@ import {
   type GitSyncAction,
 } from "@notes-learning/domain";
 
+import { githubApi, type GithubAuth } from "@/lib/github-api";
 import { markdownToDoc, parseRepoInput } from "@/lib/github-import";
 import type { LatticeDB } from "@/lib/local/db";
 import { savePageContentLocal, updatePagePropertiesLocal } from "@/lib/local/repository";
-
-const API = "https://api.github.com";
 
 export interface GitTarget {
   repo: string;
   branch: string;
   pathPrefix: string;
-  token: string;
+  auth: GithubAuth;
 }
 
 export interface GitSyncRow {
@@ -33,12 +32,6 @@ export interface GitSyncRow {
   recordedRemoteSha: string | null;
   localHash: string;
   recordedLocalHash: string | null;
-}
-
-function headers(token: string): HeadersInit {
-  const base: Record<string, string> = { Accept: "application/vnd.github+json" };
-  if (token.trim()) base.Authorization = `Bearer ${token.trim()}`;
-  return base;
 }
 
 async function githubMessage(response: Response): Promise<string> {
@@ -63,9 +56,7 @@ async function resolveBranch(target: GitTarget): Promise<string> {
   if (target.branch.trim()) return target.branch.trim();
   const parsed = parseRepoInput(target.repo);
   if (!parsed) throw new Error("Use owner/repository.");
-  const response = await fetch(`${API}/repos/${parsed.owner}/${parsed.repo}`, {
-    headers: headers(target.token),
-  });
+  const response = await githubApi(target.auth, "GET", `/repos/${parsed.owner}/${parsed.repo}`);
   if (!response.ok) throw new Error(await githubMessage(response));
   const body = (await response.json()) as { default_branch?: string };
   return body.default_branch ?? "main";
@@ -76,9 +67,10 @@ export async function fetchRemoteTree(target: GitTarget): Promise<Map<string, st
   const parsed = parseRepoInput(target.repo);
   if (!parsed) throw new Error("Use owner/repository.");
   const branch = await resolveBranch(target);
-  const response = await fetch(
-    `${API}/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
-    { headers: headers(target.token) },
+  const response = await githubApi(
+    target.auth,
+    "GET",
+    `/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
   );
   if (!response.ok) throw new Error(await githubMessage(response));
 
@@ -102,9 +94,10 @@ async function fetchRemoteFile(
   const parsed = parseRepoInput(target.repo);
   if (!parsed) throw new Error("Use owner/repository.");
   const encoded = path.split("/").map(encodeURIComponent).join("/");
-  const response = await fetch(
-    `${API}/repos/${parsed.owner}/${parsed.repo}/contents/${encoded}?ref=${encodeURIComponent(branch)}`,
-    { headers: headers(target.token) },
+  const response = await githubApi(
+    target.auth,
+    "GET",
+    `/repos/${parsed.owner}/${parsed.repo}/contents/${encoded}?ref=${encodeURIComponent(branch)}`,
   );
   if (!response.ok) throw new Error(await githubMessage(response));
   const body = (await response.json()) as { content?: string; sha?: string; encoding?: string };
@@ -169,16 +162,19 @@ async function writeRemote(
   const parsed = parseRepoInput(target.repo);
   if (!parsed) throw new Error("Use owner/repository.");
   const encoded = input.path.split("/").map(encodeURIComponent).join("/");
-  const response = await fetch(`${API}/repos/${parsed.owner}/${parsed.repo}/contents/${encoded}`, {
-    method: "PUT",
-    headers: { ...headers(target.token), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message: input.message,
-      content: encodeBase64Utf8(input.markdown),
-      branch,
-      ...(input.sha ? { sha: input.sha } : {}),
-    }),
-  });
+  const response = await githubApi(
+    target.auth,
+    "PUT",
+    `/repos/${parsed.owner}/${parsed.repo}/contents/${encoded}`,
+    {
+      body: {
+        message: input.message,
+        content: encodeBase64Utf8(input.markdown),
+        branch,
+        ...(input.sha ? { sha: input.sha } : {}),
+      },
+    },
+  );
   if (!response.ok) throw new Error(await githubMessage(response));
   const body = (await response.json()) as { content?: { sha?: string } };
   return body.content?.sha ?? "";

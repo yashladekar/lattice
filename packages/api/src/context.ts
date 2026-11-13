@@ -68,4 +68,11 @@ export type Context = {
   chatgpt?: {
     startListener(): Promise<{ redirectUri: string }>;
   };
+  /**
+   * Present when the deployment has a GitHub OAuth App client id with the
+   * device flow enabled. Absent keeps the whole connection surface hidden.
+   */
+  github?: {
+    clientId: string;
+  };
 };

@@ -41,6 +41,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
+import { GithubConnectionCard } from "@/components/workspace/github-connection";
 import { GithubImportDialog } from "@/components/workspace/github-import";
 import { GitSyncDialog } from "@/components/workspace/git-sync-dialog";
 import { VaultImportDialog } from "@/components/workspace/vault-import";
@@ -1307,6 +1308,8 @@ export function SettingsView() {
 
         {tab === "sync" ? (
           <section className="space-y-4">
+            <GithubConnectionCard />
+
             <SettingsCard title="Sync status" description="Your local store is authoritative; the server is a sync authority.">
               <div className="grid gap-2 sm:grid-cols-3">
                 <Stat label="Connection" value={online ? "Online" : "Offline"} tone={online ? "moss" : "saffron"} />

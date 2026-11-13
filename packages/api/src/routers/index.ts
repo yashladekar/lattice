@@ -7,6 +7,7 @@ import { captureRouter } from "./capture";
 import { chatGptRouter } from "./chatgpt";
 import { commentRouter } from "./comment";
 import { consoleRouter } from "./console";
+import { githubRouter } from "./github";
 import { graphRouter } from "./graph";
 import { learningRouter } from "./learning";
 import { notebookRouter } from "./notebook";
@@ -44,6 +45,7 @@ export const appRouter = {
   search: searchRouter,
   ai: aiRouter,
   chatgpt: chatGptRouter,
+  github: githubRouter,
   sync: syncRouter,
   presence: presenceRouter,
   notification: notificationRouter,
