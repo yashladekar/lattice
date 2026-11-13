@@ -3,7 +3,8 @@
 import { Button } from "@notes-learning/ui/components/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, GitBranch, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -18,22 +19,47 @@ interface DeviceLogin {
   interval: number;
 }
 
+const FAILURE_REASONS: Record<string, string> = {
+  state_missing: "The GitHub sign-in was missing its state. Start again.",
+  state_expired: "That GitHub sign-in expired. Start again.",
+  provider_error: "GitHub authorization was declined.",
+  exchange_failed: "GitHub did not complete the sign-in. Try again.",
+};
+
 /**
  * The GitHub equivalent of the ChatGPT plan card: connect once, keep the token
- * encrypted on the server, and let import and sync reuse it. Hidden entirely
- * unless the deployment enabled the device flow and supplied a client id.
+ * encrypted on the server, and let import and sync reuse it. The callback flow
+ * mirrors Vercel's "add account" step; when the deployment has no client
+ * secret, the device flow is used instead. Hidden entirely unless the
+ * deployment enabled the feature and supplied a client id.
  */
 export function GithubConnectionCard() {
   const { user, online } = useAppData();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [device, setDevice] = useState<DeviceLogin | null>(null);
   const [busy, setBusy] = useState(false);
+  const handledRedirect = useRef<string | null>(null);
 
   const status = useQuery({
     queryKey: ["github-status", user?.id],
     queryFn: async () => client.github.status(),
     enabled: online && Boolean(user),
   });
+
+  useEffect(() => {
+    const result = searchParams?.get("github");
+    if (!result || handledRedirect.current === result) return;
+    handledRedirect.current = result;
+    if (result === "connected") {
+      toast.success("GitHub connected");
+      void queryClient.invalidateQueries({ queryKey: ["github-status"] });
+      void queryClient.invalidateQueries({ queryKey: ["github-repos"] });
+    } else if (result === "error") {
+      const reason = searchParams?.get("reason") ?? "";
+      toast.error(FAILURE_REASONS[reason] ?? "The GitHub sign-in did not complete.");
+    }
+  }, [searchParams, queryClient]);
 
   useEffect(() => {
     if (!device) return;
@@ -55,10 +81,12 @@ export function GithubConnectionCard() {
           setDevice(null);
           toast.error("The GitHub authorization was declined.");
         } else if (result.status === "error") {
+          setDevice(null);
           toast.error(result.message);
         }
       } catch (error) {
         if (stopped) return;
+        setDevice(null);
         toast.error(error instanceof Error ? error.message : "Could not finish the GitHub sign-in.");
       }
     };
@@ -74,6 +102,11 @@ export function GithubConnectionCard() {
     setBusy(true);
     try {
       const login = await client.github.start();
+      if (login.mode === "oauth") {
+        await openExternalUrl(login.authorizeUrl);
+        toast.success("Finish connecting GitHub in your browser.");
+        return;
+      }
       setDevice(login);
       await openExternalUrl(login.verificationUri);
       toast.success("Enter the code on GitHub to finish connecting.");
@@ -120,8 +153,8 @@ export function GithubConnectionCard() {
         <div className="min-w-0 flex-1">
           <h2 className="text-[12px] font-semibold tracking-[-0.01em]">GitHub</h2>
           <p className="mt-0.5 text-[9px] leading-relaxed text-muted-foreground">
-            Connect an account once and reuse it for import and two-way sync. The token is encrypted
-            with the deployment secret and never reaches this browser.
+            Connect an account once, then pick a repository when you import or sync. The token is
+            encrypted with the deployment secret and never reaches this browser.
           </p>
         </div>
         {status.data.connected ? <Check className="size-3.5 text-moss" /> : null}
@@ -229,8 +262,9 @@ export function GithubConnectionCard() {
               Connect GitHub
             </Button>
             <p className="text-[8px] leading-relaxed text-muted-foreground">
-              Uses GitHub&apos;s device flow: you get a short code, approve it on github.com, and no
-              callback URL or client secret is needed. Private repositories are included.
+              {status.data.mode === "oauth"
+                ? "You'll approve access on GitHub, then come straight back here. Repository read and write access is requested so sync can push."
+                : "Uses GitHub's device flow: you get a short code, approve it on github.com, and no callback URL or client secret is needed."}
             </p>
             <p className="text-[8px] leading-relaxed text-muted-foreground">
               Prefer not to connect? The import and sync dialogs still accept a one-off personal

@@ -1,14 +1,16 @@
 /**
- * GitHub device flow. Unlike OpenAI, GitHub has no dynamic client
- * registration, so a deployment brings its own OAuth App client id and the
- * person types a short code at github.com/login/device. No client secret and
- * no loopback callback are involved, which is what makes this work for a
- * self-hosted or desktop Lattice.
+ * GitHub authorization. Two flows, chosen by the deployment:
  *
- * Everything here runs on the server: the browser receives the user code, never
- * the access token or the device code.
+ * - Authorization code (Vercel-style): the person clicks Connect, approves the
+ *   OAuth App on github.com, and GitHub redirects back to the server callback.
+ *   This needs a client secret and a registered callback URL.
+ * - Device flow: GitHub shows a short code to type. No secret or callback URL,
+ *   which makes it the fallback for deployments behind an unreachable origin.
+ *
+ * All of this runs on the server; the browser never receives GitHub's token.
  */
 
+const AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 const DEVICE_CODE_URL = "https://github.com/login/device/code";
 const TOKEN_URL = "https://github.com/login/oauth/access_token";
 const API_URL = "https://api.github.com";
@@ -28,6 +30,12 @@ export class GithubError extends Error {
   }
 }
 
+export interface GithubTokenSet {
+  accessToken: string;
+  tokenType: string;
+  scopes: string[];
+}
+
 export interface GithubDeviceStart {
   deviceCode: string;
   userCode: string;
@@ -36,14 +44,8 @@ export interface GithubDeviceStart {
   interval: number;
 }
 
-export interface GithubDeviceTokens {
-  accessToken: string;
-  tokenType: string;
-  scopes: string[];
-}
-
 export type GithubDevicePoll =
-  | ({ status: "connected" } & GithubDeviceTokens)
+  | ({ status: "connected" } & GithubTokenSet)
   | { status: "pending"; interval: number }
   | { status: "expired" }
   | { status: "denied" }
@@ -63,15 +65,19 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
 }
 
 async function postForm(url: string, fields: Record<string, string>): Promise<Response> {
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "Lattice",
-    },
-    body: new URLSearchParams(fields).toString(),
-  });
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Lattice",
+      },
+      body: new URLSearchParams(fields).toString(),
+    });
+  } catch {
+    throw new GithubError("network_failed", "GitHub could not be reached. Try again.");
+  }
 }
 
 async function readJson(response: Response): Promise<Record<string, unknown> | null> {
@@ -81,6 +87,49 @@ async function readJson(response: Response): Promise<Record<string, unknown> | n
   } catch {
     return null;
   }
+}
+
+export function buildGithubAuthorizeUrl(input: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  scope?: string;
+}): string {
+  const url = new URL(AUTHORIZE_URL);
+  url.searchParams.set("client_id", input.clientId);
+  url.searchParams.set("redirect_uri", input.redirectUri);
+  url.searchParams.set("scope", input.scope ?? GITHUB_SCOPE);
+  url.searchParams.set("state", input.state);
+  url.searchParams.set("allow_signup", "true");
+  return url.toString();
+}
+
+export async function exchangeGithubCode(input: {
+  clientId: string;
+  clientSecret: string;
+  code: string;
+  redirectUri: string;
+}): Promise<GithubTokenSet> {
+  const response = await postForm(TOKEN_URL, {
+    client_id: input.clientId,
+    client_secret: input.clientSecret,
+    code: input.code,
+    redirect_uri: input.redirectUri,
+  });
+  const body = await readJson(response);
+  const accessToken = typeof body?.access_token === "string" ? body.access_token : "";
+  if (!accessToken) {
+    const message = typeof body?.error_description === "string" ? body.error_description : "";
+    throw new GithubError(
+      typeof body?.error === "string" ? body.error : "exchange_failed",
+      message || "GitHub did not return a token for that authorization.",
+    );
+  }
+  return {
+    accessToken,
+    tokenType: typeof body?.token_type === "string" ? body.token_type : "bearer",
+    scopes: typeof body?.scope === "string" ? body.scope.split(/[\s,]+/).filter(Boolean) : [],
+  };
 }
 
 export async function startGithubDeviceFlow(clientId: string): Promise<GithubDeviceStart> {
@@ -154,14 +203,19 @@ export async function pollGithubDeviceFlow(input: {
 }
 
 export async function fetchGithubIdentity(accessToken: string): Promise<GithubIdentity> {
-  const response = await fetch(`${API_URL}/user`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${accessToken}`,
-      "X-GitHub-Api-Version": GITHUB_API_VERSION,
-      "User-Agent": "Lattice",
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/user`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${accessToken}`,
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+        "User-Agent": "Lattice",
+      },
+    });
+  } catch {
+    throw new GithubError("network_failed", "GitHub could not be reached. Try again.");
+  }
   const body = await readJson(response);
   const login = typeof body?.login === "string" ? body.login : "";
   if (!response.ok || !login) {
@@ -188,7 +242,6 @@ export type GithubProxyMethod = "GET" | "PUT";
 
 const NAME_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
 const QUERY_PATTERN = /^[A-Za-z0-9_.~%&=+,-]{0,512}$/;
-const SEGMENT_PATTERN = /^[^/\\\u0000-\u001f\u007f]{1,255}$/;
 
 function decodeSegments(raw: string): string[] | null {
   try {
@@ -201,14 +254,17 @@ function decodeSegments(raw: string): string[] | null {
   }
 }
 
-function validSegments(segments: string[]): boolean {
-  return segments.every(
-    (segment) =>
-      SEGMENT_PATTERN.test(segment) &&
-      segment !== "." &&
-      segment !== ".." &&
-      !segment.includes("/") &&
-      !segment.includes("\\"),
+/**
+ * A decoded path segment. A slash may survive decoding when the caller encoded
+ * one (`feature%2Fnested`); branch refs are split on it, other paths reject it.
+ */
+function safeSegment(segment: string): boolean {
+  return (
+    segment.length > 0 &&
+    segment.length <= 255 &&
+    segment !== "." &&
+    segment !== ".." &&
+    !/[\\\u0000-\u001f\u007f]/.test(segment)
   );
 }
 
@@ -233,7 +289,7 @@ export function parseGithubApiPath(method: GithubProxyMethod, rawPath: string): 
   if (/%(0[0-9a-f]|1[0-9a-f])/i.test(query)) return null;
 
   const segments = decodeSegments(rawName);
-  if (!segments || !validSegments(segments)) return null;
+  if (!segments || !segments.every(safeSegment)) return null;
   const suffix = query ? `?${query}` : "";
 
   const [root, ...rest] = segments;
@@ -252,8 +308,10 @@ export function parseGithubApiPath(method: GithubProxyMethod, rawPath: string): 
   if (!remainder.length) return method === "GET" ? `${base}${suffix}` : null;
 
   if (remainder[0] === "git" && remainder[1] === "trees" && remainder.length >= 3) {
-    const ref = remainder.slice(2);
-    if (!validSegments(ref)) return null;
+    // A branch name may contain `/`, either literally or percent-encoded. Splitting
+    // it back into segments keeps every segment validated while preserving the ref.
+    const ref = remainder.slice(2).flatMap((segment) => segment.split("/"));
+    if (!ref.length || !ref.every(safeSegment)) return null;
     return method === "GET"
       ? `${base}/git/trees/${ref.map(encodeURIComponent).join("/")}${suffix}`
       : null;
@@ -261,7 +319,7 @@ export function parseGithubApiPath(method: GithubProxyMethod, rawPath: string): 
 
   if (remainder[0] === "contents" && remainder.length >= 2) {
     const filePath = remainder.slice(1);
-    if (!validSegments(filePath)) return null;
+    if (!filePath.every((segment) => safeSegment(segment) && !segment.includes("/"))) return null;
     return method === "GET" || method === "PUT"
       ? `${base}/contents/${filePath.map(encodeURIComponent).join("/")}${suffix}`
       : null;
@@ -282,17 +340,22 @@ export async function githubApiRequest(input: {
   path: string;
   body?: unknown;
 }): Promise<GithubApiResult> {
-  const response = await fetch(`${API_URL}${input.path}`, {
-    method: input.method,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${input.accessToken}`,
-      "X-GitHub-Api-Version": GITHUB_API_VERSION,
-      "User-Agent": "Lattice",
-      ...(input.body === undefined ? {} : { "Content-Type": "application/json" }),
-    },
-    body: input.body === undefined ? undefined : JSON.stringify(input.body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${input.path}`, {
+      method: input.method,
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${input.accessToken}`,
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+        "User-Agent": "Lattice",
+        ...(input.body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      body: input.body === undefined ? undefined : JSON.stringify(input.body),
+    });
+  } catch {
+    throw new GithubError("network_failed", "GitHub could not be reached. Try again.");
+  }
 
   const text = await response.text();
   let body: unknown = null;

@@ -20,7 +20,8 @@ import { createContext } from "./context";
 import { attachCollaboration } from "./collaboration";
 import { createScimRouter } from "@notes-learning/api/scim-router";
 import { RateLimiter } from "@notes-learning/api/rate-limit";
-import { desktopOrigins, ENV, uploadRoot } from "./env.server";
+import { desktopOrigins, ENV, githubConfig, uploadRoot } from "./env.server";
+import { createGithubCallbackHandler } from "./github-callback";
 import { auth, db } from "./services";
 
 const app = express();
@@ -137,6 +138,20 @@ app.post(
 
 app.all("/api/auth{/*path}", toNodeHandler(auth));
 
+if (githubConfig?.clientSecret) {
+  app.get(
+    "/api/github/callback",
+    createGithubCallbackHandler({
+      db,
+      keyMaterial: ENV.BETTER_AUTH_SECRET,
+      appOrigin: ENV.CORS_ORIGIN,
+      clientId: githubConfig.clientId,
+      clientSecret: githubConfig.clientSecret,
+      redirectUri: githubConfig.redirectUri,
+    }),
+  );
+}
+
 app.use("/scim/v2", createScimRouter(db));
 
 app.post("/ingest/email", express.json({ limit: "1mb" }), async (req, res) => {
@@ -183,7 +198,14 @@ type HandlerInterceptor = NonNullable<
 >[number];
 
 const logProcedureError: HandlerInterceptor = onError((error) => {
-  if (error instanceof ORPCError && error.status >= 400 && error.status < 500) return;
+  if (error instanceof ORPCError) {
+    if (error.status >= 400 && error.status < 500) return;
+    // An upstream provider refusing a call is worth one line, not a stack.
+    if (error.status === 502) {
+      console.warn(`${error.code}: ${error.message}`);
+      return;
+    }
+  }
   console.error(error);
 });
 

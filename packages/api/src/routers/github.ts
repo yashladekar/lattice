@@ -1,9 +1,11 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import {
+  GithubError,
+  buildGithubAuthorizeUrl,
   fetchGithubIdentity,
   githubApiRequest,
   parseGithubApiPath,
@@ -20,7 +22,9 @@ import {
   storeGithubConnection,
 } from "../services/github-connection";
 
-const LOGIN_TTL_MS = 15 * 60 * 1000;
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const DEVICE_STATE_TTL_MS = 15 * 60 * 1000;
+const RETURN_TO = "/app?view=settings&tab=sync";
 
 function keyMaterialOf(context: { secrets?: { keyMaterial: string } }): string {
   const keyMaterial = context.secrets?.keyMaterial;
@@ -32,14 +36,33 @@ function keyMaterialOf(context: { secrets?: { keyMaterial: string } }): string {
   return keyMaterial;
 }
 
-function clientIdOf(context: { github?: { clientId: string } | null }): string {
-  const clientId = context.github?.clientId;
-  if (!clientId) {
+function githubConfigOf(context: { github?: { clientId: string; clientSecret: string | null; redirectUri: string } | null }) {
+  const config = context.github;
+  if (!config) {
     throw new ORPCError("PRECONDITION_FAILED", {
       message: "GitHub sign-in is not configured on this server.",
     });
   }
-  return clientId;
+  return config;
+}
+
+/**
+ * GitHub is a third party. Its outages, rejected credentials, and rate limits
+ * are gateway failures with a readable message, never an uncaught 500 with a
+ * stack. Keeping them as ORPCError also keeps the server log to one line.
+ */
+async function githubOperation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof ORPCError) throw error;
+    throw new ORPCError("BAD_GATEWAY", {
+      message:
+        error instanceof GithubError
+          ? error.message
+          : "GitHub could not be reached. Try again.",
+    });
+  }
 }
 
 async function requireToken(context: {
@@ -65,7 +88,7 @@ async function requireToken(context: {
  * A stored GitHub account. The connection belongs to the person, not the
  * workspace, exactly like the ChatGPT plan: the token is theirs and its scopes
  * are theirs. The browser never receives the token; import and sync call
- * `request`, which forwards only the paths below.
+ * `request`, which forwards only the paths the import and sync engines use.
  */
 export const githubRouter = {
   status: protectedProcedure.handler(async ({ context }) => {
@@ -79,28 +102,57 @@ export const githubRouter = {
       lastError: connection?.lastError ?? null,
       canConnect: Boolean(context.github?.clientId && context.secrets),
       configured: Boolean(context.github?.clientId),
+      /** `oauth` is the Vercel-style callback flow; `device` needs no callback. */
+      mode: context.github ? (context.github.clientSecret ? "oauth" : "device") : null,
     };
   }),
 
   start: protectedProcedure.handler(async ({ context }) => {
-    const clientId = clientIdOf(context);
+    const config = githubConfigOf(context);
     const userId = context.session.user.id;
-    const flow = await startGithubDeviceFlow(clientId);
-    const id = randomUUID();
 
+    if (config.clientSecret) {
+      const state = randomBytes(32).toString("base64url");
+      await context.db.githubLoginState.create({
+        data: {
+          id: state,
+          userId,
+          mode: "oauth",
+          returnTo: RETURN_TO,
+          expiresAt: new Date(Date.now() + OAUTH_STATE_TTL_MS),
+        },
+      });
+      void pruneGithubLoginStates(context.db);
+
+      return {
+        mode: "oauth" as const,
+        authorizeUrl: buildGithubAuthorizeUrl({
+          clientId: config.clientId,
+          redirectUri: config.redirectUri,
+          state,
+        }),
+        expiresIn: Math.floor(OAUTH_STATE_TTL_MS / 1000),
+      };
+    }
+
+    const flow = await githubOperation(() => startGithubDeviceFlow(config.clientId));
+    const id = randomUUID();
     await context.db.githubLoginState.create({
       data: {
         id,
         userId,
+        mode: "device",
         deviceCode: flow.deviceCode,
         userCode: flow.userCode,
         intervalSeconds: flow.interval,
-        expiresAt: new Date(Date.now() + Math.min(flow.expiresIn * 1000, LOGIN_TTL_MS)),
+        returnTo: RETURN_TO,
+        expiresAt: new Date(Date.now() + Math.min(flow.expiresIn * 1000, DEVICE_STATE_TTL_MS)),
       },
     });
     void pruneGithubLoginStates(context.db);
 
     return {
+      mode: "device" as const,
       id,
       userCode: flow.userCode,
       verificationUri: flow.verificationUri,
@@ -112,24 +164,26 @@ export const githubRouter = {
   poll: protectedProcedure
     .input(z.object({ id: z.string().min(1).max(200) }))
     .handler(async ({ context, input }) => {
-      const clientId = clientIdOf(context);
+      const config = githubConfigOf(context);
       const keyMaterial = keyMaterialOf(context);
       const userId = context.session.user.id;
 
       const state = await context.db.githubLoginState.findFirst({
-        where: { id: input.id, userId },
+        where: { id: input.id, userId, mode: "device" },
       });
-      if (!state) return { status: "expired" as const };
+      if (!state?.deviceCode) return { status: "expired" as const };
 
       if (state.expiresAt.getTime() < Date.now()) {
         await context.db.githubLoginState.delete({ where: { id: state.id } }).catch(() => undefined);
         return { status: "expired" as const };
       }
 
-      const result = await pollGithubDeviceFlow({
-        clientId,
-        deviceCode: state.deviceCode,
-      });
+      const result = await githubOperation(() =>
+        pollGithubDeviceFlow({
+          clientId: config.clientId,
+          deviceCode: state.deviceCode!,
+        }),
+      );
 
       if (result.status === "pending") {
         await context.db.githubLoginState
@@ -145,17 +199,19 @@ export const githubRouter = {
         return { status: "error" as const, message: result.message };
       }
 
-      const identity = await fetchGithubIdentity(result.accessToken);
-      const connection = await storeGithubConnection({
-        db: context.db,
-        userId,
-        identity,
-        tokens: {
-          accessToken: result.accessToken,
-          tokenType: result.tokenType,
-          scopes: result.scopes,
-        },
-        keyMaterial,
+      const connection = await githubOperation(async () => {
+        const identity = await fetchGithubIdentity(result.accessToken);
+        return storeGithubConnection({
+          db: context.db,
+          userId,
+          identity,
+          tokens: {
+            accessToken: result.accessToken,
+            tokenType: result.tokenType,
+            scopes: result.scopes,
+          },
+          keyMaterial,
+        });
       });
       await context.db.githubLoginState.delete({ where: { id: state.id } }).catch(() => undefined);
 
@@ -176,13 +232,15 @@ export const githubRouter = {
 
   repos: protectedProcedure.handler(async ({ context }) => {
     const { connection, accessToken } = await requireToken(context);
-    const result = await githubApiRequest({
-      accessToken,
-      method: "GET",
-      path:
-        "/user/repos?per_page=100&sort=pushed&affiliation=" +
-        encodeURIComponent("owner,collaborator,organization_member"),
-    });
+    const result = await githubOperation(() =>
+      githubApiRequest({
+        accessToken,
+        method: "GET",
+        path:
+          "/user/repos?per_page=100&sort=pushed&affiliation=" +
+          encodeURIComponent("owner,collaborator,organization_member"),
+      }),
+    );
     if (result.status !== 200 || !Array.isArray(result.body)) {
       if (result.status === 401) {
         await markGithubConnectionError(context.db, connection.id, "unauthorized");
@@ -227,12 +285,14 @@ export const githubRouter = {
         throw new ORPCError("BAD_REQUEST", { message: "That GitHub API path is not allowed." });
       }
       const { connection, accessToken } = await requireToken(context);
-      const result = await githubApiRequest({
-        accessToken,
-        method: input.method,
-        path,
-        ...(input.body === undefined ? {} : { body: input.body }),
-      });
+      const result = await githubOperation(() =>
+        githubApiRequest({
+          accessToken,
+          method: input.method,
+          path,
+          ...(input.body === undefined ? {} : { body: input.body }),
+        }),
+      );
       if (result.status === 401) {
         await markGithubConnectionError(context.db, connection.id, "unauthorized");
       }

@@ -240,6 +240,12 @@ export function SettingsView() {
   const searchParams = useSearchParams();
   const chatgptRedirect = searchParams?.get("chatgpt") ?? null;
   const handledChatGptRedirect = useRef<string | null>(null);
+  const requestedTab = searchParams?.get("tab") ?? null;
+
+  useEffect(() => {
+    const match = TABS.find((entry) => entry.id === requestedTab);
+    if (match) setTab(match.id);
+  }, [requestedTab]);
 
   const saveGeneral = async () => {
     if (!db || !activeWorkspaceId) return;

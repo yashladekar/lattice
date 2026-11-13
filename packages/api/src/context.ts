@@ -69,10 +69,14 @@ export type Context = {
     startListener(): Promise<{ redirectUri: string }>;
   };
   /**
-   * Present when the deployment has a GitHub OAuth App client id with the
-   * device flow enabled. Absent keeps the whole connection surface hidden.
+   * Present when the deployment has a GitHub OAuth App. A client secret selects
+   * the callback flow; without one the server offers the device flow. Absent
+   * keeps the whole connection surface hidden.
    */
   github?: {
     clientId: string;
+    /** Present when the deployment can complete the OAuth callback flow. */
+    clientSecret: string | null;
+    redirectUri: string;
   };
 };

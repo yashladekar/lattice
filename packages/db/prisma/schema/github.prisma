@@ -17,15 +17,18 @@ model GithubConnection {
   @@map("github_connection")
 }
 
-/// One in-flight device-flow authorization. The id is ours; GitHub's device
-/// code is kept server-side so the browser only ever holds the short user
-/// code the person types at github.com/login/device.
+/// One in-flight authorization attempt. `oauth` carries the callback state and
+/// is completed by the server route; `device` carries GitHub's device code and
+/// is completed by polling. Single use and short lived either way, and the
+/// browser only ever sees our own id.
 model GithubLoginState {
   id              String   @id
   userId          String
-  deviceCode      String   @unique
-  userCode        String
+  mode            String   @default("oauth")
+  deviceCode      String?  @unique
+  userCode        String?
   intervalSeconds Int      @default(5)
+  returnTo        String   @default("/app?view=settings&tab=sync")
   expiresAt       DateTime @db.Timestamptz(3)
   createdAt       DateTime @default(now()) @db.Timestamptz(3)
 

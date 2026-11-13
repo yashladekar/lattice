@@ -32,13 +32,24 @@ export const aiAgentEnabled =
   process.env.AI_AGENT_ENABLED === "true" || ENV.AI_AGENT_ENABLED === true;
 
 /**
- * Experimental: the GitHub device-flow connection. Off unless both the flag and
- * a client id are present, so a deployment without an OAuth App keeps the
- * existing manual-token import untouched.
+ * Experimental: the GitHub connection. Off unless both the flag and a client id
+ * are present, so a deployment without an OAuth App keeps the existing
+ * manual-token import untouched. A client secret opts into the callback flow;
+ * without one the server offers the device flow instead.
  */
 const githubClientId = process.env.GITHUB_CLIENT_ID ?? ENV.GITHUB_CLIENT_ID;
+const githubClientSecret = process.env.GITHUB_CLIENT_SECRET ?? ENV.GITHUB_CLIENT_SECRET;
+const githubRedirectUri =
+  process.env.GITHUB_REDIRECT_URI ??
+  ENV.GITHUB_REDIRECT_URI ??
+  new URL("/api/github/callback", ENV.BETTER_AUTH_URL).toString();
+
 export const githubConfig =
   (process.env.GITHUB_CONNECT_ENABLED === "true" || ENV.GITHUB_CONNECT_ENABLED === true) &&
   githubClientId
-    ? { clientId: githubClientId }
+    ? {
+        clientId: githubClientId,
+        clientSecret: githubClientSecret || null,
+        redirectUri: githubRedirectUri,
+      }
     : null;

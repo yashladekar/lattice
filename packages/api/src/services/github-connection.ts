@@ -4,7 +4,7 @@ import { decryptGithubToken, encryptGithubToken } from "@notes-learning/auth";
 import type { Database } from "@notes-learning/db";
 import { Prisma } from "@notes-learning/db";
 
-import type { GithubDeviceTokens, GithubIdentity } from "../github/oauth";
+import type { GithubIdentity, GithubTokenSet } from "../github/oauth";
 
 /** Structural shape of a `github_connection` row. */
 export interface GithubConnectionRecord {
@@ -42,7 +42,7 @@ export async function storeGithubConnection(input: {
   db: Database;
   userId: string;
   identity: GithubIdentity;
-  tokens: GithubDeviceTokens;
+  tokens: GithubTokenSet;
   keyMaterial: string;
 }): Promise<GithubConnectionRecord> {
   const data = {

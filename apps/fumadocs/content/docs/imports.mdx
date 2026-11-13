@@ -15,32 +15,41 @@ them for sync, so an import reconciles rather than replaces.
 
 ## GitHub
 
-**Settings → Sync & backup → GitHub** connects an account. It uses GitHub's
-device flow: Lattice shows a short code, opens `github.com/login/device`, and
-polls until you approve. No callback URL or client secret is involved, so the
-same flow works for the web app, the desktop app, and a self-hosted server.
+**Settings → Sync & backup → GitHub** connects an account, Vercel-style:
+click **Connect GitHub**, approve the OAuth App on github.com, and GitHub
+returns you to Settings. The account then appears with its repository scope,
+and the import and sync dialogs offer a searchable repository picker.
 
 The token is encrypted with the deployment secret and kept on the server. It is
 never sent to the browser: import and sync call a narrow proxy that only
 forwards the repository and contents endpoints they need. Disconnecting deletes
 the stored token.
 
-Connecting is opt-in for a deployment. Register a GitHub OAuth App with device
-flow enabled, then set:
+Connecting is opt-in for a deployment. Register a GitHub OAuth App with the
+callback URL below, then set:
 
 ```bash
 GITHUB_CONNECT_ENABLED=true
 GITHUB_CLIENT_ID=Iv1…
+GITHUB_CLIENT_SECRET=…
+# Optional; defaults to ${BETTER_AUTH_URL}/api/github/callback
+GITHUB_REDIRECT_URI=https://lattice.example.com/api/github/callback
 ```
 
-Without those two values the GitHub card stays hidden and the dialogs keep
-their manual token field.
+The callback must be reachable by the browser that completes the sign-in. When
+no client secret is configured, Lattice falls back to GitHub's device flow: it
+shows a short code, opens `github.com/login/device`, and polls until you
+approve. That path needs no callback URL at all.
+
+Without a client id the GitHub card stays hidden and the dialogs keep their
+manual token field.
 
 **Settings → Sync & backup → Import from GitHub** pulls a repository's Markdown
 into a new notebook.
 
-1. Enter `owner/repository` (a full GitHub URL also works). While connected,
-   your repositories are suggested and private ones are included.
+1. Pick a repository from the connected account, or type `owner/repository`
+   directly (a full GitHub URL also works). Private repositories are included
+   while connected.
 2. Optionally restrict to a folder. Without a connection, add a token for
    private repositories or a higher rate limit; it is used for that request
    only and never stored.
@@ -59,9 +68,9 @@ ways afterwards.
 ## Two-way Git sync
 
 Settings → Sync & backup → **Sync with Git** compares the pages bound to a
-repository against its current tree. With a GitHub connection the stored
-credential is used automatically; otherwise paste a token. Checking costs one
-request, and each page comes back as one of:
+repository against its current tree. Pick the repository from the connected
+account and the stored credential is used automatically; otherwise type it and
+paste a token. Checking costs one request, and each page comes back as one of:
 
 | State | Meaning | Action offered |
 | --- | --- | --- |

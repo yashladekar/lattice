@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
+import { GithubRepoPicker } from "@/components/workspace/github-repo-picker";
 import { humanizeError } from "@/lib/errors";
 import type { GithubAuth } from "@/lib/github-api";
 import { parseRepoInput } from "@/lib/github-import";
@@ -51,12 +52,6 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
     enabled: online && Boolean(user),
   });
   const connected = Boolean(github.data?.connected);
-  const repos = useQuery({
-    queryKey: ["github-repos", user?.id],
-    queryFn: async () => client.github.repos(),
-    enabled: online && connected,
-    staleTime: 5 * 60_000,
-  });
   const [repo, setRepo] = useState("");
   const [branch, setBranch] = useState("");
   const [prefix, setPrefix] = useState("");
@@ -259,29 +254,18 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
       }
     >
       <div className="space-y-3">
-        {connected && repos.data?.repos.length ? (
-          <datalist id="github-sync-repos">
-            {repos.data.repos.map((entry) => (
-              <option key={entry.fullName} value={entry.fullName}>
-                {entry.private ? "private" : "public"}
-              </option>
-            ))}
-          </datalist>
-        ) : null}
         <div className="grid grid-cols-2 gap-3">
-          <label className="block">
+          <div className="block">
             <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
               Repository
             </span>
-            <input
+            <GithubRepoPicker
               value={repo}
-              onChange={(event) => setRepo(event.target.value)}
-              placeholder="owner/repository"
-              spellCheck={false}
-              list={connected ? "github-sync-repos" : undefined}
-              className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[12px] outline-none focus:border-primary/40"
+              onChange={setRepo}
+              onSelect={(entry) => setBranch(entry.defaultBranch)}
+              connected={connected}
             />
-          </label>
+          </div>
           <label className="block">
             <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
               Branch (optional)
@@ -321,6 +305,7 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
                 onChange={(event) => setToken(event.target.value)}
                 placeholder="ghp_… with repo scope"
                 type="password"
+                autoComplete="new-password"
                 spellCheck={false}
                 className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[11px] outline-none focus:border-primary/40"
               />

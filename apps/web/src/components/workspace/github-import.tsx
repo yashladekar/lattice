@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
+import { GithubRepoPicker } from "@/components/workspace/github-repo-picker";
 import { useWorkspaceNotebooks } from "@/hooks/use-local-data";
 import { humanizeError } from "@/lib/errors";
 import { appRouteObject } from "@/lib/navigation";
@@ -46,12 +47,6 @@ export function GithubImportDialog({
     enabled: online && Boolean(user),
   });
   const connected = Boolean(github.data?.connected);
-  const repos = useQuery({
-    queryKey: ["github-repos", user?.id],
-    queryFn: async () => client.github.repos(),
-    enabled: online && connected,
-    staleTime: 5 * 60_000,
-  });
 
   const parsed = parseRepoInput(repo);
   const auth: GithubAuth = connected ? { kind: "connection" } : { kind: "manual", token };
@@ -187,36 +182,24 @@ export function GithubImportDialog({
           </div>
         ) : null}
 
-        <label className="block">
+        <div className="block">
           <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
             Repository
           </span>
-          <input
+          <GithubRepoPicker
             value={repo}
-            onChange={(event) => setRepo(event.target.value)}
-            placeholder="owner/repository"
-            spellCheck={false}
-            list={connected && repos.data?.repos.length ? "github-repos" : undefined}
-            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[12px] outline-none focus:border-primary/40"
+            onChange={setRepo}
+            connected={connected}
             autoFocus
           />
-          {connected && repos.data?.repos.length ? (
-            <datalist id="github-repos">
-              {repos.data.repos.map((entry) => (
-                <option key={entry.fullName} value={entry.fullName}>
-                  {entry.private ? "private" : "public"}
-                </option>
-              ))}
-            </datalist>
-          ) : null}
           <span className="mt-1 block text-[8.5px] text-muted-foreground">
             {parsed
               ? `github.com/${parsed.owner}/${parsed.repo}`
               : connected
-                ? "Start typing — your repositories are suggested."
+                ? "Pick a repository from your account, or keep typing to filter."
                 : "A public repository works without a token."}
           </span>
-        </label>
+        </div>
 
         <label className="block">
           <span className="mb-1 block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -241,6 +224,7 @@ export function GithubImportDialog({
               onChange={(event) => setToken(event.target.value)}
               placeholder="ghp_… for private repos or higher limits"
               type="password"
+              autoComplete="new-password"
               spellCheck={false}
               className="h-9 w-full rounded-lg border border-border bg-background px-2.5 font-mono text-[11px] outline-none focus:border-primary/40"
             />

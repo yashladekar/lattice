@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   GithubError,
+  buildGithubAuthorizeUrl,
+  exchangeGithubCode,
   fetchGithubIdentity,
   githubApiRequest,
   parseGithubApiPath,
@@ -31,6 +33,9 @@ describe("API path allow-list", () => {
       parseGithubApiPath("GET", "/repos/owner/repo/git/trees/main?recursive=1"),
     ).toBe("/repos/owner/repo/git/trees/main?recursive=1");
     expect(parseGithubApiPath("GET", "/repos/owner/repo/git/trees/feature/nested")).toBe(
+      "/repos/owner/repo/git/trees/feature/nested",
+    );
+    expect(parseGithubApiPath("GET", "/repos/owner/repo/git/trees/feature%2Fnested")).toBe(
       "/repos/owner/repo/git/trees/feature/nested",
     );
     expect(parseGithubApiPath("GET", "/repos/owner/repo/contents/docs/readme.md?ref=main")).toBe(
@@ -85,6 +90,63 @@ describe("API path allow-list", () => {
   });
 });
 
+describe("authorization-code flow", () => {
+  it("builds a callback URL GitHub can approve", () => {
+    const url = new URL(
+      buildGithubAuthorizeUrl({
+        clientId: "client-1",
+        redirectUri: "https://lattice.example.com/api/github/callback",
+        state: "state-1",
+      }),
+    );
+    expect(url.origin + url.pathname).toBe("https://github.com/login/oauth/authorize");
+    expect(url.searchParams.get("client_id")).toBe("client-1");
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      "https://lattice.example.com/api/github/callback",
+    );
+    expect(url.searchParams.get("state")).toBe("state-1");
+    expect(url.searchParams.get("scope")?.split(" ").sort()).toEqual(["read:user", "repo"]);
+  });
+
+  it("exchanges the code without exposing the secret", async () => {
+    const fetchMock = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(
+      async () =>
+        json({ access_token: "token-1", token_type: "bearer", scope: "repo,read:user" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(
+      await exchangeGithubCode({
+        clientId: "client-1",
+        clientSecret: "secret-1",
+        code: "code-1",
+        redirectUri: "https://lattice.example.com/api/github/callback",
+      }),
+    ).toEqual({ accessToken: "token-1", tokenType: "bearer", scopes: ["repo", "read:user"] });
+
+    const body = String(fetchMock.mock.calls[0]?.[1]?.body);
+    expect(body).toContain("client_secret=secret-1");
+    expect(body).toContain("code=code-1");
+  });
+
+  it("reports a refused exchange", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json({ error: "bad_verification_code", error_description: "The code expired." }),
+      ),
+    );
+    await expect(
+      exchangeGithubCode({
+        clientId: "client-1",
+        clientSecret: "secret-1",
+        code: "code-1",
+        redirectUri: "https://lattice.example.com/api/github/callback",
+      }),
+    ).rejects.toMatchObject({ code: "bad_verification_code", message: "The code expired." });
+  });
+});
+
 describe("device flow", () => {
   it("starts a flow and clamps GitHub's timing values", async () => {
     vi.stubGlobal(
@@ -114,6 +176,22 @@ describe("device flow", () => {
       vi.fn(async () => json({ error: "invalid_client" }, 400)),
     );
     await expect(startGithubDeviceFlow("client-1")).rejects.toBeInstanceOf(GithubError);
+  });
+
+  it("turns an unreachable GitHub into a readable error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }),
+    );
+    await expect(startGithubDeviceFlow("client-1")).rejects.toMatchObject({
+      code: "network_failed",
+      message: "GitHub could not be reached. Try again.",
+    });
+    await expect(fetchGithubIdentity("token-1")).rejects.toMatchObject({
+      code: "network_failed",
+    });
   });
 
   it("maps every polling outcome", async () => {
