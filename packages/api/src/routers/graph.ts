@@ -19,6 +19,25 @@ import { workspaceProcedure } from "../index";
 import { pushSync } from "../services/sync";
 import { getAccessiblePageIds } from "../services/sync";
 
+type GraphNodeRow = { id: string; pageId: string | null };
+type GraphEdgeRow = { sourceNodeId: string; targetNodeId: string };
+
+/** Drops nodes attached to pages the caller cannot read. */
+function visibleNodes<T extends GraphNodeRow>(nodes: T[], allowed: Set<string> | null): T[] {
+  return allowed ? nodes.filter((node) => !node.pageId || allowed.has(node.pageId)) : nodes;
+}
+
+/** Then drops edges that touch a hidden node, so their ids do not leak either. */
+function visibleEdges<T extends GraphEdgeRow>(
+  nodes: GraphNodeRow[],
+  edges: T[],
+  allowed: Set<string> | null,
+): T[] {
+  if (!allowed) return edges;
+  const visible = new Set(visibleNodes(nodes, allowed).map((node) => node.id));
+  return edges.filter((edge) => visible.has(edge.sourceNodeId) && visible.has(edge.targetNodeId));
+}
+
 export const graphRouter = {
   data: workspaceProcedure("VIEWER").handler(async ({ context }) => {
     const allowed = await getAccessiblePageIds(
@@ -55,8 +74,8 @@ export const graphRouter = {
       pages as unknown as Page[],
       documents as unknown as PageDocument[],
       canvases as unknown as Canvas[],
-      nodes as unknown as KnowledgeNode[],
-      edges as unknown as KnowledgeEdge[],
+      visibleNodes(nodes, allowed) as unknown as KnowledgeNode[],
+      visibleEdges(nodes, edges, allowed) as unknown as KnowledgeEdge[],
     );
     return { ...data, summary: summarizeGraph(data) };
   }),
@@ -64,6 +83,12 @@ export const graphRouter = {
   node: workspaceProcedure("VIEWER")
     .input(z.object({ nodeId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
+      const allowed = await getAccessiblePageIds(
+        context.db,
+        context.workspaceId,
+        context.userId,
+        context.role,
+      );
       const node = await context.db.knowledgeNode.findFirst({
         where: {
           id: input.nodeId,
@@ -72,6 +97,9 @@ export const graphRouter = {
         },
       });
       if (!node) throw new ORPCError("NOT_FOUND");
+      if (node.pageId && allowed && !allowed.has(node.pageId)) {
+        throw new ORPCError("NOT_FOUND");
+      }
       const [outgoing, incoming] = await Promise.all([
         context.db.knowledgeEdge.findMany({
           where: {

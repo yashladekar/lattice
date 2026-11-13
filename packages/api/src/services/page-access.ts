@@ -62,10 +62,32 @@ export async function assertPageReadable(
   userId: string,
   role: Role,
 ): Promise<void> {
+  await assertPageAccessFor(db, workspaceId, pageId, userId, role, "read");
+}
+
+/** Loads only the page being checked, then requires write access. */
+export async function assertPageWriteAccess(
+  db: Database,
+  workspaceId: string,
+  pageId: string,
+  userId: string,
+  role: Role,
+): Promise<void> {
+  await assertPageAccessFor(db, workspaceId, pageId, userId, role, "write");
+}
+
+async function assertPageAccessFor(
+  db: Database,
+  workspaceId: string,
+  pageId: string,
+  userId: string,
+  role: Role,
+  mode: "read" | "write",
+): Promise<void> {
   const page = await db.page.findFirst({
     where: { id: pageId, workspaceId, deletedAt: null },
     select: { id: true, workspaceId: true, createdById: true, visibility: true },
   });
   if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
-  await assertPageAccess(db, page, userId, role, "read");
+  await assertPageAccess(db, page, userId, role, mode);
 }

@@ -4,6 +4,7 @@ import {
   normalizeIssuer,
   parseSsoDomains,
   resolveSsoRedirect,
+  ssoDomainChallenge,
   ssoDomainMatches,
   ssoErrorRedirect,
 } from "./sso";
@@ -69,6 +70,23 @@ describe("sso redirects", () => {
   it("builds an encoded error redirect", () => {
     expect(ssoErrorRedirect("https://app.example.com/", "not_provisioned")).toBe(
       "https://app.example.com/login?sso_error=not_provisioned",
+    );
+  });
+});
+
+describe("sso domain challenge", () => {
+  it("is stable per workspace and domain", () => {
+    const first = ssoDomainChallenge("ws-a", "Example.com");
+    expect(first).toBe(ssoDomainChallenge("ws-a", "example.com"));
+    expect(first.startsWith("lattice-verify=")).toBe(true);
+  });
+
+  it("differs across workspaces and domains", () => {
+    expect(ssoDomainChallenge("ws-a", "example.com")).not.toBe(
+      ssoDomainChallenge("ws-b", "example.com"),
+    );
+    expect(ssoDomainChallenge("ws-a", "example.com")).not.toBe(
+      ssoDomainChallenge("ws-a", "other.com"),
     );
   });
 });

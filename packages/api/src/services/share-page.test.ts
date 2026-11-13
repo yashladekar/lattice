@@ -12,6 +12,7 @@ import {
   type TestWorkspace,
 } from "../../test/helpers";
 import { resolvePublicPage } from "./share-page";
+import { pushSync } from "./sync";
 
 const body = (text: string) => ({
   type: "doc",
@@ -172,6 +173,35 @@ describeWithDatabase("public page share", () => {
       type: "text",
       text: "Linked page",
     });
+  });
+
+  it("revokes existing links when a page becomes private", async () => {
+    const linkId = randomUUID();
+    await db.shareLink.create({
+      data: {
+        id: linkId,
+        workspaceId: workspace.id,
+        resourceType: "PAGE",
+        resourceId: rootId,
+        tokenHash: `hash_${randomUUID()}`,
+        createdById: workspace.ownerId,
+      },
+    });
+    await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `p-${randomUUID()}`,
+          entity: "page",
+          entityId: rootId,
+          op: "UPSERT",
+          payload: { visibility: "PRIVATE" },
+        },
+      ],
+    });
+    const link = await db.shareLink.findUnique({ where: { id: linkId } });
+    expect(link?.revokedAt).not.toBeNull();
   });
 
   it("does not expose a child when the link only shared the root", async () => {

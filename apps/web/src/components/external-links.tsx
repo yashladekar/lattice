@@ -19,7 +19,7 @@ export function ExternalLinkHandler() {
         const { openUrl } = await import("@tauri-apps/plugin-opener");
         await openUrl(href);
       } catch {
-        window.open(href, "_blank");
+        window.open(href, "_blank", "noopener,noreferrer");
       }
     };
     document.addEventListener("click", onClick, true);

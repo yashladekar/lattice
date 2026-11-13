@@ -28,6 +28,7 @@ import { useAppData } from "@/components/app-data-provider";
 import { AgentPlanCard } from "@/components/ai/agent-plan-card";
 import { useGraph, useWorkspaceSearchIndex } from "@/hooks/use-local-data";
 import { applyAgentPlan } from "@/lib/local/apply-agent-plan";
+import { getMeta, setMeta } from "@/lib/local/db";
 import { createPageLocal } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
@@ -329,7 +330,8 @@ export function AiPanel({
     if (!db || !user || !activeWorkspaceId || !message.plan) {
       return { applied: 0, skipped: [] };
     }
-    if (message.plan.appliedAt) {
+    const appliedKey = `agentPlanApplied:${activeWorkspaceId}:${message.dbMessageId ?? message.id}`;
+    if (message.plan.appliedAt || (await getMeta<string>(db, appliedKey))) {
       return { applied: 0, skipped: ["This plan was already applied."] };
     }
     const notebookId =
@@ -344,6 +346,7 @@ export function AiPanel({
       // Mark it applied locally first so a second click has nothing to press,
       // then persist so the state survives a reload and reaches other devices.
       const appliedAt = new Date().toISOString();
+      await setMeta(db, appliedKey, appliedAt);
       patchAssistant(message.id, { plan: { ...message.plan, appliedAt } });
       if (message.dbMessageId) {
         try {

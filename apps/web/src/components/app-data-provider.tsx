@@ -98,6 +98,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [conflicts, setConflicts] = useState<LocalConflict[]>([]);
   const engineRef = useRef<SyncEngine | null>(null);
   const ensureGeneration = useRef(0);
+  const bootErrorSource = useRef<"boot" | "sync" | null>(null);
 
   const effectiveUser: UserSummary | null = useMemo(() => {
     if (session?.user) {
@@ -219,9 +220,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         }
       });
       setBootError(null);
+      bootErrorSource.current = null;
     } catch (error) {
       if (generation !== ensureGeneration.current) return;
       const message = error instanceof Error ? error.message : "Could not reach the workspace server";
+      bootErrorSource.current = "boot";
       setBootError(message);
     }
   }, [db, effectiveUser?.id, online]);
@@ -261,9 +264,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       },
       onState: (state) => {
         setSyncState(state);
-        // A transient outage is not worth a permanent banner: once the queue is
-        // empty and the engine is idle again, the stale error has been resolved.
-        if (state.status === "idle" && state.pending === 0) setBootError(null);
+        // Only a sync error clears here. A boot failure means there is no
+        // workspace yet, and an idle queue must not hide that.
+        if (
+          bootErrorSource.current === "sync" &&
+          state.status === "idle" &&
+          state.pending === 0
+        ) {
+          bootErrorSource.current = null;
+          setBootError(null);
+        }
       },
       onConflict: (conflict) => {
         setConflicts((current) => [
@@ -275,6 +285,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         });
       },
       onError: (message) => {
+        bootErrorSource.current = "sync";
         setBootError(message);
       },
     });
@@ -306,14 +317,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     await engineRef.current?.retry();
   }, []);
 
-  const dismissBootError = useCallback(() => setBootError(null), []);
+  const dismissBootError = useCallback(() => {
+    bootErrorSource.current = null;
+    setBootError(null);
+  }, []);
 
   const refreshWorkspace = useCallback(async (workspaceId: string) => {
     try {
       await engineRef.current?.bootstrapWorkspace(workspaceId);
       await engineRef.current?.sync();
+      bootErrorSource.current = null;
       setBootError(null);
     } catch (error) {
+      bootErrorSource.current = "boot";
       setBootError(error instanceof Error ? error.message : "Could not load that workspace.");
     }
   }, []);

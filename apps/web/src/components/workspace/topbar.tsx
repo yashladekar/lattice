@@ -28,6 +28,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import { useAppData } from "@/components/app-data-provider";
+import { clearDeviceSession } from "@/lib/clear-device-session";
 import { authClient } from "@/lib/auth-client";
 import { useCanvas, useNotebook, usePage, useWorkspacePages } from "@/hooks/use-local-data";
 import { appRouteObject, type AppRoute } from "@/lib/navigation";
@@ -104,6 +105,7 @@ export function WorkspaceTopbar({
 
   const signOut = async () => {
     await authClient.signOut();
+    clearDeviceSession();
     router.push("/");
     router.refresh();
   };

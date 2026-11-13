@@ -86,7 +86,6 @@ describeWithDatabase("document write origins", () => {
     const result = await pushSync(db, {
       workspaceId: workspace.id,
       userId: workspace.ownerId,
-      isCollaborating: live,
       ops: [
         {
           opId: `w-${randomUUID()}`,
@@ -102,6 +101,27 @@ describeWithDatabase("document write origins", () => {
     const after = await db.pageDocument.findUnique({ where: { pageId } });
     expect(after?.rev).toBe(before?.rev);
     expect(after?.plainText).toBe("typed live");
+  });
+
+  it("ignores a session label without a live room", async () => {
+    const before = await db.pageDocument.findUnique({ where: { pageId } });
+    const result = await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `spoof-${randomUUID()}`,
+          entity: "pageDocument",
+          entityId: pageId,
+          op: "UPSERT",
+          baseRev: 0,
+          payload: { content: body("spoofed"), plainText: "spoofed", source: "session" },
+        },
+      ],
+    });
+    expect(result.conflicts).toHaveLength(1);
+    const after = await db.pageDocument.findUnique({ where: { pageId } });
+    expect(after?.plainText).toBe(before?.plainText);
   });
 
   it("applies an out-of-band write at the current revision", async () => {
@@ -124,6 +144,53 @@ describeWithDatabase("document write origins", () => {
     expect(result.conflicts).toHaveLength(0);
     const document = await db.pageDocument.findUnique({ where: { pageId } });
     expect(document?.plainText).toBe("accepted suggestion");
+  });
+
+  it("serializes concurrent writes and reports the loser as a conflict", async () => {
+    const concurrentPage = `itest_page_concurrent_${randomUUID()}`;
+    await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `p-${randomUUID()}`,
+          entity: "page",
+          entityId: concurrentPage,
+          op: "UPSERT",
+          payload: { title: "Concurrent" },
+        },
+        {
+          opId: `d-${randomUUID()}`,
+          entity: "pageDocument",
+          entityId: concurrentPage,
+          op: "UPSERT",
+          baseRev: 0,
+          payload: { content: body("seed"), plainText: "seed" },
+        },
+      ],
+    });
+    const current = await db.pageDocument.findUnique({ where: { pageId: concurrentPage } });
+    const write = (text: string) =>
+      pushSync(db, {
+        workspaceId: workspace.id,
+        userId: workspace.ownerId,
+        ops: [
+          {
+            opId: `c-${randomUUID()}`,
+            entity: "pageDocument",
+            entityId: concurrentPage,
+            op: "UPSERT",
+            baseRev: current!.rev,
+            payload: { content: body(text), plainText: text },
+          },
+        ],
+      });
+
+    const [first, second] = await Promise.all([write("first"), write("second")]);
+    expect([...first.conflicts, ...second.conflicts]).toHaveLength(1);
+    const document = await db.pageDocument.findUnique({ where: { pageId: concurrentPage } });
+    const winner = first.conflicts.length === 0 ? "first" : "second";
+    expect(document?.plainText).toBe(winner);
   });
 });
 
@@ -188,6 +255,22 @@ describeWithDatabase("member role changes through sync", () => {
     expect((await db.workspaceMember.findUnique({ where: { id: ownerMemberId } }))?.role).toBe(
       "OWNER",
     );
+  });
+
+  it("refuses an admin granting admin", async () => {
+    const { workspace, adminId, pushMember } = await setup();
+    const targetId = randomUUID();
+    await db.workspaceMember.create({
+      data: {
+        id: targetId,
+        workspaceId: workspace.id,
+        userId: `itest_target_${randomUUID()}`,
+        role: "MEMBER",
+        status: "ACTIVE",
+      },
+    });
+    await expect(pushMember(adminId, targetId, { role: "ADMIN" })).rejects.toThrow(/admin/i);
+    expect((await db.workspaceMember.findUnique({ where: { id: targetId } }))?.role).toBe("MEMBER");
   });
 
   it("lets the owner promote and demote a co-owner", async () => {
@@ -275,12 +358,12 @@ describeWithDatabase("canvas session writes", () => {
     expect(canvas.rev).toBe(2);
   });
 
-  it("rejects a stale write that is not from the session", async () => {
+  it("rejects a spoofed session label from a peer that is not in the session", async () => {
     const canvasId = await createBoard();
     const result = await pushCanvas(
       canvasId,
-      { data: board("two"), schemaVersion: 1 },
-      { baseRev: 0, collaborating: true },
+      { data: board("two"), schemaVersion: 1, source: "session" },
+      { baseRev: 0, collaborating: false },
     );
     expect(result.conflicts).toHaveLength(1);
     const canvas = await db.canvas.findUniqueOrThrow({ where: { id: canvasId } });

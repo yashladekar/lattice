@@ -25,21 +25,23 @@ export interface EnqueueInput {
 
 export async function enqueueOutbox(db: LatticeDB, input: EnqueueInput): Promise<void> {
   const id = `${input.entity}:${input.entityId}`;
-  const existing = await db.outbox.get(id);
-  const revision = (existing?.revision ?? 0) + 1;
-  const row: OutboxItem = {
-    id,
-    workspaceId: input.workspaceId,
-    entity: input.entity,
-    entityId: input.entityId,
-    op: input.op,
-    payload: input.payload,
-    baseRev: input.baseRev,
-    revision,
-    opId: null,
-    createdAt: existing?.createdAt ?? new Date().toISOString(),
-  };
-  await db.outbox.put(row);
+  await db.transaction("rw", db.outbox, async () => {
+    const existing = await db.outbox.get(id);
+    const revision = (existing?.revision ?? 0) + 1;
+    const row: OutboxItem = {
+      id,
+      workspaceId: input.workspaceId,
+      entity: input.entity,
+      entityId: input.entityId,
+      op: input.op,
+      payload: input.payload,
+      baseRev: input.baseRev,
+      revision,
+      opId: null,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    };
+    await db.outbox.put(row);
+  });
   requestSync();
 }
 

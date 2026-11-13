@@ -9,7 +9,7 @@ import {
   type SyncEntity,
 } from "@notes-learning/domain";
 
-import { appendChanges, type PendingChange } from "./changes";
+import { appendChanges, toJsonSafe, type PendingChange } from "./changes";
 
 /**
  * Permanently removes soft-deleted rows older than the workspace's retention
@@ -31,28 +31,38 @@ export async function purgeWorkspaceTrash(
   const cutoff = retentionCutoff(retentionDays);
   if (!cutoff) return { purged: 0 };
 
-  const holds = await db.legalHold.findMany({
-    where: { workspaceId, releasedAt: null },
-    select: { scope: true, targetId: true, releasedAt: true },
-  });
-  const coverage = holdCoverage(holds);
-  if (coverage.workspace) return { purged: 0 };
-
-  const [pages, canvases, nodes, decks] = await Promise.all([
-    db.page.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
-    db.canvas.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
-    db.knowledgeNode.findMany({
-      where: { workspaceId },
-      select: { id: true, pageId: true, canvasId: true },
-    }),
-    db.deck.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
-  ]);
-  const heldPages = expandHeldPages(coverage, pages);
-  const heldCanvases = expandHeldCanvases(coverage, canvases);
-  const heldNodes = expandHeldNodes(nodes, heldPages, heldCanvases);
-  const heldDecks = expandHeldDecks(decks, coverage);
-
   return db.$transaction(async (tx) => {
+    // Serializes against a hold created while this sweep runs. A hold either
+    // commits before this lock and is seen below, or waits for the sweep.
+    await tx.$queryRaw`SELECT id FROM "workspace" WHERE id = ${workspaceId} FOR UPDATE`;
+
+    const holds = await tx.legalHold.findMany({
+      where: { workspaceId, releasedAt: null },
+      select: { scope: true, targetId: true, releasedAt: true },
+    });
+    const coverage = holdCoverage(holds);
+    if (coverage.workspace) return { purged: 0 };
+
+    const [pages, canvases, nodes, decks] = await Promise.all([
+      tx.page.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
+      tx.canvas.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
+      tx.knowledgeNode.findMany({
+        where: { workspaceId },
+        select: { id: true, pageId: true, canvasId: true },
+      }),
+      tx.deck.findMany({ where: { workspaceId }, select: { id: true, notebookId: true } }),
+    ]);
+    const heldPages = expandHeldPages(coverage, pages);
+    const heldCanvases = expandHeldCanvases(coverage, canvases);
+    const heldNodes = expandHeldNodes(nodes, heldPages, heldCanvases);
+    const heldDecks = expandHeldDecks(decks, coverage);
+    // A notebook that contains a held page must survive too, or deleting it
+    // would silently unfile protected content.
+    const heldNotebooks = new Set(coverage.notebookIds);
+    for (const page of pages) {
+      if (page.notebookId && heldPages.has(page.id)) heldNotebooks.add(page.notebookId);
+    }
+
     const changes: PendingChange[] = [];
     let purged = 0;
 
@@ -131,11 +141,50 @@ export async function purgeWorkspaceTrash(
       }),
       (ids) => tx.flashcard.deleteMany({ where: { id: { in: ids } } }),
     );
-    await purgeRows(
-      "deck",
-      await tx.deck.findMany({ where: { ...staleWhere, ...exclusions("id", heldDecks) }, select }),
-      (ids) => tx.deck.deleteMany({ where: { id: { in: ids } } }),
-    );
+    const staleDecks = await tx.deck.findMany({
+      where: { ...staleWhere, ...exclusions("id", heldDecks) },
+      select,
+    });
+    if (staleDecks.length) {
+      const deckIds = staleDecks.map((deck) => deck.id);
+      // A held page's cards are protected even when their deck is stale.
+      const protectedDeckIds = new Set(
+        heldPages.size
+          ? (
+              await tx.flashcard.findMany({
+                where: { deckId: { in: deckIds }, pageId: { in: [...heldPages] } },
+                select: { deckId: true },
+              })
+            ).map((card) => card.deckId)
+          : [],
+      );
+      const deletableDecks = staleDecks.filter((deck) => !protectedDeckIds.has(deck.id));
+      // Deleting a deck cascades its live cards, so record their tombstones
+      // before the rows disappear.
+      const orphanCards = deletableDecks.length
+        ? await tx.flashcard.findMany({
+            where: { deckId: { in: deletableDecks.map((deck) => deck.id) } },
+            select,
+          })
+        : [];
+      if (orphanCards.length) {
+        await tx.flashcard.deleteMany({ where: { id: { in: orphanCards.map((card) => card.id) } } });
+        for (const card of orphanCards) {
+          changes.push({
+            entity: "flashcard",
+            entityId: card.id,
+            op: "DELETE",
+            data: { id: card.id, workspaceId, deletedAt: card.deletedAt ?? new Date() },
+          });
+        }
+        purged += orphanCards.length;
+      }
+      await purgeRows(
+        "deck",
+        deletableDecks,
+        (ids) => tx.deck.deleteMany({ where: { id: { in: ids } } }),
+      );
+    }
     await purgeRows(
       "attachment",
       await tx.attachment.findMany({
@@ -172,14 +221,36 @@ export async function purgeWorkspaceTrash(
       }),
       (ids) => tx.canvas.deleteMany({ where: { id: { in: ids } } }),
     );
-    await purgeRows(
-      "notebook",
-      await tx.notebook.findMany({
-        where: { ...staleWhere, ...exclusions("id", coverage.notebookIds) },
-        select,
-      }),
-      (ids) => tx.notebook.deleteMany({ where: { id: { in: ids } } }),
-    );
+    const staleNotebooks = await tx.notebook.findMany({
+      where: { ...staleWhere, ...exclusions("id", heldNotebooks) },
+      select,
+    });
+    if (staleNotebooks.length) {
+      const notebookIds = staleNotebooks.map((notebook) => notebook.id);
+      // The FK sets notebookId to null on live pages; tell the clients about it.
+      const unfiledPages = await tx.page.findMany({
+        where: { workspaceId, notebookId: { in: notebookIds }, deletedAt: null },
+      });
+      if (unfiledPages.length) {
+        await tx.page.updateMany({
+          where: { id: { in: unfiledPages.map((page) => page.id) } },
+          data: { notebookId: null },
+        });
+        for (const page of unfiledPages) {
+          changes.push({
+            entity: "page",
+            entityId: page.id,
+            op: "UPSERT",
+            data: toJsonSafe({ ...page, notebookId: null }),
+          });
+        }
+      }
+      await purgeRows(
+        "notebook",
+        staleNotebooks,
+        (ids) => tx.notebook.deleteMany({ where: { id: { in: ids } } }),
+      );
+    }
     await purgeRows(
       "tag",
       await tx.tag.findMany({ where: staleWhere, select }),
@@ -224,5 +295,10 @@ export async function purgeExpiredTrash(
       console.error(`Trash purge failed for workspace ${workspace.id}`, error);
     }
   }
+  // Op ids only need to outlive a delayed retry. Without a prune this table
+  // grows forever.
+  await db.syncOp
+    .deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } })
+    .catch(() => undefined);
   return { workspaces: touched, purged };
 }

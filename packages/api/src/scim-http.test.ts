@@ -56,7 +56,7 @@ describeWithDatabase("scim http surface", () => {
     });
 
     const app = express();
-    app.use("/scim/v2", createScimRouter(db));
+    app.use("/scim/v2", createScimRouter(db, { baseUrl: "http://localhost:3999" }));
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address();
@@ -152,6 +152,41 @@ describeWithDatabase("scim http surface", () => {
       body: JSON.stringify({ Operations: [{ op: "replace", value: { active: true } }] }),
     });
     expect((await json(on)).active).toBe(true);
+  });
+
+  it("refuses to change a login email from SCIM", async () => {
+    const changed = `scim-changed-${randomUUID()}@example.com`;
+    const response = await scim(`/Users/${memberId}`, {
+      method: "PUT",
+      body: JSON.stringify({ userName: changed, active: true }),
+    });
+    expect(response.status).toBe(400);
+    expect((await json(response)).scimType).toBe("mutability");
+    expect(await db.user.findUnique({ where: { email: provisionedEmail } })).not.toBeNull();
+  });
+
+  it("does not rename a user who belongs to another workspace", async () => {
+    const other = await createTestWorkspace(db);
+    const user = await db.user.findUnique({ where: { email: provisionedEmail } });
+    await db.workspaceMember.create({
+      data: {
+        id: randomUUID(),
+        workspaceId: other.id,
+        userId: user!.id,
+        role: "VIEWER",
+        status: "ACTIVE",
+      },
+    });
+    const response = await scim(`/Users/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        Operations: [{ op: "replace", path: "displayName", value: "Renamed Elsewhere" }],
+      }),
+    });
+    expect(response.status).toBe(200);
+    const after = await db.user.findUnique({ where: { email: provisionedEmail } });
+    expect(after?.name).toBe("SCIM User");
+    await cleanupTestWorkspace(db, other.id);
   });
 
   it("applies a group's role to members and leaves it on removal", async () => {

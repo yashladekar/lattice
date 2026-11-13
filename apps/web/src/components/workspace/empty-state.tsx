@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAppData } from "@/components/app-data-provider";
 import { LatticeLogo } from "@/components/brand/logo";
 import { authClient } from "@/lib/auth-client";
+import { clearDeviceSession } from "@/lib/clear-device-session";
 import { copyErrorDetail, humanizeError } from "@/lib/errors";
 
 export function WorkspaceEmptyState() {
@@ -50,6 +51,7 @@ export function WorkspaceEmptyState() {
             className="h-10 rounded-lg px-4 text-[12px]"
             onClick={async () => {
               await authClient.signOut();
+              clearDeviceSession();
               router.push("/");
             }}
           >

@@ -385,8 +385,18 @@ export const captureRouter = {
   searchPages: workspaceProcedure("VIEWER")
     .input(z.object({ query: z.string().max(200) }))
     .handler(async ({ context, input }) => {
+      const allowed = await getAccessiblePageIds(
+        context.db,
+        context.workspaceId,
+        context.userId,
+        context.role,
+      );
       const pages = await context.db.page.findMany({
-        where: { workspaceId: context.workspaceId, deletedAt: null },
+        where: {
+          workspaceId: context.workspaceId,
+          deletedAt: null,
+          ...(allowed ? { id: { in: [...allowed] } } : {}),
+        },
         take: 200,
       });
       const documents = await context.db.pageDocument.findMany({
@@ -421,7 +431,10 @@ export const captureRouter = {
       if (!capture.url) {
         throw new ORPCError("BAD_REQUEST", { message: "This capture has no file." });
       }
-      const upload = await context.uploads.read(capture.url);
+      const upload = await context.uploads.read(capture.url, {
+        userId: context.userId,
+        workspaceId: context.workspaceId,
+      });
       if (!upload) {
         throw new ORPCError("NOT_FOUND", { message: "The PDF could not be read." });
       }

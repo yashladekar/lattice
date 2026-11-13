@@ -54,6 +54,13 @@ describe("upload handler", () => {
     expect(body.size).toBe(11);
     const stored = await readFile(path.join(directory, body.url.replace("/uploads/", "")), "utf8");
     expect(stored).toBe("image-bytes");
+    const meta = JSON.parse(
+      await readFile(
+        path.join(directory, ".meta", `${body.url.replace("/uploads/", "")}.json`),
+        "utf8",
+      ),
+    ) as { userId: string };
+    expect(meta.userId).toBe("user");
   });
 
   it("keeps only the extension of a hostile filename", async () => {

@@ -275,15 +275,23 @@ export class SyncEngine {
     if (!rows.length) return;
     rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const batch = orderSyncOps(rows).slice(0, 40);
-    const prepared: Array<{ row: OutboxItem; opId: string }> = [];
-    for (const row of batch) {
-      let opId = row.opId;
-      if (!opId) {
-        opId = createId();
-        await this.db.outbox.put({ ...row, opId });
+    // Preparing the batch is one transaction: an edit that lands mid-loop must
+    // not be overwritten with the stale row we read a moment ago.
+    const prepared = await this.db.transaction("rw", this.db.outbox, async () => {
+      const entries: Array<{ row: OutboxItem; opId: string }> = [];
+      for (const row of batch) {
+        const current = await this.db.outbox.get(row.id);
+        if (!current || current.revision !== row.revision) continue;
+        let opId = current.opId;
+        if (!opId) {
+          opId = createId();
+          await this.db.outbox.put({ ...current, opId });
+        }
+        entries.push({ row: { ...current, opId }, opId });
       }
-      prepared.push({ row: { ...row, opId }, opId });
-    }
+      return entries;
+    });
+    if (!prepared.length) return;
     const response = await api.sync.push({
       ops: prepared.map(({ row, opId }) => ({
         opId,
@@ -305,18 +313,19 @@ export class SyncEngine {
         (entry) =>
           entry.row.entity === accepted.entity && entry.row.entityId === accepted.entityId,
       );
-      const current = await this.db.outbox.get(key);
-      if (!current) continue;
-      if (!sent || current.revision === sent.row.revision) {
-        await this.db.outbox.delete(key);
-      } else {
-        await this.db.outbox.put({
-          ...current,
-          baseRev:
-            accepted.rev !== undefined ? accepted.rev : current.baseRev,
-          opId: null,
-        });
-      }
+      await this.db.transaction("rw", this.db.outbox, async () => {
+        const current = await this.db.outbox.get(key);
+        if (!current) return;
+        if (!sent || current.revision === sent.row.revision) {
+          await this.db.outbox.delete(key);
+        } else {
+          await this.db.outbox.put({
+            ...current,
+            baseRev: accepted.rev !== undefined ? accepted.rev : current.baseRev,
+            opId: null,
+          });
+        }
+      });
     }
 
     for (const conflict of response.conflicts) {
@@ -339,10 +348,12 @@ export class SyncEngine {
       } satisfies LocalConflict;
       await this.db.conflicts.put(local);
       this.onConflict?.(local);
-      const current = await this.db.outbox.get(key);
-      if (current && (!sent || current.revision === sent.row.revision)) {
-        await this.db.outbox.delete(key);
-      }
+      await this.db.transaction("rw", this.db.outbox, async () => {
+        const current = await this.db.outbox.get(key);
+        if (current && (!sent || current.revision === sent.row.revision)) {
+          await this.db.outbox.delete(key);
+        }
+      });
     }
   }
 
@@ -372,14 +383,24 @@ export class SyncEngine {
       const pending = new Set(
         pendingItems.map((item) => `${item.entity}:${item.entityId}`),
       );
+      let lastApplied: SyncCursor | null = null;
+      let skipped = false;
       for (const change of changes) {
         const key = `${change.entity}:${change.entityId}`;
-        if (pending.has(key)) continue;
+        if (pending.has(key)) {
+          // Do not consume a delta we could not apply: stop before it and let
+          // the next pull start from the last change we did apply.
+          skipped = true;
+          break;
+        }
         await applyChange(this.db, change);
+        lastApplied = { version: change.version, id: change.id };
       }
-      cursor = (response.cursor as SyncCursor | null) ?? cursor;
+      cursor = skipped
+        ? (lastApplied ?? cursor)
+        : ((response.cursor as SyncCursor | null) ?? cursor);
       await setMeta(this.db, `cursor:${workspaceId}`, encodeCursor(cursor));
-      if (!response.hasMore) break;
+      if (skipped || !response.hasMore) break;
     }
   }
 

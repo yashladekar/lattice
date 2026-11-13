@@ -55,7 +55,10 @@ export type Context = {
   };
   /** Present when the API is hosted by a server that owns the upload directory. */
   uploads?: {
-    read(url: string): Promise<{ bytes: Uint8Array; filename: string; mime: string } | null>;
+    read(
+      url: string,
+      access: { userId: string; workspaceId: string },
+    ): Promise<{ bytes: Uint8Array; filename: string; mime: string } | null>;
   };
   /** Present when the host can encrypt workspace secrets (SSO client secrets, AI keys). */
   secrets?: {

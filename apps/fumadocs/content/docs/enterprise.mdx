@@ -76,18 +76,27 @@ issuer/audience/`nonce`-checked ID token, and a JWKS from the issuer's discovery
 document. Only `https` issuers are accepted, except `localhost` so a provider can
 be run locally.
 
+Only the workspace **owner** can save or remove the connection, and at least one
+email domain is required. A domain being added for the first time must prove
+control with a DNS TXT record at `_lattice-sso.<domain>`; a failed save prints
+the exact record name and value to publish. Domains already saved on the
+connection are not re-checked. The callback refuses an identity whose verified
+email is outside those domains (`?sso_error=domain_not_allowed`), so a provider
+saved for one domain cannot be used to sign in as an account on another.
+
 Sign-in happens at `/api/auth/sso/start?workspace=<slug>&redirect=/app`:
 
 1. The login page asks for a work email, resolves its domain to a workspace
    (`sso.discover` — it returns only a slug), and starts the flow.
 2. The callback exchanges the code server-side, so the client secret never
    reaches a browser, and verifies the ID token.
-3. The identity must be an **active, provisioned member** of that workspace;
+3. The verified email must be on one of the connection's domains.
+4. The identity must be an **active, provisioned member** of that workspace;
    otherwise the browser lands on the login page with
    `?sso_error=not_provisioned`. Provisioning is SCIM's or an invite's job.
-4. The session is created through better-auth's own adapter, so expiry,
+5. The session is created through better-auth's own adapter, so expiry,
    revocation, and the device list behave exactly like a password sign-in.
-5. The redirect back is resolved against an allow-list; `//evil.example.com`
+6. The redirect back is resolved against an allow-list; `//evil.example.com`
    falls back to `/app`.
 
 Details worth knowing:

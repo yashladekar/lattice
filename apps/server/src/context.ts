@@ -28,12 +28,36 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 
 async function readUpload(
   url: string,
+  access: { userId: string; workspaceId: string },
 ): Promise<{ bytes: Uint8Array; filename: string; mime: string } | null> {
   if (!url.startsWith("/uploads/")) return null;
   const filename = path.basename(url);
   if (!filename || filename.startsWith(".")) return null;
   const filePath = path.resolve(uploadRoot, filename);
   if (!filePath.startsWith(uploadRoot + path.sep)) return null;
+  let uploaderId: string;
+  try {
+    const meta = JSON.parse(
+      await readFile(path.join(uploadRoot, ".meta", `${filename}.json`), "utf8"),
+    ) as { userId?: unknown };
+    if (typeof meta.userId !== "string") return null;
+    uploaderId = meta.userId;
+  } catch {
+    // No ownership record (or an unreadable one): the API cannot hand it out.
+    return null;
+  }
+  if (uploaderId !== access.userId) {
+    const shared = await db.workspaceMember.findFirst({
+      where: {
+        workspaceId: access.workspaceId,
+        userId: uploaderId,
+        status: "ACTIVE",
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!shared) return null;
+  }
   try {
     const bytes = await readFile(filePath);
     const extension = filename.split(".").pop()?.toLowerCase() ?? "";

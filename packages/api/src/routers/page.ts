@@ -19,7 +19,7 @@ import {
   recomputePageLinkEdges,
   toJsonSafe,
 } from "../services/changes";
-import { assertPageReadable } from "../services/page-access";
+import { assertPageAccess, assertPageReadable, assertPageWriteAccess } from "../services/page-access";
 import { duplicatePageSubtree } from "../services/page-duplicate";
 import { movePageSubtree } from "../services/page-move";
 import { restorePageSubtree } from "../services/page-tree";
@@ -334,29 +334,36 @@ export const pageRouter = {
         include: { document: true },
       });
       if (!page?.document) throw new ORPCError("NOT_FOUND");
-      const aggregate = await context.db.pageVersion.aggregate({
-        where: { pageId: page.id },
-        _max: { version: true },
+      return context.db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "page" WHERE id = ${page.id} FOR UPDATE`;
+        const current = await tx.page.findFirst({
+          where: { id: page.id, workspaceId: context.workspaceId, deletedAt: null },
+          include: { document: true },
+        });
+        if (!current?.document) throw new ORPCError("NOT_FOUND");
+        const aggregate = await tx.pageVersion.aggregate({
+          where: { pageId: current.id },
+          _max: { version: true },
+        });
+        return tx.pageVersion.create({
+          data: {
+            id: createId(),
+            pageId: current.id,
+            workspaceId: context.workspaceId,
+            version: (aggregate._max.version ?? 0) + 1,
+            title: current.title,
+            content: current.document.content as Prisma.InputJsonValue,
+            note: input.note ?? null,
+            createdById: context.userId,
+          },
+        });
       });
-      const version = await context.db.pageVersion.create({
-        data: {
-          id: createId(),
-          pageId: page.id,
-          workspaceId: context.workspaceId,
-          version: (aggregate._max.version ?? 0) + 1,
-          title: page.title,
-          content: page.document.content as Prisma.InputJsonValue,
-          note: input.note ?? null,
-          createdById: context.userId,
-        },
-      });
-      return version;
     }),
 
   restoreVersion: workspaceProcedure("EDITOR")
     .input(pageIdInput.extend({ versionId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
-      await assertPageReadable(
+      await assertPageWriteAccess(
         context.db,
         context.workspaceId,
         input.pageId,
@@ -371,15 +378,16 @@ export const pageRouter = {
         },
       });
       if (!version) throw new ORPCError("NOT_FOUND");
-      const page = await context.db.page.findFirst({
-        where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
-        include: { document: true },
-      });
-      if (!page?.document) throw new ORPCError("NOT_FOUND");
-      const currentDocument = page.document;
-      const content = safeDoc(version.content);
-      const changes = [] as import("../services/changes").PendingChange[];
-      const document = await context.db.$transaction(async (tx) => {
+      return context.db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "page" WHERE id = ${input.pageId} FOR UPDATE`;
+        const page = await tx.page.findFirst({
+          where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
+          include: { document: true },
+        });
+        if (!page?.document) throw new ORPCError("NOT_FOUND");
+        const currentDocument = page.document;
+        const content = safeDoc(version.content);
+        const changes = [] as import("../services/changes").PendingChange[];
         const currentVersion = await tx.pageVersion.aggregate({
           where: { pageId: page.id },
           _max: { version: true },
@@ -419,9 +427,8 @@ export const pageRouter = {
         );
         await recomputePageLinkEdges(tx, page, content, context.userId, changes);
         await appendChanges(tx, context.workspaceId, context.userId, changes);
-        return updated;
+        return { document: updated, page: { ...page, document: undefined } };
       });
-      return { document, page: { ...page, document: undefined } };
     }),
 
   duplicate: workspaceProcedure("EDITOR")
@@ -539,6 +546,7 @@ export const pageRouter = {
         },
       });
       if (!page) throw new ORPCError("NOT_FOUND", { message: "Page is not in the trash" });
+      await assertPageAccess(context.db, page, context.userId, context.role, "write");
       return restorePageSubtree(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,

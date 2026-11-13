@@ -3,7 +3,9 @@ import { randomBytes } from "node:crypto";
 import type { Database } from "@notes-learning/db";
 import {
   SSO_STATE_TTL_MS,
+  parseSsoDomains,
   resolveSsoRedirect,
+  ssoDomainMatches,
   ssoErrorRedirect,
 } from "@notes-learning/domain";
 import { createAuthEndpoint } from "better-auth/api";
@@ -148,6 +150,12 @@ export function createSsoPlugin(options: {
           throw ctx.redirect(fail("provider_error"));
         }
         if (!identity.emailVerified) throw ctx.redirect(fail("email_unverified"));
+
+        // The identity provider is chosen by this workspace, so an email outside
+        // its declared domains must never link to an existing account.
+        if (!ssoDomainMatches(parseSsoDomains(connection.domains), identity.email)) {
+          throw ctx.redirect(fail("domain_not_allowed"));
+        }
 
         const found = await ctx.context.internalAdapter.findUserByEmail(identity.email);
         const user = found?.user ?? null;

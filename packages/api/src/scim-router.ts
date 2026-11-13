@@ -31,9 +31,26 @@ import { appendChanges, toJsonSafe } from "./services/changes";
  * every device and shows up in the audit trail.
  */
 
-export function createScimRouter(database: Database): express.Router {
+export function createScimRouter(
+  database: Database,
+  options: { baseUrl: string },
+): express.Router {
   const router = express.Router();
   router.use(express.json({ limit: "1mb" }));
+
+  /**
+   * A user row is global, shared by every workspace that person belongs to.
+   * Only rename it when this is the person's only active workspace, so one
+   * tenant cannot rewrite a profile another tenant sees.
+   */
+  async function updateDisplayName(userId: string, name: string): Promise<void> {
+    const memberships = await database.workspaceMember.count({
+      where: { userId, deletedAt: null },
+    });
+    if (memberships === 1) {
+      await database.user.update({ where: { id: userId }, data: { name } });
+    }
+  }
 
   interface ScimAuth {
     workspaceId: string;
@@ -58,9 +75,9 @@ export function createScimRouter(database: Database): express.Router {
     return { workspaceId: record.workspaceId, tokenId: record.id };
 }
 
-  function baseUrl(req: Request): string {
-    return `${req.protocol}://${req.get("host") ?? "localhost"}/scim/v2`;
-}
+  function baseUrl(): string {
+    return `${options.baseUrl.replace(/\/+$/, "")}/scim/v2`;
+  }
 
   function sendError(res: Response, status: number, detail: string, scimType?: string) {
     res.status(status).json(scimError(status, detail, scimType));
@@ -278,7 +295,7 @@ export function createScimRouter(database: Database): express.Router {
     const page = resources.slice(startIndex - 1, startIndex - 1 + count);
     res.json(
       scimList(
-        page.map((member) => toScimUser(member, baseUrl(req))),
+        page.map((member) => toScimUser(member, baseUrl())),
         resources.length,
         startIndex,
       ),
@@ -290,7 +307,7 @@ export function createScimRouter(database: Database): express.Router {
     if (!auth) return sendError(res, 401, "A valid SCIM bearer token is required.");
     const member = await loadMember(auth.workspaceId, req.params.id);
     if (!member) return sendError(res, 404, "User not found.");
-    res.json(toScimUser(member, baseUrl(req)));
+    res.json(toScimUser(member, baseUrl()));
   });
 
   router.post("/Users", async (req, res) => {
@@ -312,7 +329,10 @@ export function createScimRouter(database: Database): express.Router {
         ? body.externalId.trim().slice(0, 120)
         : null;
 
-    const existingUser = await database.user.findUnique({ where: { email }, select: { id: true } });
+    const existingUser = await database.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true },
+    });
     const existingMember = existingUser
       ? await database.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId: auth.workspaceId, userId: existingUser.id } },
@@ -323,14 +343,11 @@ export function createScimRouter(database: Database): express.Router {
     }
 
     const member = await database.$transaction(async (tx) => {
-      const user = existingUser
-        ? await tx.user.update({
-            where: { id: existingUser.id },
-            data: { name: body.displayName ? name : undefined },
-          })
-        : await tx.user.create({
-            data: { id: createId(), name, email, emailVerified: false, image: null },
-          });
+      const user =
+        existingUser ??
+        (await tx.user.create({
+          data: { id: createId(), name, email, emailVerified: false, image: null },
+        }));
       const membership = existingMember
         ? await tx.workspaceMember.update({
             where: { id: existingMember.id },
@@ -365,8 +382,8 @@ export function createScimRouter(database: Database): express.Router {
     });
     res
       .status(201)
-      .location(`${baseUrl(req)}/Users/${member.id}`)
-      .json(toScimUser(member, baseUrl(req)));
+      .location(`${baseUrl()}/Users/${member.id}`)
+      .json(toScimUser(member, baseUrl()));
   });
 
   router.put("/Users/:id", async (req, res) => {
@@ -380,15 +397,16 @@ export function createScimRouter(database: Database): express.Router {
     const email = normalizeEmail(body.userName ?? member.user?.email);
     if (!email) return sendError(res, 400, "userName must be an email address.", "invalidValue");
     if (email !== member.user?.email) {
-      const clash = await database.user.findUnique({ where: { email }, select: { id: true } });
-      if (clash && clash.id !== member.userId) {
-        return sendError(res, 409, "Another account already uses this email.", "uniqueness");
-      }
-      await database.user.update({ where: { id: member.userId }, data: { email } });
+      return sendError(
+        res,
+        400,
+        "SCIM cannot change a login email. The user must change it after signing in.",
+        "mutability",
+      );
     }
     const name = displayNameFromBody(body, member.user?.name ?? email);
     if (name !== member.user?.name) {
-      await database.user.update({ where: { id: member.userId }, data: { name } });
+      await updateDisplayName(member.userId, name);
     }
     const active = body.active !== false;
     const externalId =
@@ -410,7 +428,7 @@ export function createScimRouter(database: Database): express.Router {
       metadata: { role, active },
     });
     const updated = await loadMember(auth.workspaceId, member.id);
-    res.json(toScimUser(updated!, baseUrl(req)));
+    res.json(toScimUser(updated!, baseUrl()));
   });
 
   router.patch("/Users/:id", async (req, res) => {
@@ -467,7 +485,7 @@ export function createScimRouter(database: Database): express.Router {
       await appendMemberChange(auth.workspaceId, auth.tokenId, member.id, "UPSERT");
     }
     if (next.displayName) {
-      await database.user.update({ where: { id: member.userId }, data: { name: next.displayName } });
+      await updateDisplayName(member.userId, next.displayName);
     }
     await writeAudit(database, {
       workspaceId: auth.workspaceId,
@@ -478,7 +496,7 @@ export function createScimRouter(database: Database): express.Router {
       metadata: { ...next },
     });
     const updated = await loadMember(auth.workspaceId, member.id);
-    res.json(toScimUser(updated!, baseUrl(req)));
+    res.json(toScimUser(updated!, baseUrl()));
   });
 
   router.delete("/Users/:id", async (req, res) => {
@@ -506,7 +524,7 @@ export function createScimRouter(database: Database): express.Router {
 
   // --- groups ----------------------------------------------------------------
 
-  async function groupResource(auth: ScimAuth, groupId: string, req: Request) {
+  async function groupResource(auth: ScimAuth, groupId: string) {
     const group = await database.scimGroup.findFirst({
       where: { id: groupId, workspaceId: auth.workspaceId },
     });
@@ -524,7 +542,7 @@ export function createScimRouter(database: Database): express.Router {
     return toScimGroup(
       group,
       members.map((member) => ({ memberId: member.id, display: emailById.get(member.userId) })),
-      baseUrl(req),
+      baseUrl(),
     );
 }
 
@@ -540,14 +558,14 @@ export function createScimRouter(database: Database): express.Router {
     const visible = filter && filter !== "invalid" && filter.attribute === "displayName"
       ? groups.filter((group) => group.displayName.toLowerCase().includes(filter.value.toLowerCase()))
       : groups;
-    const resources = await Promise.all(visible.map((group) => groupResource(auth, group.id, req)));
+    const resources = await Promise.all(visible.map((group) => groupResource(auth, group.id)));
     res.json(scimList(resources.filter(Boolean), visible.length, 1));
   });
 
   router.get("/Groups/:id", async (req, res) => {
     const auth = await authenticate(req);
     if (!auth) return sendError(res, 401, "A valid SCIM bearer token is required.");
-    const resource = await groupResource(auth, req.params.id, req);
+    const resource = await groupResource(auth, req.params.id);
     if (!resource) return sendError(res, 404, "Group not found.");
     res.json(resource);
   });
@@ -583,8 +601,8 @@ export function createScimRouter(database: Database): express.Router {
       resourceId: group.id,
       metadata: { displayName, role, members: memberIds.length },
     });
-    const resource = await groupResource(auth, group.id, req);
-    res.status(201).location(`${baseUrl(req)}/Groups/${group.id}`).json(resource);
+    const resource = await groupResource(auth, group.id);
+    res.status(201).location(`${baseUrl()}/Groups/${group.id}`).json(resource);
   });
 
   router.patch("/Groups/:id", async (req, res) => {
@@ -643,7 +661,7 @@ export function createScimRouter(database: Database): express.Router {
       resourceType: "scim_group",
       resourceId: group.id,
     });
-    const resource = await groupResource(auth, group.id, req);
+    const resource = await groupResource(auth, group.id);
     res.json(resource);
   });
 

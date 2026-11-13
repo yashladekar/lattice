@@ -69,6 +69,37 @@ describeWithDatabase("retention scheduler", () => {
     expect(await db.page.count({ where: { workspaceId: workspace.id } })).toBe(1);
   });
 
+  it("prunes sync op ids older than a month", async () => {
+    db = createTestDatabase();
+    const workspace = await createTestWorkspace(db);
+    workspaces.push(workspace);
+    const oldId = `old_${workspace.id}`;
+    const freshId = `fresh_${workspace.id}`;
+    await db.syncOp.createMany({
+      data: [
+        {
+          id: oldId,
+          workspaceId: workspace.id,
+          userId: workspace.ownerId,
+          result: {},
+          createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+        },
+        {
+          id: freshId,
+          workspaceId: workspace.id,
+          userId: workspace.ownerId,
+          result: {},
+          createdAt: new Date(),
+        },
+      ],
+    });
+
+    await purgeExpiredTrash(db);
+
+    expect(await db.syncOp.findUnique({ where: { id: oldId } })).toBeNull();
+    expect(await db.syncOp.findUnique({ where: { id: freshId } })).not.toBeNull();
+  });
+
   it("respects a legal hold when sweeping", async () => {
     db = createTestDatabase();
     const workspace = await withExpiredPage(30);

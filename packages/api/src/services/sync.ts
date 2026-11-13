@@ -253,6 +253,19 @@ async function validateNotebookPlacement(
   }
 }
 
+/**
+ * Serializes writers for one page or canvas. The revision check and the write
+ * below must see the same row; without this lock two pushes can both pass the
+ * check and the later write silently wins.
+ */
+async function lockPageWrite(tx: TransactionClient, pageId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "page" WHERE id = ${pageId} FOR UPDATE`;
+}
+
+async function lockCanvasWrite(tx: TransactionClient, canvasId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "canvas" WHERE id = ${canvasId} FOR UPDATE`;
+}
+
 async function nextPageVersion(tx: TransactionClient, pageId: string): Promise<number> {
   const aggregate = await tx.pageVersion.aggregate({
     where: { pageId },
@@ -393,6 +406,15 @@ async function applyPage(
         },
       });
 
+  if (visibility === "PRIVATE" && existing?.visibility !== "PRIVATE") {
+    // A page that becomes private must stop serving through links created
+    // while it was still workspace-visible.
+    await tx.shareLink.updateMany({
+      where: { workspaceId, resourceType: "PAGE", resourceId: page.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   changes.push({ entity: "page", entityId: page.id, op: "UPSERT", data: toJsonSafe(page) });
   await ensurePageNode(tx, page, changes);
 
@@ -426,6 +448,7 @@ async function applyPageDocument(
   });
   if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
   await assertPageWriteAccess(tx, page, userId, role);
+  await lockPageWrite(tx, page.id);
   const existing = await tx.pageDocument.findUnique({ where: { pageId: page.id } });
   if (!existing) throw new ORPCError("NOT_FOUND", { message: "Page document not found" });
   const schemaVersion = numberValue(op.payload.schemaVersion) ?? existing.schemaVersion;
@@ -439,12 +462,10 @@ async function applyPageDocument(
   if (!content) throw new ORPCError("BAD_REQUEST", { message: "Document content is required" });
 
   const collaborating = ctx.isCollaborating?.("page", page.id) ?? false;
-  // Session snapshots carry stale revisions by design; every other writer is
-  // checked, so an out-of-band write cannot silently lose to a live peer.
-  const fromSession = stringValue(op.payload.source) === "session";
 
   // Live peers converge through the CRDT, so their JSON snapshots arrive with
-  // stale revisions by design. Accept them, and skip writes that change nothing.
+  // stale revisions by design. Only the server's own room state grants that
+  // exemption; a client-supplied label must never switch the check off.
   if (JSON.stringify(content) === JSON.stringify(existing.content)) {
     return {
       accepted: {
@@ -456,7 +477,7 @@ async function applyPageDocument(
     };
   }
 
-  if (baseRev !== existing.rev && !(fromSession && collaborating)) {
+  if (baseRev !== existing.rev && !collaborating) {
     const conflictId = randomUUID();
     const remoteData = toJsonSafe(existing);
     const localData = {
@@ -526,7 +547,7 @@ async function applyPageDocument(
     entity: "pageDocument",
     entityId: page.id,
     op: "UPSERT",
-    data: { ...toJsonSafe(document), source: fromSession ? "session" : "write" },
+    data: { ...toJsonSafe(document), source: collaborating ? "session" : "write" },
   });
   changes.push({
     entity: "page",
@@ -554,6 +575,7 @@ async function applyCanvas(
   const { tx, workspaceId, userId, role } = ctx;
   if (!hasRole(role, "EDITOR")) throw new ORPCError("FORBIDDEN");
   const payload = op.payload;
+  await lockCanvasWrite(tx, op.entityId);
   const existing = await tx.canvas.findUnique({ where: { id: op.entityId } });
   await assertNoCrossWorkspace(tx, "canvas", op.entityId, workspaceId);
   if (existing && existing.workspaceId !== workspaceId) {
@@ -579,10 +601,8 @@ async function applyCanvas(
   const baseRev = op.baseRev ?? 0;
 
   const collaborating = ctx.isCollaborating?.("canvas", op.entityId) ?? false;
-  // Session snapshots carry stale revisions by design, exactly as for pages.
-  const fromSession = stringValue(payload.source) === "session";
 
-  if (existing && data && baseRev !== existing.rev && !(fromSession && collaborating)) {
+  if (existing && data && baseRev !== existing.rev && !collaborating) {
     const conflictId = randomUUID();
     const remoteData = toJsonSafe(existing);
     const localData = { data, schemaVersion };
@@ -1615,6 +1635,10 @@ async function applyMember(
   if (stringValue(payload.role) === "OWNER" && role !== "OWNER") {
     throw new ORPCError("FORBIDDEN", { message: "Only the owner can transfer ownership" });
   }
+  // Granting ADMIN is also owner-only; an ADMIN must not grow the admin set.
+  if (stringValue(payload.role) === "ADMIN" && role !== "OWNER") {
+    throw new ORPCError("FORBIDDEN", { message: "Only the owner can grant admin" });
+  }
   if (op.op === "DELETE") {
     if (existing.role === "OWNER") {
       throw new ORPCError("FORBIDDEN", {
@@ -1794,7 +1818,8 @@ function changeVisible(
     case "comment":
     case "pageTag":
     case "attachment":
-    case "flashcard": {
+    case "flashcard":
+    case "suggestedEdit": {
       const pageId = stringValue(data.pageId);
       return !pageId || allowed.has(pageId);
     }
@@ -1983,6 +2008,11 @@ export async function resolveSyncConflict(
     });
     if (!conflict) throw new ORPCError("NOT_FOUND", { message: "Conflict not found" });
     const pageId = conflict.entityId;
+    if (conflict.entity === "pageDocument") {
+      await lockPageWrite(tx, pageId);
+    } else if (conflict.entity === "canvas") {
+      await lockCanvasWrite(tx, pageId);
+    }
     if (input.resolution === "KEEP_LOCAL" && conflict.entity === "pageDocument") {
       const page = await tx.page.findFirst({
         where: { id: pageId, workspaceId: input.workspaceId, deletedAt: null },

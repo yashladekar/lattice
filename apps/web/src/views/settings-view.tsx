@@ -53,6 +53,7 @@ import { ObjectTypeManager } from "@/components/workspace/object-type-manager";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { WebhookManager } from "@/components/workspace/webhook-manager";
 import { authClient } from "@/lib/auth-client";
+import { clearDeviceSession } from "@/lib/clear-device-session";
 import { getApiBaseUrl } from "@/lib/config";
 import { downloadBytes, downloadTextFile } from "@/lib/download";
 import { openExternalUrl } from "@/lib/open-external";
@@ -716,6 +717,7 @@ export function SettingsView() {
 
   const signOut = async () => {
     await authClient.signOut();
+    clearDeviceSession();
     router.push("/");
   };
 
@@ -1289,7 +1291,12 @@ export function SettingsView() {
                     />
                     Enabled
                   </label>
-                  <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => void saveSso()}>
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-lg text-[10px]"
+                    disabled={role !== "OWNER"}
+                    onClick={() => void saveSso()}
+                  >
                     Save connection
                   </Button>
                   {ssoConnection.data?.configured ? (
@@ -1297,6 +1304,7 @@ export function SettingsView() {
                       variant="outline"
                       size="sm"
                       className="h-8 rounded-lg text-[10px] text-destructive"
+                      disabled={role !== "OWNER"}
                       onClick={() => void removeSso()}
                     >
                       Remove
@@ -1304,8 +1312,10 @@ export function SettingsView() {
                   ) : null}
                 </div>
                 <p className="mt-1.5 text-[8.5px] leading-relaxed text-muted-foreground">
-                  Sign-in requires an active, provisioned membership; SCIM or an invite creates one.
-                  The client secret is encrypted with the deployment secret before it is stored.
+                  Only the workspace owner can change this connection. Sign-in requires an active,
+                  provisioned membership whose email is on one of these domains; SCIM or an invite
+                  creates one. The client secret is encrypted with the deployment secret before it
+                  is stored.
                 </p>
               </SettingsCard>
             ) : null}

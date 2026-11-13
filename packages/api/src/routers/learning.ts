@@ -41,12 +41,19 @@ export const learningRouter = {
         .optional(),
     )
     .handler(async ({ context, input }) => {
+      const allowed = await getAccessiblePageIds(
+        context.db,
+        context.workspaceId,
+        context.userId,
+        context.role,
+      );
       return context.db.flashcard.findMany({
         where: {
           workspaceId: context.workspaceId,
           deletedAt: null,
           ...(input?.deckId ? { deckId: input.deckId } : {}),
           ...(input?.pageId ? { pageId: input.pageId } : {}),
+          ...(allowed ? { OR: [{ pageId: null }, { pageId: { in: [...allowed] } }] } : {}),
         },
         orderBy: { dueAt: "asc" },
       });
@@ -55,11 +62,18 @@ export const learningRouter = {
   due: workspaceProcedure("VIEWER")
     .input(z.object({ limit: z.number().int().min(1).max(100).default(30) }).optional())
     .handler(async ({ context, input }) => {
+      const allowed = await getAccessiblePageIds(
+        context.db,
+        context.workspaceId,
+        context.userId,
+        context.role,
+      );
       const cards = await context.db.flashcard.findMany({
         where: {
           workspaceId: context.workspaceId,
           deletedAt: null,
           dueAt: { lte: new Date() },
+          ...(allowed ? { OR: [{ pageId: null }, { pageId: { in: [...allowed] } }] } : {}),
         },
         orderBy: { dueAt: "asc" },
         take: input?.limit ?? 30,
@@ -390,12 +404,19 @@ export const learningRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
+      const allowed = await getAccessiblePageIds(
+        context.db,
+        context.workspaceId,
+        context.userId,
+        context.role,
+      );
       const cards = await context.db.flashcard.findMany({
         where: {
           workspaceId: context.workspaceId,
           deletedAt: null,
           ...(input.deckId ? { deckId: input.deckId } : {}),
           ...(input.pageId ? { pageId: input.pageId } : {}),
+          ...(allowed ? { OR: [{ pageId: null }, { pageId: { in: [...allowed] } }] } : {}),
         },
       });
       return buildQuiz(cards, input.count);
@@ -441,6 +462,15 @@ export const learningRouter = {
   outline: workspaceProcedure("VIEWER")
     .input(z.object({ pageId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
+      const allowed = await getAccessiblePageIds(
+        context.db,
+        context.workspaceId,
+        context.userId,
+        context.role,
+      );
+      if (allowed && !allowed.has(input.pageId)) {
+        throw new ORPCError("NOT_FOUND", { message: "Page not found" });
+      }
       const page = await context.db.page.findFirst({
         where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
         include: { document: true },

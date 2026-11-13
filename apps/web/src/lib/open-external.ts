@@ -14,5 +14,10 @@ export async function openExternalUrl(url: string): Promise<void> {
       // Fall through to a normal tab.
     }
   }
-  window.open(url, "_blank", "noopener,noreferrer");
+  const opened = window.open(url, "_blank");
+  if (!opened) {
+    throw new Error("The browser blocked the new tab. Allow pop-ups for Lattice and try again.");
+  }
+  // Sever the opener immediately so the new page cannot navigate this window.
+  opened.opener = null;
 }

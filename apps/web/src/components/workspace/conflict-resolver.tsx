@@ -3,9 +3,11 @@
 import { Button } from "@notes-learning/ui/components/button";
 import { AlertTriangle, Check, Loader2, Laptop, Server } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
 import { Modal } from "@/components/ui/modal";
+import { humanizeError } from "@/lib/errors";
 import type { LocalConflict } from "@/lib/local/types";
 
 function preview(data: Record<string, unknown>): string {
@@ -37,6 +39,8 @@ export function ConflictResolver({
     try {
       await resolveConflict(conflict, resolution);
       setResolved((current) => [...current, conflict.id]);
+    } catch (error) {
+      toast.error(humanizeError(error).message);
     } finally {
       setBusy(null);
     }

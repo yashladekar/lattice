@@ -140,6 +140,34 @@ describeWithDatabase("webhook deliveries", () => {
     expect(endpointRow?.lastStatus).toBe(200);
   });
 
+  it("delivers a due row once when two sweeps overlap", async () => {
+    await setup();
+    const endpointId = await endpoint({ name: "Overlapping" });
+    const deliveryId = `whd_${randomUUID()}`;
+    await db.webhookDelivery.create({
+      data: {
+        id: deliveryId,
+        workspaceId: workspace.id,
+        endpointId,
+        event: "page.updated",
+        payload: { event: "page.updated" } as never,
+      },
+    });
+    let calls = 0;
+    vi.stubGlobal("fetch", async () => {
+      calls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return new Response("ok", { status: 200 });
+    });
+
+    const [first, second] = await Promise.all([deliverWebhookBatch(db), deliverWebhookBatch(db)]);
+    expect(calls).toBe(1);
+    expect(first.delivered + second.delivered).toBe(1);
+    expect((await db.webhookDelivery.findUnique({ where: { id: deliveryId } }))?.status).toBe(
+      "DELIVERED",
+    );
+  });
+
   it("backs off after a failed attempt", async () => {
     await setup();
     const endpointId = await endpoint({ name: "Failing" });

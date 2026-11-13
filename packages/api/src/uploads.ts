@@ -45,6 +45,14 @@ export function createUploadHandler(options: UploadHandlerOptions): RequestHandl
     const filename = `${randomUUID()}${extension}`;
     await mkdir(options.uploadRoot, { recursive: true });
     await writeFile(path.join(options.uploadRoot, filename), req.body);
+    // Ownership lives beside the file, outside the statically served root, so
+    // an API read can tell whether the caller may have these bytes.
+    const metaDirectory = path.join(options.uploadRoot, ".meta");
+    await mkdir(metaDirectory, { recursive: true });
+    await writeFile(
+      path.join(metaDirectory, `${filename}.json`),
+      JSON.stringify({ userId: session.userId }),
+    );
     res.json({
       id: randomUUID(),
       url: `/uploads/${filename}`,

@@ -26,7 +26,12 @@ import { auth, db } from "./services";
 
 const app = express();
 
-app.set("trust proxy", 1);
+/**
+ * Forwarding headers are only trusted when an operator says how many proxies
+ * sit in front. Trusting them by default lets a client pick its own rate-limit
+ * key by sending X-Forwarded-For.
+ */
+app.set("trust proxy", process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : false);
 
 /**
  * One line per client error, with the path handler interceptors cannot see. A
@@ -105,19 +110,20 @@ const INLINE_UPLOAD_EXTENSIONS = new Set([
 app.use(
   "/uploads",
   express.static(uploadRoot, {
-    maxAge: "1y",
-    immutable: true,
     setHeaders: (res, filePath) => {
       const extension = path.extname(filePath).toLowerCase();
       // Never let a browser guess a type, so an uploaded .html cannot execute.
       res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
       if (INLINE_UPLOAD_EXTENSIONS.has(extension)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
         res.setHeader("Access-Control-Allow-Origin", "*");
         return;
       }
-      // Anything else is a download: no script execution on the API origin and
-      // no cross-origin read of potentially private documents.
+      // Documents are downloaded, not embedded: no script execution on the API
+      // origin, no cross-origin read, and no year-long cache of a private file.
+      res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
+      res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
       res.setHeader("Content-Disposition", "attachment");
       res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
     },
@@ -152,10 +158,10 @@ if (githubConfig?.clientId && githubConfig.clientSecret) {
   );
 }
 
-app.use("/scim/v2", createScimRouter(db));
+app.use("/scim/v2", createScimRouter(db, { baseUrl: ENV.BETTER_AUTH_URL }));
 
 app.post("/ingest/email", express.json({ limit: "1mb" }), async (req, res) => {
-  const token = String(req.headers["x-lattice-ingest-token"] ?? req.query.token ?? "").trim();
+  const token = String(req.headers["x-lattice-ingest-token"] ?? "").trim();
   const result = await ingestEmail(db, { token, body: req.body });
   if (result.status === 202) {
     res.status(202).json({ ok: true, captureId: result.captureId });
@@ -165,7 +171,13 @@ app.post("/ingest/email", express.json({ limit: "1mb" }), async (req, res) => {
 });
 
 const nativeAppUrl = "notes-learning://";
-const allowedNativeProtocols = new Set(["exp:", new URL(nativeAppUrl).protocol]);
+// Both app shells are allowed. Expo Go's `exp:` scheme can load a remote bundle,
+// so it is a development convenience only.
+const allowedNativeProtocols = new Set([
+  "notes-learning:",
+  "lattice:",
+  ...(process.env.NODE_ENV === "production" ? [] : ["exp:"]),
+]);
 
 app.get("/polar/success", (req, res) => {
   const requestUrl = new URL(req.url, ENV.BETTER_AUTH_URL);

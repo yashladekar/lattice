@@ -6,6 +6,7 @@ import { createToken, hashToken, isShareActive, writeAudit } from "../authz";
 import { publicProcedure, workspaceProcedure } from "../index";
 import { appendChanges, toJsonSafe } from "../services/changes";
 import { publicDocument, resolvePublicPage } from "../services/share-page";
+import { assertPageAccess } from "../services/page-access";
 import { getAccessiblePageIds } from "../services/sync";
 
 function publicCanvasData(value: unknown) {
@@ -53,6 +54,7 @@ export const shareRouter = {
           },
         });
         if (!page) throw new ORPCError("NOT_FOUND");
+        await assertPageAccess(context.db, page, context.userId, context.role, "write");
       } else if (input.resourceType === "CANVAS") {
         const canvas = await context.db.canvas.findFirst({
           where: {

@@ -94,6 +94,13 @@ export function PluginManager() {
     savePlugins(next);
   };
 
+  /** A reinstall keeps the old consent set; new requests stay off until enabled. */
+  const grantFor = (manifest: PluginManifest): Capability[] => {
+    const previous = plugins.find((plugin) => plugin.manifest.id === manifest.id);
+    if (!previous) return initialGrant(manifest);
+    return initialGrant(manifest).filter((capability) => previous.granted.includes(capability));
+  };
+
   const install = () => {
     setError(null);
     let parsed: unknown;
@@ -116,7 +123,7 @@ export function PluginManager() {
     const next = plugins.filter((plugin) => plugin.manifest.id !== manifest.id);
     next.push({
       manifest,
-      granted: initialGrant(manifest),
+      granted: grantFor(manifest),
       enabled: true,
       source: sourceText,
       installedAt: new Date().toISOString(),
@@ -188,7 +195,7 @@ export function PluginManager() {
     const next = plugins.filter((plugin) => plugin.manifest.id !== manifest.id);
     next.push({
       manifest,
-      granted: initialGrant(manifest),
+      granted: grantFor(manifest),
       enabled: true,
       source,
       installedAt: new Date().toISOString(),
@@ -203,7 +210,7 @@ export function PluginManager() {
     const next = plugins.filter((plugin) => plugin.manifest.id !== entry.manifest.id);
     next.push({
       manifest: entry.manifest,
-      granted: initialGrant(entry.manifest),
+      granted: grantFor(entry.manifest),
       enabled: true,
       source: entry.source,
       installedAt: new Date().toISOString(),
@@ -507,7 +514,7 @@ export function PluginManager() {
                     <p className="mt-1 text-[8px] text-muted-foreground">
                       {describeRecord({
                         manifest: entry.manifest,
-                        granted: initialGrant(entry.manifest),
+                        granted: grantFor(entry.manifest),
                         enabled: true,
                       })}
                     </p>

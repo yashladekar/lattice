@@ -6,6 +6,8 @@
  * sign-in — which issuer is acceptable, which domains route where, which
  * redirects are allowed back — are testable on their own.
  */
+import { hashContent } from "./git-sync";
+
 export const SSO_STATE_TTL_MS = 10 * 60 * 1000;
 export const SSO_MAX_DOMAINS = 20;
 
@@ -52,6 +54,16 @@ export function ssoDomainMatches(domains: string[], email: string): boolean {
 }
 
 /**
+ * The TXT value a workspace owner publishes to prove a new SSO domain. It is
+ * public by design: only control of the domain's DNS can add the record.
+ */
+export function ssoDomainChallenge(workspaceId: string, domain: string): string {
+  return `lattice-verify=${hashContent(`sso:${workspaceId}:${domain.toLowerCase()}`)}`;
+}
+
+export const SSO_DOMAIN_RECORD_PREFIX = "_lattice-sso";
+
+/**
  * Resolves the post-sign-in redirect. Absolute URLs are only accepted on an
  * allow-listed origin; anything else falls back to the app root, so a crafted
  * `redirect` cannot turn the callback into an open redirect.
@@ -84,6 +96,8 @@ export function ssoErrorDetail(code: string): string {
       return "Your identity is verified, but this account is not provisioned in that workspace yet. Ask an administrator to invite or provision you.";
     case "email_unverified":
       return "Your identity provider has not verified this email address, so sign-in was refused.";
+    case "domain_not_allowed":
+      return "This workspace's SSO is not configured for that email domain. Ask an owner to add the domain to the connection.";
     case "state_expired":
       return "That sign-in attempt expired. Start again from the login page.";
     case "provider_error":

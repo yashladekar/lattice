@@ -569,7 +569,10 @@ export const aiRouter = {
       if (!capture.url) {
         throw new ORPCError("BAD_REQUEST", { message: "This capture has no audio file." });
       }
-      const upload = await context.uploads.read(capture.url);
+      const upload = await context.uploads.read(capture.url, {
+        userId: context.userId,
+        workspaceId: context.workspaceId,
+      });
       if (!upload) {
         throw new ORPCError("NOT_FOUND", { message: "The audio file could not be read." });
       }

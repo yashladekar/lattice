@@ -1,5 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 
+import { assertPageAccess } from "@notes-learning/api/services/page-access";
+import { hasRole, type Role } from "@notes-learning/domain";
 import { fromNodeHeaders } from "better-auth/node";
 import * as decoding from "lib0/decoding";
 import * as encoding from "lib0/encoding";
@@ -404,21 +406,30 @@ async function authenticate(request: IncomingMessage): Promise<{
 
   const membership = await db.workspaceMember.findFirst({
     where: { workspaceId, userId: session.user.id, status: "ACTIVE", deletedAt: null },
-    select: { id: true },
+    select: { id: true, role: true },
   });
   if (!membership) return null;
+  const role = membership.role as Role;
+  if (!hasRole(role, "EDITOR")) return null;
 
-  const exists =
-    resourceType === "page"
-      ? await db.page.findFirst({
-          where: { id: resourceId, workspaceId, deletedAt: null },
-          select: { id: true },
-        })
-      : await db.canvas.findFirst({
-          where: { id: resourceId, workspaceId, deletedAt: null },
-          select: { id: true },
-        });
-  if (!exists) return null;
+  if (resourceType === "page") {
+    const page = await db.page.findFirst({
+      where: { id: resourceId, workspaceId, deletedAt: null },
+      select: { id: true, workspaceId: true, createdById: true, visibility: true },
+    });
+    if (!page) return null;
+    try {
+      await assertPageAccess(db, page, session.user.id, role, "write");
+    } catch {
+      return null;
+    }
+  } else {
+    const canvas = await db.canvas.findFirst({
+      where: { id: resourceId, workspaceId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!canvas) return null;
+  }
 
   return { resourceType, resourceId, workspaceId, userId: session.user.id };
 }

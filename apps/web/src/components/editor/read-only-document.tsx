@@ -4,6 +4,10 @@ import type { TipTapDoc, TipTapNode } from "@notes-learning/domain";
 
 import { MermaidDiagram } from "../diagram/mermaid-diagram";
 
+function safeHref(value: string): string | null {
+  return /^https?:\/\//i.test(value) ? value : null;
+}
+
 function renderMarks(
   node: TipTapNode,
   text: React.ReactNode,
@@ -31,8 +35,9 @@ function renderMarks(
         result = <mark>{result}</mark>;
         break;
       case "link": {
-        const href = typeof mark.attrs?.href === "string" ? mark.attrs.href : null;
-        if (href && /^https?:\/\//.test(href)) {
+        const href =
+          typeof mark.attrs?.href === "string" ? safeHref(mark.attrs.href) : null;
+        if (href) {
           result = (
             <a href={href} target="_blank" rel="noreferrer noopener">
               {result}
@@ -237,12 +242,13 @@ function renderNode(
     }
     case "bookmark": {
       const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
+      const href = safeHref(url);
       const title = typeof node.attrs?.title === "string" ? node.attrs.title : url;
       const description = typeof node.attrs?.description === "string" ? node.attrs.description : "";
       return (
         <a
           key={key}
-          href={url}
+          href={href ?? undefined}
           target="_blank"
           rel="noreferrer noopener"
           className="my-4 block rounded-lg border border-border bg-muted/20 px-4 py-3 no-underline"

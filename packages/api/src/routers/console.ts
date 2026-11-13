@@ -16,11 +16,11 @@ function describeError(error: unknown): string {
 }
 
 export const consoleRouter = {
-  schema: workspaceProcedure("VIEWER").handler(async ({ context }) => {
+  schema: workspaceProcedure("ADMIN").handler(async ({ context }) => {
     return { views: await describeConsoleViews(context.db) };
   }),
 
-  run: workspaceProcedure("VIEWER")
+  run: workspaceProcedure("ADMIN")
     .input(z.object({ sql: z.string().min(1).max(20_000) }))
     .handler(
       async ({

@@ -131,6 +131,16 @@ describeWithDatabase("sso flow", () => {
     );
   });
 
+  it("refuses an identity outside the configured email domains", async () => {
+    idp.setIdentity({ email: `outside-${randomUUID()}@other.example`, name: "Outside" });
+    const start = await auth.handler(new Request(startUrl()));
+    const authorize = await fetch(start.headers.get("location")!, { redirect: "manual" });
+    const callback = await auth.handler(new Request(authorize.headers.get("location")!));
+    expect(callback.headers.get("location")).toBe(
+      `${APP_ORIGIN}/login?sso_error=domain_not_allowed`,
+    );
+  });
+
   it("does not start for an unknown workspace", async () => {
     const response = await auth.handler(
       new Request(`${AUTH_BASE}/sso/start?workspace=does-not-exist`),

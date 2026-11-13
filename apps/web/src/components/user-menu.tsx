@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
+import { clearDeviceSession } from "@/lib/clear-device-session";
 
 export default function UserMenu() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function UserMenu() {
               authClient.signOut({
                 fetchOptions: {
                   onSuccess: () => {
+                    clearDeviceSession();
                     router.push("/");
                   },
                 },

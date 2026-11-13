@@ -255,25 +255,28 @@ export const canvasRouter = {
   saveVersion: workspaceProcedure("EDITOR")
     .input(z.object({ canvasId: z.string().min(1), note: z.string().max(300).optional() }))
     .handler(async ({ context, input }) => {
-      const canvas = await context.db.canvas.findFirst({
-        where: { id: input.canvasId, workspaceId: context.workspaceId, deletedAt: null },
-      });
-      if (!canvas) throw new ORPCError("NOT_FOUND");
-      const aggregate = await context.db.canvasVersion.aggregate({
-        where: { canvasId: canvas.id },
-        _max: { version: true },
-      });
-      return context.db.canvasVersion.create({
-        data: {
-          id: createId(),
-          canvasId: canvas.id,
-          workspaceId: context.workspaceId,
-          version: (aggregate._max.version ?? 0) + 1,
-          title: canvas.title,
-          data: canvas.data as Prisma.InputJsonValue,
-          note: input.note ?? null,
-          createdById: context.userId,
-        },
+      return context.db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "canvas" WHERE id = ${input.canvasId} FOR UPDATE`;
+        const canvas = await tx.canvas.findFirst({
+          where: { id: input.canvasId, workspaceId: context.workspaceId, deletedAt: null },
+        });
+        if (!canvas) throw new ORPCError("NOT_FOUND");
+        const aggregate = await tx.canvasVersion.aggregate({
+          where: { canvasId: canvas.id },
+          _max: { version: true },
+        });
+        return tx.canvasVersion.create({
+          data: {
+            id: createId(),
+            canvasId: canvas.id,
+            workspaceId: context.workspaceId,
+            version: (aggregate._max.version ?? 0) + 1,
+            title: canvas.title,
+            data: canvas.data as Prisma.InputJsonValue,
+            note: input.note ?? null,
+            createdById: context.userId,
+          },
+        });
       });
     }),
 
@@ -288,12 +291,13 @@ export const canvasRouter = {
         },
       });
       if (!version) throw new ORPCError("NOT_FOUND");
-      const canvas = await context.db.canvas.findFirst({
-        where: { id: input.canvasId, workspaceId: context.workspaceId, deletedAt: null },
-      });
-      if (!canvas) throw new ORPCError("NOT_FOUND");
-      const changes: PendingChange[] = [];
-      const updated = await context.db.$transaction(async (tx) => {
+      return context.db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "canvas" WHERE id = ${input.canvasId} FOR UPDATE`;
+        const canvas = await tx.canvas.findFirst({
+          where: { id: input.canvasId, workspaceId: context.workspaceId, deletedAt: null },
+        });
+        if (!canvas) throw new ORPCError("NOT_FOUND");
+        const changes: PendingChange[] = [];
         const aggregate = await tx.canvasVersion.aggregate({
           where: { canvasId: canvas.id },
           _max: { version: true },
@@ -325,9 +329,8 @@ export const canvasRouter = {
           data: toJsonSafe(result),
         });
         await appendChanges(tx, context.workspaceId, context.userId, changes);
-        return result;
+        return { canvas: result };
       });
-      return { canvas: updated };
     }),
 
   templates: workspaceProcedure("VIEWER").handler(() => {

@@ -9,15 +9,25 @@ export function signWebhookPayload(secret: string, body: string): string {
 
 const BACKOFF_MINUTES = [1, 5, 15, 60, 240];
 export const MAX_WEBHOOK_ATTEMPTS = 5;
+/** Longer than the request timeout, so a live worker is never reclaimed. */
+const CLAIM_LEASE_MS = 2 * 60_000;
 
 /**
  * Attempts the pending deliveries that are due now. Failures back off and are
  * retried up to MAX_WEBHOOK_ATTEMPTS; disabled endpoints and unsafe URLs are
  * cancelled instead of retried.
+ *
+ * A delivery is claimed atomically before the request goes out, so two server
+ * processes cannot both deliver the same event. A process that dies mid-send
+ * leaves a SENDING row that the next sweep reclaims after the lease expires.
  */
 export async function deliverWebhookBatch(
   db: Database,
 ): Promise<{ delivered: number; failed: number; skipped: number }> {
+  await db.webhookDelivery.updateMany({
+    where: { status: "SENDING", nextAttemptAt: { lte: new Date() } },
+    data: { status: "PENDING" },
+  });
   const due = await db.webhookDelivery.findMany({
     where: { status: "PENDING", nextAttemptAt: { lte: new Date() } },
     orderBy: { createdAt: "asc" },
@@ -28,6 +38,16 @@ export async function deliverWebhookBatch(
   let skipped = 0;
 
   for (const delivery of due) {
+    const claim = await db.webhookDelivery.updateMany({
+      where: { id: delivery.id, status: "PENDING" },
+      data: {
+        status: "SENDING",
+        attempts: { increment: 1 },
+        nextAttemptAt: new Date(Date.now() + CLAIM_LEASE_MS),
+      },
+    });
+    if (claim.count === 0) continue;
+    const attempts = delivery.attempts + 1;
     const endpoint = await db.webhookEndpoint.findUnique({
       where: { id: delivery.endpointId },
     });
@@ -66,7 +86,7 @@ export async function deliverWebhookBatch(
         where: { id: delivery.id },
         data: {
           status: "DELIVERED",
-          attempts: delivery.attempts + 1,
+          attempts,
           deliveredAt: new Date(),
           lastError: null,
         },
@@ -77,7 +97,6 @@ export async function deliverWebhookBatch(
       });
       delivered += 1;
     } catch (error) {
-      const attempts = delivery.attempts + 1;
       const exhausted = attempts >= MAX_WEBHOOK_ATTEMPTS;
       const backoff = BACKOFF_MINUTES[Math.min(attempts - 1, BACKOFF_MINUTES.length - 1)] ?? 1;
       await db.webhookDelivery.update({

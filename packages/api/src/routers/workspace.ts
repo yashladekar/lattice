@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { resolveTxt } from "node:dns/promises";
 
 import type { Database, TransactionClient } from "@notes-learning/db";
 import {
@@ -8,6 +9,8 @@ import {
   inviteMemberInput,
   normalizeIssuer,
   parseSsoDomains,
+  SSO_DOMAIN_RECORD_PREFIX,
+  ssoDomainChallenge,
   updateMemberInput,
   createWorkspaceInput,
   describeLegalHoldHolders,
@@ -25,6 +28,39 @@ import { createToken, hashToken, requireMembership, writeAudit } from "../authz"
 import { protectedProcedure, workspaceProcedure } from "../index";
 import { appendChanges, toJsonSafe } from "../services/changes";
 import { buildLegalExport } from "../services/legal-export";
+
+const SSO_DNS_TIMEOUT_MS = 5_000;
+
+/**
+ * A new SSO domain needs a TXT record before the provider may vouch for it.
+ * Without this, a workspace owner could claim any domain and link an existing
+ * account that does not belong to them.
+ */
+async function assertSsoDomainsVerified(workspaceId: string, domains: string[]): Promise<void> {
+  const missing: string[] = [];
+  for (const domain of domains) {
+    const name = `${SSO_DOMAIN_RECORD_PREFIX}.${domain}`;
+    const expected = ssoDomainChallenge(workspaceId, domain);
+    try {
+      const records = await Promise.race([
+        resolveTxt(name),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("DNS lookup timed out")), SSO_DNS_TIMEOUT_MS),
+        ),
+      ]);
+      if (!records.some((chunks) => chunks.join("").trim() === expected)) {
+        missing.push(`${name} TXT "${expected}"`);
+      }
+    } catch {
+      missing.push(`${name} TXT "${expected}"`);
+    }
+  }
+  if (missing.length) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Prove control of the domain with a DNS TXT record, then save again: ${missing.join("; ")}`,
+    });
+  }
+}
 
 function welcomeDocument(targetPageId: string | null) {
   return {
@@ -914,7 +950,7 @@ export const workspaceRouter = {
     };
   }),
 
-  saveSsoConnection: workspaceProcedure("ADMIN")
+  saveSsoConnection: workspaceProcedure("OWNER")
     .input(
       z.object({
         issuer: z.string().trim().min(1).max(500),
@@ -931,6 +967,12 @@ export const workspaceRouter = {
           message: "Use the issuer's https URL, without a path query or credentials.",
         });
       }
+      const domains = parseSsoDomains(input.domains);
+      if (!domains.length) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Add at least one valid email domain.",
+        });
+      }
       let discovery;
       try {
         discovery = await discoverOidc(issuer);
@@ -942,6 +984,9 @@ export const workspaceRouter = {
       const existing = await context.db.ssoConnection.findUnique({
         where: { workspaceId: context.workspaceId },
       });
+      const existingDomains = new Set(parseSsoDomains(existing?.domains ?? []));
+      const unverified = domains.filter((domain) => !existingDomains.has(domain));
+      if (unverified.length) await assertSsoDomainsVerified(context.workspaceId, unverified);
       if (!existing && !input.clientSecret) {
         throw new ORPCError("BAD_REQUEST", { message: "A client secret is required." });
       }
@@ -961,7 +1006,7 @@ export const workspaceRouter = {
           issuer,
           clientId: input.clientId,
           clientSecret: secret,
-          domains: parseSsoDomains(input.domains),
+          domains,
           enabled: input.enabled,
           createdById: context.userId,
         },
@@ -969,7 +1014,7 @@ export const workspaceRouter = {
           issuer,
           clientId: input.clientId,
           clientSecret: secret,
-          domains: parseSsoDomains(input.domains),
+          domains,
           enabled: input.enabled,
         },
       });
@@ -987,7 +1032,7 @@ export const workspaceRouter = {
       };
     }),
 
-  removeSsoConnection: workspaceProcedure("ADMIN").handler(async ({ context }) => {
+  removeSsoConnection: workspaceProcedure("OWNER").handler(async ({ context }) => {
     const connection = await context.db.ssoConnection.findUnique({
       where: { workspaceId: context.workspaceId },
       select: { id: true },
@@ -1073,27 +1118,32 @@ export const workspaceRouter = {
         });
         if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
       }
-      const existing = await context.db.legalHold.findFirst({
-        where: {
-          workspaceId: context.workspaceId,
-          scope: input.scope,
-          targetId,
-          releasedAt: null,
-        },
-        select: { id: true },
-      });
-      if (existing) {
-        throw new ORPCError("CONFLICT", { message: "That scope is already under hold." });
-      }
-      const hold = await context.db.legalHold.create({
-        data: {
-          id: createId(),
-          workspaceId: context.workspaceId,
-          scope: input.scope,
-          targetId,
-          reason: input.reason.trim(),
-          createdById: context.userId,
-        },
+      const hold = await context.db.$transaction(async (tx) => {
+        // Serializes with the purge, so a hold committed now is seen before
+        // the sweep deletes anything.
+        await tx.$queryRaw`SELECT id FROM "workspace" WHERE id = ${context.workspaceId} FOR UPDATE`;
+        const existing = await tx.legalHold.findFirst({
+          where: {
+            workspaceId: context.workspaceId,
+            scope: input.scope,
+            targetId,
+            releasedAt: null,
+          },
+          select: { id: true },
+        });
+        if (existing) {
+          throw new ORPCError("CONFLICT", { message: "That scope is already under hold." });
+        }
+        return tx.legalHold.create({
+          data: {
+            id: createId(),
+            workspaceId: context.workspaceId,
+            scope: input.scope,
+            targetId,
+            reason: input.reason.trim(),
+            createdById: context.userId,
+          },
+        });
       });
       await writeAudit(context.db, {
         workspaceId: context.workspaceId,

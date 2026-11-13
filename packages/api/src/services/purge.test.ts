@@ -101,6 +101,62 @@ describeWithDatabase("purge and legal holds", () => {
     expect(await db.notebook.count({ where: { workspaceId: workspace.id } })).toBe(1);
   });
 
+  it("records a tombstone for live cards removed with a stale deck", async () => {
+    await seed();
+    const cardId = `itest_livecard_${workspace.id}`;
+    await db.flashcard.create({
+      data: {
+        id: cardId,
+        workspaceId: workspace.id,
+        deckId: `${d2}_${workspace.id}`,
+        pageId: `${p2}_${workspace.id}`,
+        front: "live question",
+        back: "live answer",
+        dueAt: new Date(),
+      },
+    });
+    await purgeWorkspaceTrash(db, workspace.id, 30);
+    expect(await db.flashcard.findUnique({ where: { id: cardId } })).toBeNull();
+    expect(
+      await db.syncChange.findFirst({
+        where: {
+          workspaceId: workspace.id,
+          entity: "flashcard",
+          entityId: cardId,
+          op: "DELETE",
+        },
+      }),
+    ).not.toBeNull();
+  });
+
+  it("unfiles live pages when their stale notebook is purged", async () => {
+    await seed();
+    const pageId = `itest_livepage_${workspace.id}`;
+    await db.page.create({
+      data: {
+        id: pageId,
+        workspaceId: workspace.id,
+        notebookId: `${n2}_${workspace.id}`,
+        title: "Live page",
+        createdById: workspace.ownerId,
+      },
+    });
+    await purgeWorkspaceTrash(db, workspace.id, 30);
+    const page = await db.page.findUnique({ where: { id: pageId } });
+    expect(page?.notebookId).toBeNull();
+    expect(
+      await db.syncChange.findFirst({
+        where: {
+          workspaceId: workspace.id,
+          entity: "page",
+          entityId: pageId,
+          op: "UPSERT",
+        },
+      }),
+    ).not.toBeNull();
+    expect(await db.notebook.findUnique({ where: { id: `${n2}_${workspace.id}` } })).toBeNull();
+  });
+
   it("purges nothing under a workspace hold", async () => {
     await seed();
     await hold("WORKSPACE", null);
