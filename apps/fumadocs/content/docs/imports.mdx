@@ -41,8 +41,9 @@ no client secret is configured, Lattice falls back to GitHub's device flow: it
 shows a short code, opens `github.com/login/device`, and polls until you
 approve. That path needs no callback URL at all.
 
-Without a client id the GitHub card stays hidden and the dialogs keep their
-manual token field.
+With the flag off, the GitHub card stays hidden and the dialogs keep their
+manual token field. With it on but no client id, the card shows the missing
+variables and the callback URL to register instead.
 
 **Settings → Sync & backup → Import from GitHub** pulls a repository's Markdown
 into a new notebook.
@@ -71,6 +72,11 @@ Settings → Sync & backup → **Sync with Git** compares the pages bound to a
 repository against its current tree. Pick the repository from the connected
 account and the stored credential is used automatically; otherwise type it and
 paste a token. Checking costs one request, and each page comes back as one of:
+
+To fill an empty repository, tick **Include local pages that are not in this
+repository** before checking. Every page is then listed as **New here** with a
+path generated from its title under the prefix, and publishing the first one
+creates the repository's first commit.
 
 | State | Meaning | Action offered |
 | --- | --- | --- |

@@ -44,6 +44,13 @@ function stateTone(action: GitSyncRow["action"]): string {
   }
 }
 
+/** Rules win; otherwise keep the thrown message, which already explains the cause. */
+function syncErrorMessage(reason: unknown, fallback: string): string {
+  const humanized = humanizeError(reason, fallback);
+  if (humanized.message !== fallback) return humanized.message;
+  return reason instanceof Error && reason.message ? reason.message : fallback;
+}
+
 export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { db, user, activeWorkspaceId, online } = useAppData();
   const github = useQuery({
@@ -57,6 +64,7 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [prefix, setPrefix] = useState("");
   const [token, setToken] = useState("");
   const [commitMessage, setCommitMessage] = useState("");
+  const [includeUnbound, setIncludeUnbound] = useState(false);
   const [rows, setRows] = useState<GitSyncRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
@@ -118,19 +126,21 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
     ? { repo: `${parsed.owner}/${parsed.repo}`, branch, pathPrefix: prefix, auth }
     : null;
 
-  const check = async () => {
+  const runCheck = async (withUnbound: boolean) => {
     if (!db || !activeWorkspaceId || !target) return;
     setBusy(true);
     setError(null);
     setRows(null);
     try {
-      setRows(await planSync(db, activeWorkspaceId, target));
+      setRows(await planSync(db, activeWorkspaceId, target, { includeUnbound: withUnbound }));
     } catch (reason) {
-      setError(humanizeError(reason, "Could not read the repository.").message);
+      setError(syncErrorMessage(reason, "Could not read the repository."));
     } finally {
       setBusy(false);
     }
   };
+
+  const check = () => runCheck(includeUnbound);
 
   const apply = async (row: GitSyncRow, action: "push" | "pull") => {
     if (!db || !user || !target) return;
@@ -145,10 +155,10 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
       } else {
         await pullRow(db, row, target, { userId: user.id });
       }
-      const fresh = await planSync(db, activeWorkspaceId ?? "", target);
+      const fresh = await planSync(db, activeWorkspaceId ?? "", target, { includeUnbound });
       setRows(fresh);
     } catch (reason) {
-      setError(humanizeError(reason, "That file did not sync.").message);
+      setError(syncErrorMessage(reason, "That file did not sync."));
     } finally {
       setWorking(null);
     }
@@ -156,7 +166,12 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
 
   const syncSafe = async () => {
     if (!db || !user || !target || !rows) return;
-    const queue = rows.filter((row) => row.action === "push" || row.action === "pull");
+    const queue = rows.filter(
+      (row) =>
+        row.action === "push" ||
+        row.action === "pull" ||
+        (includeUnbound && row.action === "publish"),
+    );
     if (!queue.length) {
       toast.success("Nothing to move — every file matches.");
       return;
@@ -168,7 +183,7 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
     try {
       for (const row of queue) {
         setWorking(`${row.pageId}:${row.action}`);
-        if (row.action === "push") {
+        if (row.action === "push" || row.action === "publish") {
           await pushRow(db, row, target, {
             userId: user.id,
             commitMessage: commitMessage.trim() || `Update ${row.path || row.title} from Lattice`,
@@ -179,12 +194,12 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
           pulled += 1;
         }
       }
-      setRows(await planSync(db, activeWorkspaceId ?? "", target));
+      setRows(await planSync(db, activeWorkspaceId ?? "", target, { includeUnbound }));
       toast.success(`Pushed ${pushed}, pulled ${pulled}.`);
     } catch (reason) {
-      setError(humanizeError(reason, "Sync stopped partway.").message);
+      setError(syncErrorMessage(reason, "Sync stopped partway."));
       try {
-        setRows(await planSync(db, activeWorkspaceId ?? "", target));
+        setRows(await planSync(db, activeWorkspaceId ?? "", target, { includeUnbound }));
       } catch {
         // Keep the rows we already had.
       }
@@ -332,6 +347,26 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
           />
         </label>
 
+        <label className="flex items-start gap-2 rounded-lg border border-border/60 bg-background/40 px-2.5 py-2 text-[10px]">
+          <input
+            type="checkbox"
+            checked={includeUnbound}
+            onChange={(event) => {
+              const next = event.target.checked;
+              setIncludeUnbound(next);
+              if (rows) void runCheck(next);
+            }}
+            className="mt-0.5 size-3 accent-[var(--saffron)]"
+          />
+          <span>
+            Include local pages that are not in this repository
+            <span className="mt-0.5 block text-[8px] leading-relaxed text-muted-foreground">
+              Lists every page in this workspace as a new file. This is how an empty repository gets
+              its first commit.
+            </span>
+          </span>
+        </label>
+
         <div className="rounded-lg border border-border/60 bg-background/40 px-2.5 py-2">
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-[10px]">
@@ -456,8 +491,16 @@ export function GitSyncDialog({ open, onClose }: { open: boolean; onClose: () =>
             </div>
           ) : (
             <p className="rounded-lg border border-border/70 px-2.5 py-3 text-[10px] text-muted-foreground">
-              No pages here are bound to this repository yet. Import it from GitHub first — the import
-              records each file&apos;s path and blob SHA, which is what makes two-way sync safe.
+              {includeUnbound ? (
+                "This workspace has no pages to publish. Create a page first."
+              ) : (
+                <>
+                  No pages here are bound to this repository yet. Tick &ldquo;Include local pages
+                  that are not in this repository&rdquo; to publish this workspace, or import a
+                  repository that already has Markdown — the import records each file&apos;s path
+                  and blob SHA.
+                </>
+              )}
             </p>
           )
         ) : (

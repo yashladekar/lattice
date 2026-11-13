@@ -249,7 +249,13 @@ export function GithubConnectionCard() {
                 variant="ghost"
                 size="sm"
                 className="h-7 rounded-md text-[9px]"
-                onClick={() => void openExternalUrl(device.verificationUri)}
+                onClick={() =>
+                  void openExternalUrl(device.verificationUri).catch((error) => {
+                    toast.error(
+                      error instanceof Error ? error.message : "Could not open GitHub.",
+                    );
+                  })
+                }
               >
                 Open GitHub
               </Button>

@@ -36,7 +36,7 @@ export interface GitSyncRow {
 
 async function githubMessage(response: Response): Promise<string> {
   if (response.status === 401) return "GitHub rejected the token.";
-  if (response.status === 404) return "Not found. Check the repository and path, or add a token.";
+  if (response.status === 404) return "Not found. Check the repository, branch, and path, or add a token.";
   if (response.status === 403 || response.status === 429) {
     return response.headers.get("x-ratelimit-remaining") === "0"
       ? "GitHub rate limit reached. Add a token or try again later."
@@ -72,6 +72,8 @@ export async function fetchRemoteTree(target: GitTarget): Promise<Map<string, st
     "GET",
     `/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
   );
+  // An empty repository has no tree yet; GitHub answers 409. Treat it as no files.
+  if (response.status === 409) return new Map();
   if (!response.ok) throw new Error(await githubMessage(response));
 
   const tree = (await response.json()) as { tree?: Array<{ path?: string; type?: string; sha?: string }> };
@@ -105,32 +107,60 @@ async function fetchRemoteFile(
   return { markdown: decodeBase64Utf8(body.content), sha: body.sha ?? "" };
 }
 
+/** Adds -2, -3, … when two pages generate the same file name. */
+function uniqueMarkdownPath(base: string, taken: Set<string>): string {
+  if (!taken.has(base)) return base;
+  const dot = base.lastIndexOf(".");
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const extension = dot > 0 ? base.slice(dot) : "";
+  let index = 2;
+  while (taken.has(`${stem}-${index}${extension}`)) index += 1;
+  return `${stem}-${index}${extension}`;
+}
+
 /**
- * Compares every page bound to this repository against the remote tree. Only
- * the tree is read here, so planning a sync costs one request.
+ * Compares the pages for this repository against the remote tree. Only the
+ * tree is read here, so planning a sync costs one request. With `includeUnbound`,
+ * pages that are not bound to this repository are listed as new files, which is
+ * how an empty repository gets its first commit.
  */
 export async function planSync(
   db: LatticeDB,
   workspaceId: string,
   target: GitTarget,
+  options: { includeUnbound?: boolean } = {},
 ): Promise<GitSyncRow[]> {
   const parsed = parseRepoInput(target.repo);
   if (!parsed) throw new Error("Use owner/repository.");
   const canonicalRepo = `${parsed.owner}/${parsed.repo}`;
 
   const pages = (await db.pages.where("workspaceId").equals(workspaceId).toArray()).filter(
-    (page) => !page.deletedAt && isSyncedToRepo(page.properties, canonicalRepo),
+    (page) => !page.deletedAt,
   );
+  const entries = pages
+    .filter((page) => isSyncedToRepo(page.properties, canonicalRepo))
+    .map((page) => ({ page, path: readGitProperties(page.properties).path ?? "" }));
 
   const remote = await fetchRemoteTree(target);
+
+  if (options.includeUnbound) {
+    const bound = new Set(entries.map((entry) => entry.page.id));
+    const taken = new Set([...entries.map((entry) => entry.path), ...remote.keys()]);
+    for (const page of pages) {
+      if (bound.has(page.id)) continue;
+      const path = uniqueMarkdownPath(markdownPathForTitle(page.title, target.pathPrefix), taken);
+      taken.add(path);
+      entries.push({ page, path });
+    }
+  }
+
   const rows: GitSyncRow[] = [];
 
-  for (const page of pages) {
+  for (const { page, path } of entries) {
     const git = readGitProperties(page.properties);
     const document = await db.pageDocuments.get(page.id);
     const markdown = document ? docToMarkdown(document.content) : "";
     const localHash = hashContent(markdown);
-    const path = git.path ?? "";
     const remoteSha = remote.get(path) ?? null;
     const decision = planGitSync({
       remoteSha,
