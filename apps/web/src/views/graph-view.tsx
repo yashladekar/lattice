@@ -1060,7 +1060,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
                     style={{ stroke: `var(--${token})` }}
                     strokeWidth={highlighted ? 2.5 : 1.5}
                     strokeOpacity={highlighted ? 1 : 0.85}
-                    markerEnd={edge.relationType === "REFERENCES" || edge.relationType === "DEPENDS_ON" || edge.relationType === "PREREQUISITE_OF" ? "url(#graph-arrow)" : undefined}
+                    markerEnd={edge.relationType === "REFERENCES" || edge.relationType === "DEPENDS_ON" || edge.relationType === "PREREQUISITE_OF" || edge.relationType === "PART_OF" ? "url(#graph-arrow)" : undefined}
                     vectorEffect="non-scaling-stroke"
                   />
                   {highlighted && sourceNode && targetNode ? (

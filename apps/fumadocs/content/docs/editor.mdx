@@ -62,7 +62,7 @@ Removing a link soft-deletes its derived edge. Manual typed relations are separa
 
 ## Sub-pages
 
-A page can contain other pages. The hierarchy is stored on `Page.parentId`, so a sub-page is a normal page with a parent — it keeps its own document, tags, comments, versions, and graph node.
+A page can contain other pages. The hierarchy is stored on `Page.parentId`, so a sub-page is a normal page with a parent — it keeps its own document, tags, comments, versions, and graph node, and the graph connects it to its parent with a derived `PART_OF` edge.
 
 - **Create** one from the **Sub-pages** list at the bottom of a page, the `+` on a sidebar page row, `/sub-page` in the body, `[[` → **Create …**, or **Page actions → New sub-page**.
 - **Navigate** through the nested sidebar tree or the breadcrumb trail; opening a child expands its ancestors, and the page's own children are listed under its body.

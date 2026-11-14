@@ -153,7 +153,7 @@ export const upsertEdgeInput = z.object({
   relationType: relationTypeSchema,
   label: z.string().max(200).nullable().optional(),
   weight: z.number().min(0).max(10).optional(),
-  origin: z.enum(["MANUAL", "PAGE_LINK", "CANVAS_LINK", "AI"]).optional(),
+  origin: z.enum(["MANUAL", "PAGE_LINK", "CANVAS_LINK", "PAGE_TREE", "AI"]).optional(),
   aiGenerated: z.boolean().optional(),
 });
 

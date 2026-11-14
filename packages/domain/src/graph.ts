@@ -193,6 +193,29 @@ export function buildDerivedGraph(
   }
 
   const timestamp = new Date().toISOString();
+  // A sub-page belongs to its parent. Deriving the PART_OF edge from `parentId`
+  // keeps the hierarchy in the graph without storing another copy of it, and a
+  // manual PART_OF edge on the same pair still takes precedence.
+  for (const page of pages) {
+    if (page.deletedAt || !page.parentId || page.parentId === page.id) continue;
+    if (!pageById.has(page.parentId)) continue;
+    const edge: KnowledgeEdge = {
+      id: `derived:tree:${page.id}:${page.parentId}`,
+      workspaceId: page.workspaceId,
+      sourceNodeId: page.id,
+      targetNodeId: page.parentId,
+      relationType: "PART_OF",
+      label: null,
+      weight: 1,
+      origin: "PAGE_TREE",
+      aiGenerated: false,
+      createdById: page.createdById,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    if (!edges.has(edgeKey(edge))) edges.set(edgeKey(edge), edge);
+  }
+
   for (const page of pages) {
     if (page.deletedAt) continue;
     const document = documentByPage.get(page.id);

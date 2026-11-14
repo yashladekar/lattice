@@ -24,7 +24,7 @@ Every page and canvas has a graph node. Additional topic, concept, project, pers
 | `CREATED_FROM` | Derived from another object |
 | `CONNECTED_THROUGH` | Shared canvas or theme |
 
-`REFERENCES` edges are maintained automatically when a document with `pageLink` nodes is saved. `CONNECTED_THROUGH` edges are derived from canvases: a linked note card or nested canvas on a whiteboard connects the canvas node to the page or canvas it references. Manual edges carry `origin: "MANUAL"`; AI suggestions can be accepted into manual edges or left as pending suggestions.
+`PART_OF` edges are derived from the page tree: a page with a `parentId` is connected to its parent. Moving or re-parenting a page moves the edge with it, and a manual `PART_OF` relation on the same pair is kept instead of duplicated. `REFERENCES` edges are maintained automatically when a document with `pageLink` nodes is saved. `CONNECTED_THROUGH` edges are derived from canvases: a linked note card or nested canvas on a whiteboard connects the canvas node to the page or canvas it references. Manual edges carry `origin: "MANUAL"`; AI suggestions can be accepted into manual edges or left as pending suggestions.
 
 ## Graph view
 

@@ -83,6 +83,45 @@ describe("graph derivation", () => {
     expect(orphanNodes(graph.nodes, graph.edges)).toHaveLength(1);
   });
 
+  it("derives a PART_OF edge from a sub-page to its parent", () => {
+    const pages = [
+      page("parent", "Parent"),
+      page("child", "Child", { parentId: "parent" }),
+      page("orphan", "Orphan"),
+    ];
+    const graph = buildDerivedGraph(pages, [], [], [], []);
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.edges[0]).toMatchObject({
+      sourceNodeId: "child",
+      targetNodeId: "parent",
+      relationType: "PART_OF",
+      origin: "PAGE_TREE",
+    });
+    expect(summarizeGraph(graph)).toEqual({ nodes: 3, edges: 1, orphans: 1, clusters: 2 });
+  });
+
+  it("keeps a manual PART_OF edge instead of duplicating the hierarchy edge", () => {
+    const pages = [page("parent", "Parent"), page("child", "Child", { parentId: "parent" })];
+    const manual: KnowledgeEdge = {
+      id: "manual-part-of",
+      workspaceId: "w1",
+      sourceNodeId: "child",
+      targetNodeId: "parent",
+      relationType: "PART_OF",
+      label: "Chosen by hand",
+      weight: 2,
+      origin: "MANUAL",
+      aiGenerated: false,
+      createdById: "u1",
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+    const graph = buildDerivedGraph(pages, [], [], [], [manual]);
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.edges[0]?.origin).toBe("MANUAL");
+  });
+
   it("derives CONNECTED_THROUGH edges from canvas cards and nested canvases", () => {
     const pages = [page("p1", "One"), page("p2", "Two")];
     const canvas = (id: string, title: string, elements: Canvas["data"]["elements"]): Canvas => ({

@@ -42,7 +42,7 @@ export const RELATION_TYPES = [
 ] as const;
 export type RelationType = (typeof RELATION_TYPES)[number];
 
-export const EDGE_ORIGINS = ["MANUAL", "PAGE_LINK", "CANVAS_LINK", "AI"] as const;
+export const EDGE_ORIGINS = ["MANUAL", "PAGE_LINK", "CANVAS_LINK", "PAGE_TREE", "AI"] as const;
 export type EdgeOrigin = (typeof EDGE_ORIGINS)[number];
 
 export const CAPTURE_TYPES = [
