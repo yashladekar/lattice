@@ -1,4 +1,5 @@
 import type { AiConfig, Context } from "../context";
+import { outbound } from "../services/outbound";
 import { ChatGptError, streamChatGptResponse } from "./chatgpt";
 
 export interface ChatMessage {
@@ -128,22 +129,25 @@ export async function chatCompletion(
   }
 
   const endpoint = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
-  const timeout = AbortSignal.timeout(45_000);
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${config.apiKey}`,
+    const response = await outbound.fetch(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${config.apiKey}`,
+        },
+        signal,
+        body: JSON.stringify({
+          model: config.model,
+          temperature: 0.2,
+          max_tokens: options.maxTokens ?? 1200,
+          messages,
+        }),
       },
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-      body: JSON.stringify({
-        model: config.model,
-        temperature: 0.2,
-        max_tokens: options.maxTokens ?? 1200,
-        messages,
-      }),
-    });
+      { allowLoopback: true, allowPrivate: true, timeoutMs: 45_000 },
+    );
     if (!response.ok) {
       return {
         ok: false,
@@ -260,18 +264,21 @@ export async function embedTexts(
   if (!inputs.length) return [];
   const endpoint = `${config.baseUrl.replace(/\/$/, "")}/embeddings`;
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${config.apiKey}`,
+    const response = await outbound.fetch(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.embeddingModel ?? "text-embedding-3-small",
+          input: inputs,
+        }),
       },
-      signal: AbortSignal.timeout(30_000),
-      body: JSON.stringify({
-        model: config.embeddingModel ?? "text-embedding-3-small",
-        input: inputs,
-      }),
-    });
+      { allowLoopback: true, allowPrivate: true, timeoutMs: 30_000 },
+    );
     if (!response.ok) return null;
     const json = (await response.json()) as {
       data?: Array<{ embedding?: unknown; index?: number }>;
@@ -303,12 +310,15 @@ export async function transcribeAudio(
     const form = new FormData();
     form.set("model", config.transcribeModel ?? "whisper-1");
     form.set("file", new Blob([copy.buffer], { type: input.mime }), input.filename);
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { authorization: `Bearer ${config.apiKey}` },
-      body: form,
-      signal: AbortSignal.timeout(120_000),
-    });
+    const response = await outbound.fetch(
+      endpoint,
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${config.apiKey}` },
+        body: form,
+      },
+      { allowLoopback: true, allowPrivate: true, timeoutMs: 120_000 },
+    );
     if (!response.ok) return null;
     const json = (await response.json()) as { text?: unknown };
     if (typeof json.text !== "string") return null;

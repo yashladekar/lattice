@@ -3,14 +3,14 @@ import {
   buildSnippet,
   cosineSimilarityVectors,
   isEmbeddingVector,
-  scoreText,
   type AiCitation,
   type Role,
 } from "@notes-learning/domain";
 
 import { embedTexts } from "../ai/provider";
 import type { AiConfig } from "../context";
-import { getAccessiblePageIds } from "./sync";
+import { getAccessiblePageIds } from "./page-access";
+import { searchWorkspace } from "./search";
 
 export interface RetrievedPage {
   pageId: string;
@@ -36,36 +36,65 @@ export async function retrievePages(
   limit = 8,
 ): Promise<RetrievedPage[]> {
   const allowed = await getAccessiblePageIds(db, workspaceId, userId, role);
-  const pages = await db.page.findMany({
-    where: {
-      workspaceId,
-      deletedAt: null,
-      ...(scope?.notebookId ? { notebookId: scope.notebookId } : {}),
-      ...(scope?.pageIds?.length ? { id: { in: scope.pageIds } } : {}),
-      ...(allowed ? { id: { in: [...allowed] } } : {}),
-    },
-  });
-  const documents = await db.pageDocument.findMany({
-    where: { workspaceId, pageId: { in: pages.map((page) => page.id) } },
-  });
-  const documentByPage = new Map(
-    documents.map((document) => [document.pageId, document.plainText]),
-  );
-  return pages
-    .map((page) => {
-      const body = documentByPage.get(page.id) ?? "";
+  if (!query.trim()) {
+    const pages = await db.page.findMany({
+      where: {
+        workspaceId,
+        deletedAt: null,
+        ...(scope?.notebookId ? { notebookId: scope.notebookId } : {}),
+        ...(scope?.pageIds?.length ? { id: { in: scope.pageIds } } : {}),
+        ...(allowed ? { id: { in: [...allowed] } } : {}),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      include: { document: true },
+    });
+    return pages.map((page) => {
+      const body = page.document?.plainText ?? "";
       return {
         pageId: page.id,
         title: page.title,
         body,
-        score: scoreText(query, page.title, body),
-        excerpt: buildSnippet(body, query, 700),
+        score: 0,
+        excerpt: buildSnippet(body, "", 700),
         updatedAt: page.updatedAt.toISOString(),
       };
-    })
-    .filter((page) => page.score > 0 || !query)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+    });
+  }
+
+  const hits = await searchWorkspace(db, {
+    workspaceId,
+    query,
+    limit,
+    types: ["page"],
+    match: "any",
+    allowedPageIds: allowed,
+    ...(scope?.notebookId ? { notebookId: scope.notebookId } : {}),
+    ...(scope?.pageIds?.length ? { pageIds: scope.pageIds } : {}),
+  });
+  if (!hits.length) return [];
+
+  // The full bodies are fetched only for the pages that survived ranking.
+  const pages = await db.page.findMany({
+    where: { id: { in: hits.map((hit) => hit.id) }, workspaceId, deletedAt: null },
+    include: { document: true },
+  });
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  return hits.flatMap((hit) => {
+    const page = byId.get(hit.id);
+    if (!page) return [];
+    const body = page.document?.plainText ?? "";
+    return [
+      {
+        pageId: page.id,
+        title: page.title,
+        body,
+        score: hit.score,
+        excerpt: buildSnippet(body, query, 700),
+        updatedAt: page.updatedAt.toISOString(),
+      },
+    ];
+  });
 }
 
 /**

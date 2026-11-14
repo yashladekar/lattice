@@ -16,8 +16,8 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
+import { assertPageReadable, getAccessiblePageIds } from "../services/page-access";
 import { pushSync } from "../services/sync";
-import { getAccessiblePageIds } from "../services/sync";
 
 type GraphNodeRow = { id: string; pageId: string | null };
 type GraphEdgeRow = { sourceNodeId: string; targetNodeId: string };
@@ -83,12 +83,6 @@ export const graphRouter = {
   node: workspaceProcedure("VIEWER")
     .input(z.object({ nodeId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
-      const allowed = await getAccessiblePageIds(
-        context.db,
-        context.workspaceId,
-        context.userId,
-        context.role,
-      );
       const node = await context.db.knowledgeNode.findFirst({
         where: {
           id: input.nodeId,
@@ -97,8 +91,18 @@ export const graphRouter = {
         },
       });
       if (!node) throw new ORPCError("NOT_FOUND");
-      if (node.pageId && allowed && !allowed.has(node.pageId)) {
-        throw new ORPCError("NOT_FOUND");
+      if (node.pageId) {
+        try {
+          await assertPageReadable(
+            context.db,
+            context.workspaceId,
+            node.pageId,
+            context.userId,
+            context.role,
+          );
+        } catch {
+          throw new ORPCError("NOT_FOUND");
+        }
       }
       const [outgoing, incoming] = await Promise.all([
         context.db.knowledgeEdge.findMany({
@@ -247,12 +251,16 @@ export const graphRouter = {
       context.userId,
       context.role,
     );
+    // Pairwise similarity is quadratic; keep the candidate set bounded to the
+    // most recently touched pages instead of every page ever written.
     const pages = await context.db.page.findMany({
       where: {
         workspaceId: context.workspaceId,
         deletedAt: null,
         ...(allowed ? { id: { in: [...allowed] } } : {}),
       },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
     });
     const documents = await context.db.pageDocument.findMany({
       where: {
@@ -261,9 +269,19 @@ export const graphRouter = {
       },
     });
     const documentByPage = new Map(documents.map((document) => [document.pageId, document]));
-    const edges = await context.db.knowledgeEdge.findMany({
-      where: { workspaceId: context.workspaceId, deletedAt: null },
-    });
+    const candidateIds = pages.map((page) => page.id);
+    const edges = candidateIds.length
+      ? await context.db.knowledgeEdge.findMany({
+          where: {
+            workspaceId: context.workspaceId,
+            deletedAt: null,
+            OR: [
+              { sourceNodeId: { in: candidateIds } },
+              { targetNodeId: { in: candidateIds } },
+            ],
+          },
+        })
+      : [];
     const existing = new Set(
       edges.map((edge) => `${edge.sourceNodeId}->${edge.targetNodeId}`),
     );

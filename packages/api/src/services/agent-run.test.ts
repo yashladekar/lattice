@@ -21,7 +21,7 @@ vi.mock("../ai/provider", () => ({
 }));
 
 const ai: AiConfig = {
-  baseUrl: "https://provider.example.com/v1",
+  baseUrl: "https://8.8.8.8/v1",
   apiKey: "test-key",
   model: "test-model",
 };

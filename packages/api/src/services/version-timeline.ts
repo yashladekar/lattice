@@ -1,7 +1,7 @@
 import type { Database } from "@notes-learning/db";
 import { extractPageLinks, safeDoc, type Role } from "@notes-learning/domain";
 
-import { getAccessiblePageIds } from "./sync";
+import { getAccessiblePageIds } from "./page-access";
 
 export interface VersionTimelineEntryDto {
   id: string;

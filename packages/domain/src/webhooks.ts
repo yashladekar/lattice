@@ -1,3 +1,5 @@
+import { isIpLiteral, isPublicAddress } from "./outbound";
+
 export const WEBHOOK_EVENTS = [
   "page.updated",
   "page.deleted",
@@ -33,8 +35,8 @@ export function isWebhookEvent(value: unknown): value is WebhookEvent {
 
 /**
  * Webhook targets must be public HTTPS endpoints. Literal private addresses,
- * localhost, and bare hostnames are refused; DNS-based SSRF checks are left to
- * the deployment's egress policy.
+ * localhost, and bare hostnames are refused here; delivery resolves the host
+ * again through the shared outbound policy.
  */
 export function isSafeWebhookUrl(value: string): boolean {
   let url: URL;
@@ -45,19 +47,14 @@ export function isSafeWebhookUrl(value: string): boolean {
   }
   if (url.protocol !== "https:") return false;
   const host = url.hostname.toLowerCase();
-  if (!host || host.startsWith("[")) return false;
+  if (!host) return false;
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) {
     return false;
   }
-  if (!host.includes(".")) return false;
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-    const [a, b] = host.split(".").map(Number) as [number, number];
-    if (a === 0 || a === 10 || a === 127) return false;
-    if (a === 169 && b === 254) return false;
-    if (a === 192 && b === 168) return false;
-    if (a === 172 && b >= 16 && b <= 31) return false;
-  }
-  return true;
+  // Literal addresses are checked here; hostnames are resolved again at
+  // delivery, where the shared outbound policy can see every answer.
+  if (isIpLiteral(host)) return isPublicAddress(host);
+  return host.includes(".");
 }
 
 /**

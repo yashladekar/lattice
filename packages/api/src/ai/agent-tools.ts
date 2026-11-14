@@ -11,9 +11,8 @@ import {
 } from "@notes-learning/domain";
 import { z } from "zod";
 
-import { assertPageReadable } from "../services/page-access";
+import { assertPageReadable, getAccessiblePageIds } from "../services/page-access";
 import { retrievePages } from "../services/retrieval";
-import { getAccessiblePageIds } from "../services/sync";
 
 /**
  * Everything the agent can do on the server is a read. Writes are proposed as a

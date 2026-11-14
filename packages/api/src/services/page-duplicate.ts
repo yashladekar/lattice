@@ -9,8 +9,8 @@ import {
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 
-import { assertPageAccess } from "./page-access";
-import { getAccessiblePageIds, pushSync } from "./sync";
+import { assertPageAccess, getAccessiblePageIds } from "./page-access";
+import { pushSync } from "./sync";
 
 export interface DuplicatePageSubtreeInput {
   workspaceId: string;

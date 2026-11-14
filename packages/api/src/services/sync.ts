@@ -25,9 +25,9 @@ import {
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 
-import { requireMembership } from "../authz";
+import { requireMembership, type WorkspaceAccess } from "../authz";
 import { appendChanges, ensureCanvasNode, ensurePageNode, recomputePageLinkEdges, toJsonSafe, type PendingChange } from "./changes";
-import { assertPageAccess } from "./page-access";
+import { assertPageAccess, filterAccessiblePageIds } from "./page-access";
 
 const CURRENT_SCHEMA_VERSION = 1;
 
@@ -306,9 +306,13 @@ async function applyPage(
       where: { workspaceId },
       select: { id: true, parentId: true, deletedAt: true },
     });
-    const allowed = await getAccessiblePageIds(tx, workspaceId, userId, role);
+    const descendants = descendantPageIds(existing.id, workspacePages, { includeDeleted: true });
+    const allowed = await filterAccessiblePageIds(tx, { workspaceId, userId, role }, [
+      existing.id,
+      ...descendants,
+    ]);
     const targetIds = new Set<string>([existing.id]);
-    for (const id of descendantPageIds(existing.id, workspacePages, { includeDeleted: true })) {
+    for (const id of descendants) {
       if (!allowed || allowed.has(id)) targetIds.add(id);
     }
     const targets = await tx.page.findMany({
@@ -1761,37 +1765,6 @@ interface StoredOpResult {
   conflict?: SyncConflictPayload;
 }
 
-export async function getAccessiblePageIds(
-  db: Pick<Database, "page" | "resourcePermission">,
-  workspaceId: string,
-  userId: string,
-  role: Role,
-): Promise<Set<string> | null> {
-  if (hasRole(role, "ADMIN")) return null;
-  const [pages, permissions] = await Promise.all([
-    db.page.findMany({
-      where: { workspaceId },
-      select: { id: true, createdById: true, visibility: true },
-    }),
-    db.resourcePermission.findMany({
-      where: { workspaceId, userId, resourceType: "PAGE" },
-      select: { resourceId: true },
-    }),
-  ]);
-  const shared = new Set(permissions.map((permission) => permission.resourceId));
-  const allowed = new Set<string>();
-  for (const page of pages) {
-    if (
-      page.createdById === userId ||
-      page.visibility === "WORKSPACE" ||
-      page.visibility === "PUBLIC" ||
-      shared.has(page.id)
-    ) {
-      allowed.add(page.id);
-    }
-  }
-  return allowed;
-}
 
 function changeVisible(
   change: { entity: string; entityId: string; data: unknown },
@@ -1828,12 +1801,27 @@ function changeVisible(
   }
 }
 
-async function nodePageMap(db: Database, workspaceId: string): Promise<Map<string, string | null>> {
-  const nodes = await db.knowledgeNode.findMany({
-    where: { workspaceId },
-    select: { id: true, pageId: true },
-  });
-  return new Map(nodes.map((node) => [node.id, node.pageId]));
+function batchPageAndNodeIds(
+  rows: Array<{ entity: string; entityId: string; data: unknown }>,
+): { pageIds: string[]; nodeIds: string[] } {
+  const pageIds = new Set<string>();
+  const nodeIds = new Set<string>();
+  for (const row of rows) {
+    const data = recordValue(row.data) ?? {};
+    if (row.entity === "page" || row.entity === "pageDocument") {
+      pageIds.add(row.entityId);
+    } else {
+      const pageId = stringValue(data.pageId);
+      if (pageId) pageIds.add(pageId);
+    }
+    if (row.entity === "edge") {
+      const source = stringValue(data.sourceNodeId);
+      const target = stringValue(data.targetNodeId);
+      if (source) nodeIds.add(source);
+      if (target) nodeIds.add(target);
+    }
+  }
+  return { pageIds: [...pageIds], nodeIds: [...nodeIds] };
 }
 
 
@@ -1843,13 +1831,18 @@ export async function pushSync(
     workspaceId: string;
     userId: string;
     ops: SyncOpInput[];
+    /** Membership the request middleware already resolved, when available. */
+    membership?: WorkspaceAccess;
     isCollaborating?: (resourceType: "page" | "canvas", resourceId: string) => boolean;
     invalidateCollab?: (resourceType: "page" | "canvas", resourceId: string) => void;
   },
 ): Promise<SyncPushResponse> {
   // The gateway allows viewers through because comments and suggested edits are
   // viewer-level writes; every entity apply enforces its own required role.
-  const membership = await requireMembership(db, input.userId, input.workspaceId, "VIEWER");
+  const membership =
+    input.membership ??
+    (await requireMembership(db, input.userId, input.workspaceId, "VIEWER"));
+  if (!hasRole(membership.role, "VIEWER")) throw new ORPCError("FORBIDDEN");
   const staleCollab: Array<{ resourceType: "page" | "canvas"; resourceId: string }> = [];
   const orderedOps = orderSyncOps(input.ops);
   const response = await db.$transaction(
@@ -1943,11 +1936,14 @@ export async function pullSync(
     userId: string;
     cursor?: string | null;
     limit: number;
+    /** Membership the request middleware already resolved, when available. */
+    membership?: WorkspaceAccess;
   },
 ): Promise<{ changes: unknown[]; cursor: SyncCursor | null; hasMore: boolean }> {
-  const membership = await requireMembership(db, input.userId, input.workspaceId, "VIEWER");
-  const allowed = await getAccessiblePageIds(db, input.workspaceId, input.userId, membership.role);
-  const nodeMap = allowed ? await nodePageMap(db, input.workspaceId) : null;
+  const membership =
+    input.membership ??
+    (await requireMembership(db, input.userId, input.workspaceId, "VIEWER"));
+  if (!hasRole(membership.role, "VIEWER")) throw new ORPCError("FORBIDDEN");
   const cursor = decodeCursor(input.cursor);
   const rows = await db.syncChange.findMany({
     where: {
@@ -1967,8 +1963,30 @@ export async function pullSync(
   const hasMore = rows.length > input.limit;
   const page = hasMore ? rows.slice(0, input.limit) : rows;
   const last = page[page.length - 1];
+  // Check only the pages this batch mentions, so a pull costs the same in a
+  // ten-page workspace and a ten-thousand-page one.
+  const candidates = batchPageAndNodeIds(page);
+  const needsFiltering = !hasRole(membership.role, "ADMIN");
+  const nodes = needsFiltering && candidates.nodeIds.length
+    ? await db.knowledgeNode.findMany({
+        where: { workspaceId: input.workspaceId, id: { in: candidates.nodeIds } },
+        select: { id: true, pageId: true },
+      })
+    : [];
+  const nodeMap = new Map(nodes.map((node) => [node.id, node.pageId]));
+  // An edge is visible when both endpoints are. Its endpoints' pages are only
+  // known after the node lookup, so they join the batch before the access check.
+  const pageIds = new Set(candidates.pageIds);
+  for (const node of nodes) {
+    if (node.pageId) pageIds.add(node.pageId);
+  }
+  const allowed = await filterAccessiblePageIds(
+    db,
+    { workspaceId: input.workspaceId, userId: input.userId, role: membership.role },
+    pageIds,
+  );
   const changes = page
-    .filter((change) => changeVisible(change, allowed, nodeMap ?? new Map()))
+    .filter((change) => changeVisible(change, allowed, nodeMap))
     .map((change) => ({
       id: change.id,
       workspaceId: change.workspaceId,
@@ -1995,9 +2013,15 @@ export async function resolveSyncConflict(
     conflictId: string;
     resolution: "KEEP_LOCAL" | "KEEP_REMOTE";
     content?: Record<string, unknown>;
+    /** Membership the request middleware already resolved, when available. */
+    membership?: WorkspaceAccess;
   },
 ): Promise<{ ok: true }> {
-  await requireMembership(db, input.userId, input.workspaceId, "EDITOR");
+  if (input.membership) {
+    if (!hasRole(input.membership.role, "EDITOR")) throw new ORPCError("FORBIDDEN");
+  } else {
+    await requireMembership(db, input.userId, input.workspaceId, "EDITOR");
+  }
   return db.$transaction(async (tx) => {
     const conflict = await tx.syncConflict.findFirst({
       where: {

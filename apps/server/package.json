@@ -3,7 +3,8 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "build": "tsc -b ../../packages/api && tsdown",
+    "build": "tsc -b ../../packages/api && tsdown && node scripts/check-runtime-deps.mjs",
+    "check-runtime-deps": "node scripts/check-runtime-deps.mjs",
     "check-types": "tsc -b ../../packages/api && tsc --noEmit",
     "compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "tsx watch src/index.ts",

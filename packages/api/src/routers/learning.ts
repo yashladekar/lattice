@@ -21,7 +21,8 @@ import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
 import { appendChanges, toJsonSafe, type PendingChange } from "../services/changes";
-import { getAccessiblePageIds, pushSync } from "../services/sync";
+import { assertPageReadable, getAccessiblePageIds } from "../services/page-access";
+import { pushSync } from "../services/sync";
 
 export const learningRouter = {
   decks: workspaceProcedure("VIEWER").handler(async ({ context }) => {
@@ -135,13 +136,13 @@ export const learningRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      const allowed = await getAccessiblePageIds(
+      await assertPageReadable(
         context.db,
         context.workspaceId,
+        input.pageId,
         context.userId,
         context.role,
       );
-      if (allowed && !allowed.has(input.pageId)) throw new ORPCError("FORBIDDEN");
       const page = await context.db.page.findFirst({
         where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
         include: { document: true },
@@ -462,15 +463,13 @@ export const learningRouter = {
   outline: workspaceProcedure("VIEWER")
     .input(z.object({ pageId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
-      const allowed = await getAccessiblePageIds(
+      await assertPageReadable(
         context.db,
         context.workspaceId,
+        input.pageId,
         context.userId,
         context.role,
       );
-      if (allowed && !allowed.has(input.pageId)) {
-        throw new ORPCError("NOT_FOUND", { message: "Page not found" });
-      }
       const page = await context.db.page.findFirst({
         where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
         include: { document: true },

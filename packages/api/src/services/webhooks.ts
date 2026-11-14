@@ -1,7 +1,9 @@
 import { createHmac } from "node:crypto";
 
 import type { Database } from "@notes-learning/db";
-import { isSafeWebhookUrl } from "@notes-learning/domain";
+import { isSafeWebhookUrl, OutboundError } from "@notes-learning/domain";
+
+import { outbound } from "./outbound";
 
 export function signWebhookPayload(secret: string, body: string): string {
   return `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
@@ -69,18 +71,21 @@ export async function deliverWebhookBatch(
 
     const body = JSON.stringify(delivery.payload);
     try {
-      const response = await fetch(endpoint.url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "user-agent": "Lattice-Webhooks/1.0",
-          "x-lattice-event": delivery.event,
-          "x-lattice-delivery": delivery.id,
-          "x-lattice-signature": signWebhookPayload(endpoint.secret, body),
+      const response = await outbound.fetch(
+        endpoint.url,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "user-agent": "Lattice-Webhooks/1.0",
+            "x-lattice-event": delivery.event,
+            "x-lattice-delivery": delivery.id,
+            "x-lattice-signature": signWebhookPayload(endpoint.secret, body),
+          },
+          body,
         },
-        body,
-        signal: AbortSignal.timeout(8_000),
-      });
+        { timeoutMs: 8_000 },
+      );
       if (!response.ok) throw new Error(`Endpoint returned ${response.status}.`);
       await db.webhookDelivery.update({
         where: { id: delivery.id },
@@ -97,6 +102,20 @@ export async function deliverWebhookBatch(
       });
       delivered += 1;
     } catch (error) {
+      // A destination that resolves to a private address is not going to
+      // become deliverable on a retry; cancel it like a disabled endpoint.
+      if (error instanceof OutboundError) {
+        await db.webhookDelivery.update({
+          where: { id: delivery.id },
+          data: {
+            attempts,
+            status: "CANCELLED",
+            lastError: error.message.slice(0, 300),
+          },
+        });
+        skipped += 1;
+        continue;
+      }
       const exhausted = attempts >= MAX_WEBHOOK_ATTEMPTS;
       const backoff = BACKOFF_MINUTES[Math.min(attempts - 1, BACKOFF_MINUTES.length - 1)] ?? 1;
       await db.webhookDelivery.update({

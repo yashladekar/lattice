@@ -19,11 +19,16 @@ import {
   recomputePageLinkEdges,
   toJsonSafe,
 } from "../services/changes";
-import { assertPageAccess, assertPageReadable, assertPageWriteAccess } from "../services/page-access";
+import {
+  assertPageAccess,
+  assertPageReadable,
+  assertPageWriteAccess,
+  readablePageWhere,
+} from "../services/page-access";
 import { duplicatePageSubtree } from "../services/page-duplicate";
 import { movePageSubtree } from "../services/page-move";
 import { restorePageSubtree } from "../services/page-tree";
-import { getAccessiblePageIds, pushSync } from "../services/sync";
+import { pushSync } from "../services/sync";
 import { versionTimeline } from "../services/version-timeline";
 
 const pageIdInput = z.object({ pageId: z.string().min(1) });
@@ -48,36 +53,28 @@ async function loadTemplateContent(
 
 export const pageRouter = {
   list: workspaceProcedure("VIEWER").handler(async ({ context }) => {
-    const allowed = await getAccessiblePageIds(
-      context.db,
-      context.workspaceId,
-      context.userId,
-      context.role,
-    );
-    const pages = await context.db.page.findMany({
-      where: { workspaceId: context.workspaceId, deletedAt: null },
+    const where = await readablePageWhere(context.db, {
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+      role: context.role,
+    });
+    return context.db.page.findMany({
+      where: { ...where, deletedAt: null },
       orderBy: [{ notebookId: "asc" }, { sortOrder: "asc" }, { updatedAt: "desc" }],
     });
-    return allowed ? pages.filter((page) => allowed.has(page.id)) : pages;
   }),
 
   recent: workspaceProcedure("VIEWER").handler(async ({ context }) => {
-    const allowed = await getAccessiblePageIds(
-      context.db,
-      context.workspaceId,
-      context.userId,
-      context.role,
-    );
-    const pages = await context.db.page.findMany({
-      where: {
-        workspaceId: context.workspaceId,
-        deletedAt: null,
-        ...(allowed ? { id: { in: [...allowed] } } : {}),
-      },
+    const where = await readablePageWhere(context.db, {
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+      role: context.role,
+    });
+    return context.db.page.findMany({
+      where: { ...where, deletedAt: null },
       orderBy: { updatedAt: "desc" },
       take: 20,
     });
-    return pages;
   }),
 
   get: workspaceProcedure("VIEWER")
@@ -517,22 +514,16 @@ export const pageRouter = {
   }),
 
   trash: workspaceProcedure("VIEWER").handler(async ({ context }) => {
-    const allowed = await getAccessiblePageIds(
-      context.db,
-      context.workspaceId,
-      context.userId,
-      context.role,
-    );
-    const pages = await context.db.page.findMany({
-      where: {
-        workspaceId: context.workspaceId,
-        deletedAt: { not: null },
-        ...(allowed ? { id: { in: [...allowed] } } : {}),
-      },
+    const where = await readablePageWhere(context.db, {
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+      role: context.role,
+    });
+    return context.db.page.findMany({
+      where: { ...where, deletedAt: { not: null } },
       orderBy: { deletedAt: "desc" },
       take: 100,
     });
-    return pages;
   }),
 
   restore: workspaceProcedure("EDITOR")

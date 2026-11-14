@@ -5,7 +5,8 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
-import { getAccessiblePageIds, pushSync } from "../services/sync";
+import { assertPageReadable } from "../services/page-access";
+import { pushSync } from "../services/sync";
 
 async function ensurePageAccess(
   context: {
@@ -16,20 +17,13 @@ async function ensurePageAccess(
   },
   pageId: string,
 ): Promise<void> {
-  const allowed = await getAccessiblePageIds(
+  await assertPageReadable(
     context.db,
     context.workspaceId,
+    pageId,
     context.userId,
     context.role,
   );
-  if (allowed && !allowed.has(pageId)) {
-    throw new ORPCError("FORBIDDEN", { message: "You do not have access to this page" });
-  }
-  const page = await context.db.page.findFirst({
-    where: { id: pageId, workspaceId: context.workspaceId, deletedAt: null },
-    select: { id: true },
-  });
-  if (!page) throw new ORPCError("NOT_FOUND", { message: "Page not found" });
 }
 
 async function notifyMentions(

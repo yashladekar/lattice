@@ -26,11 +26,27 @@ pnpm docker:down
 
 Postgres data uses the `notes-learning_postgres_data` volume. API uploads are mounted at `/app/apps/server/storage` through the `notes-learning_uploads` volume, so attachments survive container replacement. Point `UPLOAD_DIR` elsewhere if you mount a different path.
 
-The container applies the committed Prisma migrations before the API starts, so a fresh database needs no manual step. A database created earlier with `db push` has no migration history; mark the baseline once against that database, then start the container:
+The API image runs as the unprivileged `node` user. A fresh uploads volume inherits that ownership; a volume created by an older root-run image needs one fix-up:
+
+```bash
+docker compose run --rm --no-deps --user root server chown -R node:node /app/apps/server/storage
+```
+
+Compose starts a one-shot `migrate` service before the API, so a fresh database needs no manual step. The migration image carries only the Prisma CLI, schema, and migrations, not the application. To run it on its own:
+
+```bash
+docker compose up migrate
+```
+
+A database created earlier with `db push` has no migration history; mark the baseline once against that database, then start the stack:
 
 ```bash
 pnpm --filter @notes-learning/db exec prisma migrate resolve --applied 20261113000000_init
 ```
+
+### Multiple API replicas
+
+Webhook delivery and retention sweeps take a Postgres advisory lock, so only one replica runs each job at a time. The rate limiter keeps its counters in memory, so its limits are per replica; account for the replica count when tuning them.
 
 ## Web runtime configuration
 

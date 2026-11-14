@@ -5,7 +5,8 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
-import { getAccessiblePageIds, pushSync } from "../services/sync";
+import { assertPageReadable, getAccessiblePageIds } from "../services/page-access";
+import { pushSync } from "../services/sync";
 
 export const templateRouter = {
   list: workspaceProcedure("VIEWER").handler(async ({ context }) => {
@@ -26,13 +27,13 @@ export const templateRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      const allowed = await getAccessiblePageIds(
+      await assertPageReadable(
         context.db,
         context.workspaceId,
+        input.pageId,
         context.userId,
         context.role,
       );
-      if (allowed && !allowed.has(input.pageId)) throw new ORPCError("FORBIDDEN");
       const page = await context.db.page.findFirst({
         where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
         include: { document: true },

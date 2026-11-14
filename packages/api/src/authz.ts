@@ -17,12 +17,17 @@ export async function getMembership(
   return { id: membership.id, role: membership.role as Role };
 }
 
+export interface WorkspaceAccess {
+  id: string;
+  role: Role;
+}
+
 export async function requireMembership(
   db: Database,
   userId: string,
   workspaceId: string,
   minimumRole: Role = "VIEWER",
-): Promise<{ id: string; role: Role }> {
+): Promise<WorkspaceAccess> {
   const membership = await getMembership(db, userId, workspaceId);
   if (!membership) throw new ORPCError("NOT_FOUND", { message: "Workspace not found" });
   if (!hasRole(membership.role, minimumRole)) {

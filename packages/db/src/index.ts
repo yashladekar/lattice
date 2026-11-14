@@ -10,6 +10,11 @@ export function createPrismaClient(env: DatabaseConfig) {
   return new PrismaClient({ adapter });
 }
 
+export {
+  createJobLocks,
+  isDatabaseUnavailable,
+  type JobLocks,
+} from "./job-lock";
 export { Prisma };
 export type Database = ReturnType<typeof createPrismaClient>;
 export type TransactionClient = Prisma.TransactionClient;

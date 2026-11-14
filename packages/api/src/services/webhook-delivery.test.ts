@@ -40,7 +40,7 @@ describeWithDatabase("webhook deliveries", () => {
         id,
         workspaceId: workspace.id,
         name: input.name,
-        url: "https://hooks.example.com/lattice",
+        url: "https://8.8.8.8/lattice",
         secret: input.secret ?? "whsec_test_secret",
         events: ["page.updated"],
         filters: (input.filters ?? {}) as never,
@@ -127,7 +127,7 @@ describeWithDatabase("webhook deliveries", () => {
     expect(result.delivered).toBe(1);
     expect(seen).toHaveLength(1);
     const request = seen[0]!;
-    expect(request.url).toBe("https://hooks.example.com/lattice");
+    expect(request.url).toBe("https://8.8.8.8/lattice");
     expect(request.headers["x-lattice-signature"]).toBe(
       signWebhookPayload("whsec_test_secret", request.body),
     );

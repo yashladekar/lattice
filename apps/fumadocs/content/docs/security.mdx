@@ -50,6 +50,12 @@ PDF captures can be extracted from the inbox. The API reads the stored file, ext
 
 When a PDF has no text layer, or for images, the browser does the OCR instead: the stored file is downloaded with the session cookie, pages are rasterized locally with `pdfjs-dist`, and text is recognized with `tesseract.js`. Nothing is uploaded for OCR and no provider is required — the trade-off is that the first run downloads the OCR engine and English model from jsDelivr unless `NEXT_PUBLIC_TESSERACT_CDN` points at a self-hosted mirror. Up to 15 pages are read per file, and the recognized text lands through the normal capture change log. Audio captures can additionally be transcribed by the server's provider when one is configured.
 
+## Outbound requests
+
+Webhooks, SSO discovery and token exchange, URL previews, and a workspace AI provider all cross one outbound policy. It rejects credentials in the URL, requires https except for a public preview or a loopback identity provider, resolves every address the host returns, and refuses private, loopback (unless the caller opts in), link-local/metadata, multicast, and documentation ranges. Redirects are followed manually, revalidated hop by hop, capped, and stripped of authorization and cookie headers when the origin changes. An admin-configured AI provider may opt into private LAN addresses; the metadata range is never allowed.
+
+The HTTP client resolves the host again when it connects. Close that remaining DNS-rebinding window with an egress allowlist if your deployment accepts untrusted workspace owners.
+
 ## Plugins
 
 Plugins run in a worker with the ambient network, storage, and indexing APIs removed before their code loads. Every callable method maps to a capability in the domain (`PLUGIN_METHODS`), and the host answers a call only when the record granted that capability — the worker never decides what it may do.

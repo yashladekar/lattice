@@ -1,4 +1,4 @@
-import type { Database } from "@notes-learning/db";
+import type { Database, Prisma } from "@notes-learning/db";
 import { hasRole, type Role } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 
@@ -7,9 +7,11 @@ import { ORPCError } from "@orpc/server";
  *
  * Reading a page: admins, its author, workspace/public pages, and a SHARED page
  * you were granted. Writing additionally requires an editing grant on a SHARED
- * page. Callers that must check many pages at once (snapshot, search) still use
- * `getAccessiblePageIds`; this is for the single-page paths, so a viewer opening
- * a note does not load the whole workspace.
+ * page. The same rule has two surfaces: `assertPageAccess` for one page, and
+ * `readablePageWhere` for queries that must not load invisible rows. Bulk
+ * callers that need a set (snapshot, search) use `getAccessiblePageIds`;
+ * change-log filtering uses `filterAccessiblePageIds` so a pull only checks the
+ * pages it is about to return.
  */
 export interface PageAccessRecord {
   id: string;
@@ -18,12 +20,84 @@ export interface PageAccessRecord {
   visibility: string;
 }
 
+export interface PageAccessScope {
+  workspaceId: string;
+  userId: string;
+  role: Role;
+}
+
+type PageReader = Pick<Database, "page" | "resourcePermission">;
 type PermissionReader = Pick<Database, "resourcePermission">;
+
+const READABLE_VISIBILITIES = ["WORKSPACE", "PUBLIC"] as const;
 
 const DENIED = {
   read: "You do not have access to this page",
   write: "You do not have edit access to this page",
 } as const;
+
+/**
+ * Prisma filter for pages the scope may read. Always includes the workspace id,
+ * so a caller can spread it into a page query without opening a cross-workspace
+ * hole. Admins get the workspace-only filter; everyone else gets author,
+ * workspace/public visibility, or an explicit PAGE grant.
+ */
+export async function readablePageWhere(
+  db: PageReader,
+  scope: PageAccessScope,
+): Promise<Prisma.PageWhereInput> {
+  const { workspaceId, userId, role } = scope;
+  if (hasRole(role, "ADMIN")) return { workspaceId };
+  const grants = await db.resourcePermission.findMany({
+    where: { workspaceId, userId, resourceType: "PAGE" },
+    select: { resourceId: true },
+  });
+  return {
+    workspaceId,
+    OR: [
+      { createdById: userId },
+      { visibility: { in: [...READABLE_VISIBILITIES] } },
+      ...(grants.length ? [{ id: { in: grants.map((grant) => grant.resourceId) } }] : []),
+    ],
+  };
+}
+
+/**
+ * Every readable page id in the workspace, or null when the role needs no
+ * filter. Deleted pages stay in the set so trash and tombstones remain visible.
+ */
+export async function getAccessiblePageIds(
+  db: PageReader,
+  workspaceId: string,
+  userId: string,
+  role: Role,
+): Promise<Set<string> | null> {
+  if (hasRole(role, "ADMIN")) return null;
+  const where = await readablePageWhere(db, { workspaceId, userId, role });
+  const pages = await db.page.findMany({ where, select: { id: true } });
+  return new Set(pages.map((page) => page.id));
+}
+
+/**
+ * Which of the given page ids the scope may read. Used by the sync pull so the
+ * cost tracks the change batch, not the size of the workspace. Null means the
+ * role needs no filtering at all.
+ */
+export async function filterAccessiblePageIds(
+  db: PageReader,
+  scope: PageAccessScope,
+  pageIds: Iterable<string>,
+): Promise<Set<string> | null> {
+  if (hasRole(scope.role, "ADMIN")) return null;
+  const ids = [...new Set(pageIds)];
+  if (!ids.length) return new Set();
+  const where = await readablePageWhere(db, scope);
+  const pages = await db.page.findMany({
+    where: { AND: [where, { id: { in: ids } }] },
+    select: { id: true },
+  });
+  return new Set(pages.map((page) => page.id));
+}
 
 export async function assertPageAccess(
   db: PermissionReader,

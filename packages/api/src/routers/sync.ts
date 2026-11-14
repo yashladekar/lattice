@@ -47,6 +47,7 @@ export const syncRouter = {
       return pullSync(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
+        membership: { id: context.membershipId, role: context.role },
         cursor: input.cursor ?? null,
         limit: input.limit,
       });
@@ -58,6 +59,7 @@ export const syncRouter = {
       return pushSync(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
+        membership: { id: context.membershipId, role: context.role },
         ops: input.ops as SyncOpInput[],
         isCollaborating: context.collab
           ? (resourceType, resourceId) =>
@@ -87,6 +89,7 @@ export const syncRouter = {
       return resolveSyncConflict(context.db, {
         workspaceId: context.workspaceId,
         userId: context.userId,
+        membership: { id: context.membershipId, role: context.role },
         conflictId: input.conflictId,
         resolution: input.resolution,
         content: input.content,

@@ -2,10 +2,8 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import { appRouter } from "@notes-learning/api/routers/index";
-import { purgeExpiredTrash } from "@notes-learning/api/services/purge";
 import { createUploadHandler } from "@notes-learning/api/uploads";
 import { ingestEmail } from "@notes-learning/api/services/ingest-email";
-import { deliverWebhookBatch } from "@notes-learning/api/services/webhooks";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -16,6 +14,7 @@ import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import cors from "cors";
 import express from "express";
 
+import { startBackgroundJobs } from "./background-jobs";
 import { createContext } from "./context";
 import { attachCollaboration } from "./collaboration";
 import { createScimRouter } from "@notes-learning/api/scim-router";
@@ -48,7 +47,6 @@ app.use((req, res, next) => {
 });
 
 const rateLimiter = new RateLimiter();
-setInterval(() => rateLimiter.sweep(), 60_000).unref();
 app.use((req, res, next) => {
   const now = Date.now();
   const ingestRequest = req.path.startsWith("/ingest");
@@ -82,9 +80,19 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * The split-port dev flow and Expo dev server are convenient origins to
+ * trust locally, never in production. A deployment declares its own origin in
+ * CORS_ORIGIN; the desktop shell keeps its two fixed origins.
+ */
+const corsOrigins = [
+  ENV.CORS_ORIGIN,
+  ...desktopOrigins,
+  ...(ENV.NODE_ENV === "production" ? [] : ["http://localhost:3001", "http://localhost:8081"]),
+];
 app.use(
   cors({
-    origin: [ENV.CORS_ORIGIN, ...desktopOrigins, "http://localhost:3001", "http://localhost:8081"],
+    origin: corsOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-file-name", "x-workspace-id"],
     exposedHeaders: ["x-file-name"],
@@ -234,18 +242,24 @@ const apiHandler = new OpenAPIHandler(appRouter, {
 });
 
 app.use(async (req, res, next) => {
-  const rpcResult = await rpcHandler.handle(req, res, {
-    prefix: "/rpc",
-    context: await createContext({ req }),
-  });
-  if (rpcResult.matched) return;
+  const isRpc = req.path === "/rpc" || req.path.startsWith("/rpc/");
+  const isApiReference =
+    req.path === "/api-reference" || req.path.startsWith("/api-reference/");
+  if (!isRpc && !isApiReference) {
+    next();
+    return;
+  }
 
-  const apiResult = await apiHandler.handle(req, res, {
-    prefix: "/api-reference",
-    context: await createContext({ req }),
-  });
-  if (apiResult.matched) return;
-
+  // One context per request: the session lookup and any membership lookup are
+  // shared by the handler, and health checks no longer resolve a session.
+  const context = await createContext({ req });
+  if (isRpc) {
+    const result = await rpcHandler.handle(req, res, { prefix: "/rpc", context });
+    if (result.matched) return;
+  } else {
+    const result = await apiHandler.handle(req, res, { prefix: "/api-reference", context });
+    if (result.matched) return;
+  }
   next();
 });
 
@@ -282,39 +296,4 @@ const server = app.listen(Number(process.env.PORT ?? 3100), () => {
 });
 
 attachCollaboration(server);
-
-const PURGE_INTERVAL_MS = 60 * 60 * 1000;
-const runRetentionPurge = async () => {
-  try {
-    const result = await purgeExpiredTrash(db);
-    if (result.purged) {
-      console.log(
-        `Retention purge removed ${result.purged} rows across ${result.workspaces} workspace${result.workspaces === 1 ? "" : "s"}`,
-      );
-    }
-  } catch (error) {
-    console.error("Retention purge failed", error);
-  }
-};
-setTimeout(() => void runRetentionPurge(), 60_000).unref();
-setInterval(() => void runRetentionPurge(), PURGE_INTERVAL_MS).unref();
-
-let webhookRunning = false;
-const runWebhookDeliveries = async () => {
-  if (webhookRunning) return;
-  webhookRunning = true;
-  try {
-    const result = await deliverWebhookBatch(db);
-    if (result.delivered || result.failed || result.skipped) {
-      console.log(
-        `Webhooks: ${result.delivered} delivered, ${result.failed} failed, ${result.skipped} skipped`,
-      );
-    }
-  } catch (error) {
-    console.error("Webhook delivery failed", error);
-  } finally {
-    webhookRunning = false;
-  }
-};
-setTimeout(() => void runWebhookDeliveries(), 10_000).unref();
-setInterval(() => void runWebhookDeliveries(), 15_000).unref();
+startBackgroundJobs(db, rateLimiter);

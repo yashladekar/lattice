@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { normalizeIssuer } from "@notes-learning/domain";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 
+import { outbound } from "./outbound";
 import { decryptSecret, encryptSecret } from "./secrets";
 
 /**
@@ -31,10 +32,11 @@ export async function discoverOidc(issuer: string): Promise<OidcDiscovery> {
   const cached = discoveryCache.get(normalized);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
-  const response = await fetch(`${normalized}/.well-known/openid-configuration`, {
-    signal: AbortSignal.timeout(6_000),
-    headers: { accept: "application/json" },
-  });
+  const response = await outbound.fetch(
+    `${normalized}/.well-known/openid-configuration`,
+    { headers: { accept: "application/json" } },
+    { allowLoopback: true, timeoutMs: 6_000 },
+  );
   if (!response.ok) {
     throw new Error(`Discovery failed (${response.status}) for ${normalized}.`);
   }
@@ -50,6 +52,16 @@ export async function discoverOidc(issuer: string): Promise<OidcDiscovery> {
   };
   if (!value.authorization_endpoint || !value.token_endpoint || !value.jwks_uri) {
     throw new Error("The discovery document is missing authorization, token, or JWKS endpoints.");
+  }
+  // The document chooses where the server goes next. Validate every endpoint
+  // before it is cached, not just the issuer the owner typed.
+  for (const endpoint of [
+    value.authorization_endpoint,
+    value.token_endpoint,
+    value.jwks_uri,
+    value.userinfo_endpoint,
+  ]) {
+    if (endpoint) await outbound.assertSafe(endpoint, { allowLoopback: true });
   }
   discoveryCache.set(normalized, { value, expiresAt: Date.now() + DISCOVERY_TTL_MS });
   return value;
@@ -125,15 +137,18 @@ export async function exchangeCodeForIdentity(input: {
     client_secret: input.clientSecret,
     code_verifier: input.verifier,
   });
-  const response = await fetch(input.discovery.token_endpoint, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-      accept: "application/json",
+  const response = await outbound.fetch(
+    input.discovery.token_endpoint,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        accept: "application/json",
+      },
+      body,
     },
-    body,
-    signal: AbortSignal.timeout(8_000),
-  });
+    { allowLoopback: true, timeoutMs: 8_000 },
+  );
   if (!response.ok) {
     throw new Error(`The identity provider refused the code exchange (${response.status}).`);
   }
@@ -141,7 +156,11 @@ export async function exchangeCodeForIdentity(input: {
   const idToken = typeof tokens.id_token === "string" ? tokens.id_token : null;
   if (!idToken) throw new Error("The identity provider did not return an ID token.");
 
-  const jwks = createRemoteJWKSet(new URL(input.discovery.jwks_uri));
+  const jwks = createRemoteJWKSet(new URL(input.discovery.jwks_uri), {
+    timeoutDuration: 5_000,
+    [customFetch]: (url, options) =>
+      outbound.fetch(url, options, { allowLoopback: true, timeoutMs: 5_000 }),
+  });
   const { payload } = await jwtVerify(idToken, jwks, {
     issuer: input.discovery.issuer,
     audience: input.clientId,
@@ -164,10 +183,11 @@ export async function exchangeCodeForIdentity(input: {
     const accessToken = typeof tokens.access_token === "string" ? tokens.access_token : null;
     if (accessToken) {
       try {
-        const userinfo = await fetch(input.discovery.userinfo_endpoint, {
-          headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
-          signal: AbortSignal.timeout(6_000),
-        });
+        const userinfo = await outbound.fetch(
+          input.discovery.userinfo_endpoint,
+          { headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" } },
+          { allowLoopback: true, timeoutMs: 6_000 },
+        );
         if (userinfo.ok) {
           const claims = (await userinfo.json()) as Record<string, unknown>;
           if (!email && typeof claims.email === "string") email = claims.email;

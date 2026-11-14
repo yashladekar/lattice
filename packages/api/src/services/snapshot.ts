@@ -3,7 +3,7 @@ import { ORPCError } from "@orpc/server";
 
 import { toJsonSafe } from "./changes";
 
-import { getAccessiblePageIds } from "./sync";
+import { getAccessiblePageIds } from "./page-access";
 
 /**
  * Paged workspace snapshot.

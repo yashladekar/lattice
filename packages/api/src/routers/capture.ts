@@ -1,13 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { lookup } from "node:dns/promises";
 
 import {
   appendSection,
   createId,
   docFromText,
   extractPlainText,
-  relatedDocuments,
-  scoreText,
+  OutboundError,
   suggestTagNames,
   type TipTapDoc,
 } from "@notes-learning/domain";
@@ -16,7 +14,10 @@ import { extractText } from "unpdf";
 import { z } from "zod";
 
 import { workspaceProcedure } from "../index";
-import { getAccessiblePageIds, pushSync } from "../services/sync";
+import { outbound } from "../services/outbound";
+import { getAccessiblePageIds } from "../services/page-access";
+import { searchWorkspace } from "../services/search";
+import { pushSync } from "../services/sync";
 
 function decodeEntities(value: string): string {
   return value
@@ -46,24 +47,6 @@ function metaContent(html: string, property: string): string | null {
   return null;
 }
 
-async function isPrivateHost(hostname: string): Promise<boolean> {
-  if (hostname === "localhost" || hostname.endsWith(".local")) return true;
-  const addresses = await lookup(hostname, { all: true }).catch(() => []);
-  return addresses.some(({ address }) => {
-    if (address === "::1" || address.startsWith("fe80:") || address.startsWith("fc") || address.startsWith("fd")) {
-      return true;
-    }
-    const parts = address.split(".").map(Number);
-    if (parts.length !== 4) return false;
-    const [a, b] = parts;
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b !== undefined && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    return false;
-  });
-}
-
 async function urlPreview(rawUrl: string) {
   let url: URL;
   try {
@@ -74,17 +57,23 @@ async function urlPreview(rawUrl: string) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new ORPCError("BAD_REQUEST", { message: "Only http and https URLs are supported" });
   }
-  if (await isPrivateHost(url.hostname)) {
-    throw new ORPCError("BAD_REQUEST", { message: "Private addresses cannot be previewed" });
+  let response: Response | null = null;
+  try {
+    response = await outbound.fetch(
+      url,
+      {
+        headers: {
+          "user-agent": "LatticeBot/1.0 (+https://lattice.local)",
+          accept: "text/html,application/xhtml+xml",
+        },
+      },
+      { allowHttp: true, timeoutMs: 6_000 },
+    );
+  } catch (error) {
+    if (error instanceof OutboundError) {
+      throw new ORPCError("BAD_REQUEST", { message: error.message });
+    }
   }
-  const response = await fetch(url, {
-    redirect: "manual",
-    signal: AbortSignal.timeout(6000),
-    headers: {
-      "user-agent": "LatticeBot/1.0 (+https://lattice.local)",
-      accept: "text/html,application/xhtml+xml",
-    },
-  }).catch(() => null);
   if (!response) {
     return { url: url.toString(), title: url.hostname, description: "", image: null, siteName: url.hostname };
   }
@@ -343,37 +332,22 @@ export const captureRouter = {
         context.userId,
         context.role,
       );
-      const pages = await context.db.page.findMany({
-        where: {
-          workspaceId: context.workspaceId,
-          deletedAt: null,
-          ...(allowed ? { id: { in: [...allowed] } } : {}),
-        },
-      });
-      const documents = await context.db.pageDocument.findMany({
-        where: {
-          workspaceId: context.workspaceId,
-          pageId: { in: pages.map((page) => page.id) },
-        },
-      });
-      const documentByPage = new Map(documents.map((document) => [document.pageId, document]));
-      const text = `${capture.title} ${capture.content ?? ""}`;
+      const text = `${capture.title} ${capture.content ?? ""}`.slice(0, 2_000);
       const tags = suggestTagNames(text);
-      const related = relatedDocuments(
-        { id: capture.id, title: capture.title, body: text },
-        pages.map((page) => ({
-          id: page.id,
-          title: page.title,
-          body: documentByPage.get(page.id)?.plainText ?? "",
-        })),
-        5,
-      );
+      const hits = await searchWorkspace(context.db, {
+        workspaceId: context.workspaceId,
+        query: text,
+        limit: 5,
+        types: ["page"],
+        match: "any",
+        allowedPageIds: allowed,
+      });
       return {
         tags,
-        pages: related.map((page) => ({
-          id: page.id,
-          title: page.title,
-          score: Math.round(page.score * 100) / 100,
+        pages: hits.map((hit) => ({
+          id: hit.id,
+          title: hit.title,
+          score: Math.round(hit.score * 100) / 100,
         })),
       };
     }),
@@ -391,26 +365,27 @@ export const captureRouter = {
         context.userId,
         context.role,
       );
+      const hits = await searchWorkspace(context.db, {
+        workspaceId: context.workspaceId,
+        query: input.query,
+        limit: 20,
+        types: ["page"],
+        allowedPageIds: allowed,
+      });
+      if (!hits.length) return [];
+
       const pages = await context.db.page.findMany({
         where: {
+          id: { in: hits.map((hit) => hit.id) },
           workspaceId: context.workspaceId,
           deletedAt: null,
-          ...(allowed ? { id: { in: [...allowed] } } : {}),
         },
-        take: 200,
       });
-      const documents = await context.db.pageDocument.findMany({
-        where: { workspaceId: context.workspaceId, pageId: { in: pages.map((page) => page.id) } },
+      const byId = new Map(pages.map((page) => [page.id, page]));
+      return hits.flatMap((hit) => {
+        const page = byId.get(hit.id);
+        return page ? [{ page, score: hit.score }] : [];
       });
-      const textByPage = new Map(documents.map((document) => [document.pageId, document.plainText]));
-      return pages
-        .map((page) => ({
-          page,
-          score: scoreText(input.query, page.title, textByPage.get(page.id) ?? ""),
-        }))
-        .filter((entry) => entry.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 20);
     }),
 
   extractText: workspaceProcedure("EDITOR")

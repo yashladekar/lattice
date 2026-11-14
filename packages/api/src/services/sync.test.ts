@@ -11,7 +11,7 @@ import {
   describeWithDatabase,
   type TestWorkspace,
 } from "../../test/helpers";
-import { pushSync } from "./sync";
+import { pullSync, pushSync } from "./sync";
 
 const body = (text: string) => ({
   type: "doc",
@@ -590,5 +590,116 @@ describeWithDatabase("edge endpoints", () => {
         ],
       }),
     ).rejects.toThrow(/must exist/i);
+  });
+});
+
+describeWithDatabase("pull visibility", () => {
+  let db: Database;
+  let workspace: TestWorkspace;
+  const viewerId = `itest_viewer_${randomUUID()}`;
+  const visiblePageId = `itest_pull_visible_${randomUUID()}`;
+  const secondVisiblePageId = `itest_pull_visible_2_${randomUUID()}`;
+  const privatePageId = `itest_pull_private_${randomUUID()}`;
+  const visibleEdgeId = `itest_pull_edge_visible_${randomUUID()}`;
+  const privateEdgeId = `itest_pull_edge_private_${randomUUID()}`;
+
+  beforeAll(async () => {
+    db = createTestDatabase();
+    workspace = await createTestWorkspace(db);
+    await db.workspaceMember.create({
+      data: {
+        id: `itest_member_${randomUUID()}`,
+        workspaceId: workspace.id,
+        userId: viewerId,
+        role: "VIEWER",
+        status: "ACTIVE",
+      },
+    });
+    await pushSync(db, {
+      workspaceId: workspace.id,
+      userId: workspace.ownerId,
+      ops: [
+        {
+          opId: `p1-${randomUUID()}`,
+          entity: "page",
+          entityId: visiblePageId,
+          op: "UPSERT",
+          payload: { title: "Visible" },
+        },
+        {
+          opId: `d1-${randomUUID()}`,
+          entity: "pageDocument",
+          entityId: visiblePageId,
+          op: "UPSERT",
+          baseRev: 0,
+          payload: { content: body("visible"), plainText: "visible" },
+        },
+        {
+          opId: `p2-${randomUUID()}`,
+          entity: "page",
+          entityId: secondVisiblePageId,
+          op: "UPSERT",
+          payload: { title: "Also visible" },
+        },
+        {
+          opId: `p3-${randomUUID()}`,
+          entity: "page",
+          entityId: privatePageId,
+          op: "UPSERT",
+          payload: { title: "Private", visibility: "PRIVATE" },
+        },
+        {
+          opId: `d3-${randomUUID()}`,
+          entity: "pageDocument",
+          entityId: privatePageId,
+          op: "UPSERT",
+          baseRev: 0,
+          payload: { content: body("private"), plainText: "private" },
+        },
+        {
+          opId: `e1-${randomUUID()}`,
+          entity: "edge",
+          entityId: visibleEdgeId,
+          op: "UPSERT",
+          payload: {
+            sourceNodeId: visiblePageId,
+            targetNodeId: secondVisiblePageId,
+            relationType: "RELATED_TO",
+          },
+        },
+        {
+          opId: `e2-${randomUUID()}`,
+          entity: "edge",
+          entityId: privateEdgeId,
+          op: "UPSERT",
+          payload: {
+            sourceNodeId: visiblePageId,
+            targetNodeId: privatePageId,
+            relationType: "RELATED_TO",
+          },
+        },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await cleanupTestWorkspace(db, workspace.id);
+    await db.$disconnect();
+  });
+
+  it("keeps private pages and the edges that touch them out of a viewer's pull", async () => {
+    const result = await pullSync(db, {
+      workspaceId: workspace.id,
+      userId: viewerId,
+      limit: 500,
+    });
+    const entityIds = new Set(
+      (result.changes as Array<{ entityId: string }>).map((change) => change.entityId),
+    );
+    expect(entityIds.has(visiblePageId)).toBe(true);
+    expect(entityIds.has(secondVisiblePageId)).toBe(true);
+    expect(entityIds.has(visibleEdgeId)).toBe(true);
+    expect(entityIds.has(privatePageId)).toBe(false);
+    expect(entityIds.has(privateEdgeId)).toBe(false);
   });
 });

@@ -7,7 +7,6 @@ import { publicProcedure, workspaceProcedure } from "../index";
 import { appendChanges, toJsonSafe } from "../services/changes";
 import { publicDocument, resolvePublicPage } from "../services/share-page";
 import { assertPageAccess } from "../services/page-access";
-import { getAccessiblePageIds } from "../services/sync";
 
 function publicCanvasData(value: unknown) {
   if (
@@ -39,13 +38,6 @@ export const shareRouter = {
     )
     .handler(async ({ context, input }) => {
       if (input.resourceType === "PAGE") {
-        const allowed = await getAccessiblePageIds(
-          context.db,
-          context.workspaceId,
-          context.userId,
-          context.role,
-        );
-        if (allowed && !allowed.has(input.resourceId)) throw new ORPCError("FORBIDDEN");
         const page = await context.db.page.findFirst({
           where: {
             id: input.resourceId,

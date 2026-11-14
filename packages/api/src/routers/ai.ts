@@ -12,7 +12,6 @@ import {
   hasRole,
   knowledgeGaps,
   masteryScore,
-  relatedDocuments,
   safeDoc,
   tokenize,
   type AgentPlan,
@@ -37,7 +36,12 @@ import {
 } from "../ai/provider";
 import type { Context } from "../context";
 import { aiWorkspaceProcedure } from "../index";
-import { getAccessiblePageIds, pushSync } from "../services/sync";
+import {
+  assertPageReadable,
+  getAccessiblePageIds,
+  readablePageWhere,
+} from "../services/page-access";
+import { pushSync } from "../services/sync";
 import {
   citationsFrom,
   contextBlock,
@@ -627,43 +631,38 @@ export const aiRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      const allowed = await getAccessiblePageIds(
+      await assertPageReadable(
         context.db,
         context.workspaceId,
+        input.pageId,
         context.userId,
         context.role,
       );
-      if (allowed && !allowed.has(input.pageId)) throw new ORPCError("FORBIDDEN");
       const page = await context.db.page.findFirst({
         where: { id: input.pageId, workspaceId: context.workspaceId, deletedAt: null },
         include: { document: true },
       });
       if (!page?.document) throw new ORPCError("NOT_FOUND");
       const body = page.document.plainText;
+      const readWhere = () =>
+        readablePageWhere(context.db, {
+          workspaceId: context.workspaceId,
+          userId: context.userId,
+          role: context.role,
+        });
 
       if (input.action === "connections") {
-        const pages = await context.db.page.findMany({
-          where: {
-            workspaceId: context.workspaceId,
-            deletedAt: null,
-            ...(allowed ? { id: { in: [...allowed] } } : {}),
-          },
-        });
-        const documents = await context.db.pageDocument.findMany({
-          where: { workspaceId: context.workspaceId, pageId: { in: pages.map((entry) => entry.id) } },
-        });
-        const documentByPage = new Map(
-          documents.map((document) => [document.pageId, document.plainText]),
-        );
-        const related = relatedDocuments(
-          { id: page.id, title: page.title, body },
-          pages.map((entry) => ({
-            id: entry.id,
-            title: entry.title,
-            body: documentByPage.get(entry.id) ?? "",
-          })),
-          6,
-        );
+        const related = page.title.trim()
+          ? await retrievePages(
+              context.db,
+              context.workspaceId,
+              context.userId,
+              context.role,
+              page.title,
+              undefined,
+              7,
+            )
+          : [];
         const edges = await context.db.knowledgeEdge.findMany({
           where: {
             workspaceId: context.workspaceId,
@@ -675,12 +674,13 @@ export const aiRouter = {
         return {
           action: input.action,
           suggestions: related
-            .filter((entry) => !linked.has(entry.id))
+            .filter((entry) => entry.pageId !== page.id && !linked.has(entry.pageId))
+            .slice(0, 6)
             .map((entry) => ({
-              pageId: entry.id,
+              pageId: entry.pageId,
               title: entry.title,
               score: Math.round(entry.score * 100) / 100,
-              reason: "Shared language and concepts",
+              reason: "Shared vocabulary and concepts",
             })),
           local: true,
         };
@@ -704,17 +704,35 @@ export const aiRouter = {
       }
 
       if (input.action === "gaps") {
+        const allowed = await getAccessiblePageIds(
+          context.db,
+          context.workspaceId,
+          context.userId,
+          context.role,
+        );
         const [nodes, edges, cards] = await Promise.all([
           context.db.knowledgeNode.findMany({
-            where: { workspaceId: context.workspaceId, deletedAt: null },
+            where: {
+              workspaceId: context.workspaceId,
+              deletedAt: null,
+              ...(allowed ? { OR: [{ pageId: null }, { pageId: { in: [...allowed] } }] } : {}),
+            },
           }),
           context.db.knowledgeEdge.findMany({
             where: { workspaceId: context.workspaceId, deletedAt: null },
           }),
           context.db.flashcard.findMany({
-            where: { workspaceId: context.workspaceId, deletedAt: null },
+            where: {
+              workspaceId: context.workspaceId,
+              deletedAt: null,
+              ...(allowed ? { OR: [{ pageId: null }, { pageId: { in: [...allowed] } }] } : {}),
+            },
           }),
         ]);
+        const visibleNodes = new Set(nodes.map((node) => node.id));
+        const visibleEdges = edges.filter(
+          (edge) => visibleNodes.has(edge.sourceNodeId) && visibleNodes.has(edge.targetNodeId),
+        );
         const mastery = new Map<string, number>();
         const byPage = new Map<string, typeof cards>();
         for (const card of cards) {
@@ -730,7 +748,7 @@ export const aiRouter = {
           action: input.action,
           gaps: knowledgeGaps(
             nodes as unknown as KnowledgeNode[],
-            edges as unknown as KnowledgeEdge[],
+            visibleEdges as unknown as KnowledgeEdge[],
             mastery,
           ).map((node) => ({
             id: node.id,
@@ -743,56 +761,58 @@ export const aiRouter = {
       }
 
       if (input.action === "outdated") {
+        const cutoff = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+        const access = await readWhere();
         const pages = await context.db.page.findMany({
           where: {
-            workspaceId: context.workspaceId,
+            ...access,
             deletedAt: null,
-            ...(allowed ? { id: { in: [...allowed] } } : {}),
+            AND: [
+              {
+                OR: [
+                  { updatedAt: { lt: cutoff } },
+                  { document: { is: { plainText: { contains: "TODO" } } } },
+                  { document: { is: { plainText: { contains: "FIXME" } } } },
+                  { document: { is: { plainText: { contains: "TBD" } } } },
+                ],
+              },
+            ],
           },
           include: { document: true },
+          orderBy: { updatedAt: "asc" },
+          take: 12,
         });
         return {
           action: input.action,
-          pages: pages
-            .filter(
-              (entry) =>
-                Date.now() - entry.updatedAt.getTime() > 180 * 24 * 60 * 60 * 1000 ||
-                /\b(TODO|FIXME|TBD)\b/.test(entry.document?.plainText ?? ""),
-            )
-            .slice(0, 12)
-            .map((entry) => ({
-              id: entry.id,
-              title: entry.title,
-              updatedAt: entry.updatedAt.toISOString(),
-              reason:
-                Date.now() - entry.updatedAt.getTime() > 180 * 24 * 60 * 60 * 1000
-                  ? "Not updated in six months"
-                  : "Contains an unresolved TODO",
-            })),
+          pages: pages.map((entry) => ({
+            id: entry.id,
+            title: entry.title,
+            updatedAt: entry.updatedAt.toISOString(),
+            reason:
+              entry.updatedAt < cutoff
+                ? "Not updated in six months"
+                : "Contains an unresolved TODO",
+          })),
           local: true,
         };
       }
 
       if (input.action === "compare") {
-        const pages = await context.db.page.findMany({
-          where: {
-            workspaceId: context.workspaceId,
-            deletedAt: null,
-            ...(allowed ? { id: { in: [...allowed] } } : {}),
-          },
-          include: { document: true },
-        });
-        const related = relatedDocuments(
-          { id: page.id, title: page.title, body },
-          pages
-            .filter((entry) => entry.id !== page.id)
-            .map((entry) => ({
-              id: entry.id,
-              title: entry.title,
-              body: entry.document?.plainText ?? "",
-            })),
-          3,
-        ).filter((entry) => entry.score > 0.05);
+        const related = page.title.trim()
+          ? (
+              await retrievePages(
+                context.db,
+                context.workspaceId,
+                context.userId,
+                context.role,
+                page.title,
+                undefined,
+                4,
+              )
+            )
+              .filter((entry) => entry.pageId !== page.id)
+              .slice(0, 3)
+          : [];
         const sourceTerms = new Set(
           tokenize(`${page.title} ${body}`).filter((term) => term.length > 3),
         );
@@ -817,7 +837,7 @@ export const aiRouter = {
           }**\n\n${lines.join("\n")}\n\nOpen the notes side by side to trace where they agree and where they diverge.`,
           provider: "local",
           citations: related.map((entry) => ({
-            pageId: entry.id,
+            pageId: entry.pageId,
             title: entry.title,
             excerpt: entry.body.slice(0, 500),
           })),

@@ -47,20 +47,24 @@ export function createAuth(
     expo(),
   ];
 
+  // Localhost and Expo Go are development conveniences. Production trusts
+  // only the deployment's own origin, the desktop shell, and the native scheme.
+  const devOrigins =
+    process.env.NODE_ENV === "production"
+      ? []
+      : ["exp://", "http://localhost:8081", "http://localhost:3101"];
   const trustedOrigins = [
     env.CORS_ORIGIN,
     ...desktopOrigins,
     "notes-learning://",
-    "exp://",
-    "http://localhost:8081",
-    "http://localhost:3101",
+    ...devOrigins,
   ];
   plugins.push(
     createSsoPlugin({
       database,
       secret: env.BETTER_AUTH_SECRET,
       appOrigin: env.CORS_ORIGIN,
-      trustedOrigins: [env.CORS_ORIGIN, "http://localhost:3101"],
+      trustedOrigins: [env.CORS_ORIGIN, ...devOrigins],
     }),
   );
 

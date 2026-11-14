@@ -1,0 +1,20 @@
+{
+  "name": "lattice-server-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@orpc/openapi": "1.16.1",
+    "@orpc/server": "1.16.1",
+    "@orpc/zod": "1.16.1",
+    "better-auth": "1.7.12",
+    "cors": "2.8.6",
+    "express": "5.3.0",
+    "lib0": "0.2.119",
+    "unpdf": "2.1.0",
+    "varlock": "1.23.0",
+    "ws": "8.22.1",
+    "y-protocols": "1.0.7",
+    "yjs": "13.6.33",
+    "zod": "4.6.7"
+  }
+}

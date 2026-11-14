@@ -10,6 +10,17 @@
 **/.astro
 **/.turbo
 .turbo
+**/src-tauri/target
+apps/web/out
+apps/native/ios
+apps/native/android
+brag-output
+final
+.agents
+.claude
+.commandcode
+.github
+extensions
 
 **/.wrangler
 **/.alchemy
