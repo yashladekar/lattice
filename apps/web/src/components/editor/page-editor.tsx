@@ -1424,7 +1424,9 @@ export function PageEditor({
           {documentLoading ? (
             <span aria-live="polite">Loading the text…</span>
           ) : (
-            <span>{state.words} words</span>
+            <span>
+              {state.words} {state.words === 1 ? "word" : "words"}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -2113,7 +2115,11 @@ function EditorCharacterCount({ editor }: { editor: Editor }) {
     editor,
     selector: ({ editor: current }) => current.storage.characterCount?.characters?.() ?? 0,
   });
-  return <>{count} characters</>;
+  return (
+    <>
+      {count} {count === 1 ? "character" : "characters"}
+    </>
+  );
 }
 
 function EditorBubbleToolbar({

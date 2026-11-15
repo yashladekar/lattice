@@ -193,7 +193,7 @@ export function AuthView() {
               </p>
             </div>
 
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} noValidate className="space-y-4">
               {mode === "signup" ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-[11px]">Name</Label>
@@ -202,7 +202,10 @@ export function AuthView() {
                     name="name"
                     autoComplete="name"
                     value={name}
-                    onChange={(event) => setName(event.target.value)}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setError(null);
+                    }}
                     placeholder="Ada Lovelace"
                     className="h-10 rounded-lg bg-card/70 px-3 text-sm"
                   />
@@ -216,7 +219,10 @@ export function AuthView() {
                   type="email"
                   autoComplete="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setError(null);
+                  }}
                   placeholder="you@example.com"
                   className="h-10 rounded-lg bg-card/70 px-3 text-sm"
                 />
@@ -235,7 +241,10 @@ export function AuthView() {
                     type={showPassword ? "text" : "password"}
                     autoComplete={mode === "signup" ? "new-password" : "current-password"}
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      setError(null);
+                    }}
                     placeholder="••••••••"
                     className="h-10 rounded-lg bg-card/70 px-3 pr-10 text-sm"
                   />
