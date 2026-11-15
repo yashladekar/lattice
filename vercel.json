@@ -4,7 +4,7 @@
     "web": {
       "root": "apps/web/",
       "framework": "nextjs",
-      "buildCommand": "pnpm --filter web build && node scripts/vercel-config.mjs",
+      "buildCommand": "pnpm -w env:generate && pnpm --filter @notes-learning/db db:generate && pnpm --filter web build && node scripts/vercel-config.mjs",
       "headers": [
         {
           "source": "/sw.js",
