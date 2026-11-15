@@ -156,7 +156,12 @@ function PublicCanvasView({ canvas }: { canvas: PublicCanvas }) {
   const exported = useMemo(() => canvasToSvg(canvas.data), [canvas.data]);
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-[#faf8f2] p-2">
-      <div className="mx-auto w-fit" dangerouslySetInnerHTML={{ __html: exported.svg }} />
+      {/* The SVG carries a viewBox, so let it scale down to the card instead of
+          being clipped at its fixed pixel size. */}
+      <div
+        className="[&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+        dangerouslySetInnerHTML={{ __html: exported.svg }}
+      />
     </div>
   );
 }
