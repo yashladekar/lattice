@@ -2,6 +2,7 @@
 
 import {
   collectBlockIds,
+  canEditContent,
   createId,
   createMindMap as buildMindMap,
   docToMarkdown,
@@ -233,7 +234,13 @@ export function PageEditor({
 }) {
   "use no memo";
   const router = useRouter();
-  const { db, user, activeWorkspaceId, online } = useAppData();
+  const { db, user, activeWorkspaceId, online, role } = useAppData();
+  // Viewers and guests can read and comment but not edit; the server rejects
+  // their writes, so offering an editable body only queues changes that fail.
+  // An unknown role (still loading) is left editable so nothing flickers.
+  const readOnly = role !== null && !canEditContent(role);
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   const page = usePage(pageId);
   const documentState = usePageDocumentState(pageId);
   const documentLoading = documentState === undefined;
@@ -337,6 +344,9 @@ export function PageEditor({
     async (content: TipTapDoc) => {
       const current = contextRef.current;
       if (!current.db || !current.user || !current.workspaceId) return;
+      // The editor normalises a document on load (e.g. a trailing paragraph);
+      // a viewer must not turn that into a write the server will refuse.
+      if (readOnlyRef.current) return;
       try {
         setSaveStatus("saving");
         const stored = await current.db.pageDocuments.get(pageId);
@@ -634,6 +644,10 @@ export function PageEditor({
     [collab],
   );
   editorRef.current = editor;
+
+  useEffect(() => {
+    editor?.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   const seedFromLocal = useCallback(async () => {
     if (!collab || !db) return;
@@ -1594,9 +1608,10 @@ export function PageEditor({
         </span>
         <input
           value={title}
+          readOnly={readOnly}
           onChange={(event) => onTitleChange(event.target.value)}
           onBlur={() => {
-            if (!db) return;
+            if (!db || readOnly) return;
             void updatePageLocal(db, { pageId, title });
           }}
           onKeyDown={(event) => {
