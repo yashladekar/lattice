@@ -103,7 +103,12 @@ jobs:
         env:
           LATTICE_SERVER_URL: ${{ vars.LATTICE_SERVER_URL }}
           NEXT_PUBLIC_DOCS_URL: ${{ vars.LATTICE_DOCS_URL }}
-        run: node apps/web/scripts/desktop-config.mjs
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ] && [ -z "$LATTICE_SERVER_URL" ]; then
+            echo "::error::Set the LATTICE_SERVER_URL repository variable before tagging a release."
+            exit 1
+          fi
+          node apps/web/scripts/desktop-config.mjs
 
       - name: Resolve Tauri args
         shell: bash

@@ -249,6 +249,8 @@ Live co-editing is disabled there â€” Vercel Functions cannot hold a WebSocket â
 
 `apps/fumadocs` is a separate Next.js project; set its root directory to `apps/fumadocs` and point `NEXT_PUBLIC_DOCS_URL` at it.
 
+GitHub Actions: `ci.yml` runs typechecks, tests, and builds for the API, web export, and docs; `desktop-release.yml` publishes installers on a `v*` tag; `scheduled-jobs.yml` drives webhooks and retention; `deploy-vercel.yml` is an optional manual Vercel deploy that stays skipped until `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` are added. Repository variables: `LATTICE_SERVER_URL`, `LATTICE_DOCS_URL`. Repository secrets: `CRON_URL`, `CRON_SECRET`, optional signing secrets.
+
 ### Any Node host
 
 `apps/server/Dockerfile` remains the universal path: `pnpm docker:up` runs Postgres, migrations, and the API, and the image works on Railway, Render, Fly.io, a VPS, or Kubernetes. Point the web build at it with `apps/web/public/config.js`. Local-disk uploads stay the default there; set `UPLOAD_DRIVER=s3` to use a bucket instead.

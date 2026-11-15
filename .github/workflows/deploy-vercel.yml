@@ -1,0 +1,62 @@
+name: Deploy to Vercel
+
+# Optional. Vercel's Git integration already deploys on push; this workflow is
+# for running a deployment from the Actions tab (or another automation).
+# It does nothing until VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID are
+# configured as repository secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        type: choice
+        options:
+          - production
+          - preview
+        default: production
+
+concurrency:
+  group: vercel-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check configuration
+        id: config
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ORG: ${{ secrets.VERCEL_ORG_ID }}
+          PROJECT: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ORG" ] || [ -z "$PROJECT" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID is not configured; skipping."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Vercel CLI
+        if: steps.config.outputs.configured == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Deploy
+        if: steps.config.outputs.configured == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ "${{ inputs.target }}" = "production" ]; then
+            vercel deploy --prod --yes --token "$VERCEL_TOKEN"
+          else
+            vercel deploy --yes --token "$VERCEL_TOKEN"
+          fi

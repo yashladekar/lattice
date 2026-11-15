@@ -4,6 +4,11 @@ on:
   pull_request:
   push:
     branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -11,6 +16,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18
@@ -52,3 +58,39 @@ jobs:
         run: pnpm check-types
       - name: Test
         run: pnpm test
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NODE_ENV: production
+      # Build-time defaults; the Vercel deployment replaces them at runtime.
+      NEXT_PUBLIC_SERVER_URL: http://localhost:3100
+      BETTER_AUTH_SECRET: ci-secret-ci-secret-ci-secret-1234
+      BETTER_AUTH_URL: http://localhost:3100
+      CORS_ORIGIN: http://localhost:3101
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/notes-learning
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Generate environment types
+        run: pnpm env:generate
+      - name: Generate Prisma client
+        run: pnpm db:generate
+      - name: Build API
+        run: pnpm --filter server build
+      - name: Build web export
+        run: pnpm --filter web build
+      - name: Build docs
+        run: pnpm --filter fumadocs build
+      - name: Validate browser extension
+        run: node extensions/lattice-clip/build.mjs --check
