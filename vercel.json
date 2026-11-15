@@ -21,7 +21,7 @@
     "server": {
       "root": "apps/server/",
       "framework": "express",
-      "entrypoint": "dist/app.mjs",
+      "entrypoint": "src/app.ts",
       "buildCommand": "node scripts/vercel-build.mjs"
     }
   },
