@@ -158,7 +158,7 @@ function colorClass(color: StickyColor): string {
 function shapeBorder(shape: CanvasShapeElement["shape"]): string {
   switch (shape) {
     case "ellipse":
-      return "rounded-full";
+      return "rounded-[50%]";
     case "diamond":
       return "[clip-path:polygon(50%_0,100%_50%,50%_100%,0_50%)]";
     case "parallelogram":
