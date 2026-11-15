@@ -11,7 +11,10 @@ export default defineConfig({
   datasource: {
     // A pooled URL is what the application should use at runtime. Migrations
     // need a direct connection, which providers such as Neon and Supabase
-    // expose separately.
-    url: process.env.DIRECT_URL || env("DATABASE_URL"),
+    // expose separately (Neon names it DATABASE_URL_UNPOOLED).
+    url:
+      process.env.DIRECT_URL ||
+      process.env.DATABASE_URL_UNPOOLED ||
+      env("DATABASE_URL"),
   },
 });
