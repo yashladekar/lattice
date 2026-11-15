@@ -96,6 +96,7 @@ import { PromptDialog } from "@/components/ui/prompt-dialog";
 import { Modal } from "@/components/ui/modal";
 import { usePage, usePageDocumentState, useWorkspacePages } from "@/hooks/use-local-data";
 import { CollabProvider, collaborationUrl, type CollabPeer, type CollabStatus } from "@/lib/collab";
+import { isCollabEnabled } from "@/lib/config";
 import { downloadTextFile } from "@/lib/download";
 import { uploadFile } from "@/lib/upload";
 import {
@@ -294,7 +295,7 @@ export function PageEditor({
   } | null>(null);
   const [peers, setPeers] = useState<Array<{ userId: string; name: string; image: string | null }>>([]);
   const [collab] = useState<CollabProvider | null>(() =>
-    pageId && activeWorkspaceId && online ? new CollabProvider() : null,
+    pageId && activeWorkspaceId && online && isCollabEnabled() ? new CollabProvider() : null,
   );
   const [collabStatus, setCollabStatus] = useState<CollabStatus>("disconnected");
   const [collabPeers, setCollabPeers] = useState<CollabPeer[]>([]);

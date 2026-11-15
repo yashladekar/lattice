@@ -6,6 +6,7 @@ import type { DatabaseConfig } from "./config";
 export function createPrismaClient(env: DatabaseConfig) {
   const adapter = new PrismaPg({
     connectionString: env.DATABASE_URL,
+    ...(env.poolMax ? { max: env.poolMax } : {}),
   });
   return new PrismaClient({ adapter });
 }
@@ -18,4 +19,3 @@ export {
 export { Prisma };
 export type Database = ReturnType<typeof createPrismaClient>;
 export type TransactionClient = Prisma.TransactionClient;
-

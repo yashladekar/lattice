@@ -154,31 +154,20 @@ The shell adds a native menu, a system tray (closing the window hides it; use **
 
 ### Desktop release
 
-`desktop:build` produces `.dmg`/`.app` on macOS and `.msi`/`.exe` on Windows. Pushing a `v*` tag runs `.github/workflows/desktop-release.yml`, which builds both platforms and opens a draft release.
+`desktop:build` produces `.dmg`/`.app` on macOS, `.msi`/`.exe` on Windows, and `.AppImage`/`.deb` on Linux. Pushing a `v*` tag runs `.github/workflows/desktop-release.yml`, which builds macOS (Apple Silicon and Intel), Windows, and Linux, uploads the installers to a draft release, then publishes it. The marketing site's `/download` page reads the latest release from GitHub.
 
-Signing and update secrets (repository secrets):
+Set the repository variable `LATTICE_SERVER_URL` to the deployed API origin (and optionally `LATTICE_DOCS_URL`). The workflow writes it into the installer's `config.js`, so a downloaded build talks to the hosted API without a rebuild.
+
+Signing is optional. Without these secrets the installers are unsigned:
 
 | Secret | Purpose |
 | --- | --- |
 | `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD` | base64 Developer ID `.p12` and its password |
 | `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Acme (TEAMID)` |
 | `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarization |
-| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | updater artifact signing |
+| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | optional updater artifacts |
 
-The updater public key lives in `apps/web/src-tauri/tauri.conf.json`. Generate the pair with `pnpm --filter web tauri signer generate`; losing the private key breaks future updates. Host a `latest.json` at the configured endpoint:
-
-```json
-{
-  "version": "0.1.1",
-  "notes": "…",
-  "pub_date": "2026-11-07T00:00:00Z",
-  "platforms": {
-    "darwin-aarch64": { "signature": "…", "url": "https://…/Lattice.app.tar.gz" },
-    "darwin-x86_64": { "signature": "…", "url": "https://…/Lattice.app.tar.gz" },
-    "windows-x86_64": { "signature": "…", "url": "https://…/Lattice-setup.exe" }
-  }
-}
-```
+The updater public key lives in `apps/web/src-tauri/tauri.conf.json`; the endpoint points at `releases/latest/download/latest.json`. Generate the pair with `pnpm --filter web tauri signer generate`; losing the private key breaks future updates. Without the updater key, releases contain only installers and the app reports no update.
 
 Logs go to the OS log directory (macOS `~/Library/Logs/app.lattice.desktop`, Windows `%LOCALAPPDATA%\app.lattice.desktop\logs`). Windows Authenticode signing is not configured yet.
 
@@ -243,6 +232,26 @@ against a fake identity provider, webhook filtering/signing/retry backoff, SCIM
 provisioning, the paged snapshot's ordering and visibility filtering, email
 ingestion, uploads (including hostile filenames), rate-limiter expiry, and the
 page-access rule.
+
+## Deploy
+
+### Vercel (Hobby)
+
+The root `vercel.json` deploys one Vercel project with two services: the static web app and the Express API on one domain, so the session cookie stays first-party. Serverless functions have a read-only filesystem, so uploads go to an S3-compatible bucket.
+
+1. Create a Postgres database (pooled URL + direct URL) and an S3/R2 bucket with `uploads/*` publicly readable.
+2. Import the repository with the **Root Directory** at the repository root.
+3. Set the environment variables listed in [Deploy on Vercel](apps/fumadocs/content/docs/deploy-vercel.mdx). `UPLOAD_DRIVER=s3` is required; `DATABASE_URL`, `DIRECT_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN`, `S3_*`, and `CRON_SECRET` cover the rest.
+4. Deploy. Production builds apply committed Prisma migrations before the API ships.
+5. Add repository secrets `CRON_URL` (`https://<deployment>/cron`) and `CRON_SECRET`; `.github/workflows/scheduled-jobs.yml` delivers webhooks every five minutes and runs retention daily.
+
+Live co-editing is disabled there — Vercel Functions cannot hold a WebSocket — and the web build sets `collabEnabled: false`. Async local-first sync, comments, and presence polling continue to work. Self-hosted Docker and desktop builds keep live sessions.
+
+`apps/fumadocs` is a separate Next.js project; set its root directory to `apps/fumadocs` and point `NEXT_PUBLIC_DOCS_URL` at it.
+
+### Any Node host
+
+`apps/server/Dockerfile` remains the universal path: `pnpm docker:up` runs Postgres, migrations, and the API, and the image works on Railway, Render, Fly.io, a VPS, or Kubernetes. Point the web build at it with `apps/web/public/config.js`. Local-disk uploads stay the default there; set `UPLOAD_DRIVER=s3` to use a bucket instead.
 
 ## Verification
 

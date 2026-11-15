@@ -3,6 +3,8 @@ title: Self-hosting
 description: Ports, environment, Docker, desktop packaging, runtime config, and backups.
 ---
 
+Serverless hosts have different storage, scheduling, and live-session constraints. See [Deploy on Vercel](/docs/deploy-vercel) for that path.
+
 ## Local stack
 
 | Service | Port | Notes |
@@ -44,9 +46,37 @@ A database created earlier with `db push` has no migration history; mark the bas
 pnpm --filter @notes-learning/db exec prisma migrate resolve --applied 20261113000000_init
 ```
 
+### Uploads
+
+The default driver writes to `UPLOAD_DIR` on the host. To use an S3-compatible bucket instead (required on serverless hosts):
+
+```dotenv
+UPLOAD_DRIVER=s3
+S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+S3_REGION=auto
+S3_BUCKET=lattice-uploads
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PUBLIC_URL=https://uploads.example.com
+S3_FORCE_PATH_STYLE=true
+```
+
+`S3_PUBLIC_URL` must serve `uploads/*` publicly; stored media links use it. Allow `PUT` from the web origin and the desktop origins with the `content-type`, `x-amz-meta-userid`, and `content-disposition` headers. When the bucket is configured, the browser uploads with a signed PUT and the API only stores the resulting URL; the raw `POST /uploads` path remains for hosts that write to disk.
+
 ### Multiple API replicas
 
-Webhook delivery and retention sweeps take a Postgres advisory lock, so only one replica runs each job at a time. The rate limiter keeps its counters in memory, so its limits are per replica; account for the replica count when tuning them.
+Webhook delivery and retention sweeps take a Postgres advisory lock, so only one replica runs each job at a time. The rate limiter keeps its counters in memory, so its limits are per replica; account for the replica count when tuning them. The limiter keys on the client IP, so behind a load balancer set `TRUST_PROXY` to the number of proxy hops; otherwise every request looks like it came from the proxy.
+
+## Scheduled jobs
+
+A long-running server ticks webhook delivery every 15 seconds, retention hourly, and the rate-limit sweep every minute. Hosts without timers (Vercel Functions) call the same work over HTTP:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "https://<api>/cron?job=webhooks"
+curl -H "Authorization: Bearer $CRON_SECRET" "https://<api>/cron?job=retention"
+```
+
+`job=all` runs both. Without `CRON_SECRET` the endpoint returns 503; a wrong token returns 401. `.github/workflows/scheduled-jobs.yml` is a ready-made scheduler and works for Docker deployments too.
 
 ## Web runtime configuration
 
@@ -58,7 +88,7 @@ window.__LATTICE_CONFIG__ = window.__LATTICE_CONFIG__ || {
 };
 ```
 
-Leave `apiBaseUrl` empty to use `NEXT_PUBLIC_SERVER_URL`. Set it for a desktop bundle or a static web deployment pointed at a self-hosted API. The file is loaded before the app bundle.
+Leave `apiBaseUrl` empty to use `NEXT_PUBLIC_SERVER_URL`. Set it for a desktop bundle or a static web deployment pointed at a self-hosted API. Set `collabEnabled: false` when the API has no WebSocket relay; the editor then stays on the local-first Dexie path. The file is loaded before the app bundle.
 
 ## Desktop (Tauri)
 
@@ -96,7 +126,7 @@ Add `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` to the API environment. Keep the
 
 Members can connect their own ChatGPT Plus or Pro plan instead of using an API key. The server opens a loopback listener on `127.0.0.1:1455` (falling back to an ephemeral port, path always `/auth/callback`) because OpenAI's Sign in with ChatGPT flow only accepts a loopback redirect. Two consequences for a self-hoster:
 
-- **It only works when the server runs on the same machine as the browser** — local Compose, `pnpm dev`, or the desktop build. A remote server cannot receive the callback. For that case, complete the sign-in locally and use **Export credential** / **Import credential** in Settings, which follows OpenAI's self-hosted VM guidance.
+- **It only works when the server runs on the same machine as the browser** — local Compose, `pnpm dev`, or the desktop build. A remote server cannot receive the callback. On Vercel Functions the surface is hidden entirely, because a loopback listener inside a function cannot be reached from the browser; complete the sign-in locally and use **Export credential** / **Import credential** in Settings instead.
 - **Plan usage covers chat only.** It cannot produce embeddings or transcribe audio, so keep `AI_API_KEY` for the semantic index and the inbox transcriber. Without a key, both report that plainly instead of failing silently.
 
 The listener only starts when someone opens the sign-in flow. It is bound to loopback, serves exactly one path, and never returns credentials to the browser. Tokens are encrypted at rest with `BETTER_AUTH_SECRET` as the key material — back that secret up with the database, or existing connections have to be reauthorized.

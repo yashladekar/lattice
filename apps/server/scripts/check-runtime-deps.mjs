@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 /**
@@ -6,21 +6,33 @@ import path from "node:path";
  * This check keeps that runtime manifest honest: a new external import fails
  * the build instead of failing at container start, and a version bump in the
  * workspace fails until the manifest is pinned to what was actually bundled.
+ *
+ * Both entry points and any shared chunk are scanned: rolldown can move an
+ * external import out of dist/index.mjs into a chunk next to it.
  */
 const serverDir = path.resolve(import.meta.dirname, "..");
-const bundlePath = path.join(serverDir, "dist", "index.mjs");
+const distDir = path.join(serverDir, "dist");
 const manifestPath = path.join(serverDir, "runtime.package.json");
 
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const declared = new Map(Object.entries(manifest.dependencies ?? {}));
-const source = readFileSync(bundlePath, "utf8");
 
-// Only the ESM import block rolldown emits at the top of the bundle. Matching
-// `from "..."` anywhere would also hit comments and prompt strings.
+const bundleSources = readdirSync(distDir)
+  .filter((file) => file.endsWith(".mjs"))
+  .map((file) => readFileSync(path.join(distDir, file), "utf8"));
+
+// Only import/export statements and dynamic imports. Matching `from "..."`
+// anywhere would also hit comments and prompt strings.
 const specifiers = new Set();
-for (const line of source.split("\n")) {
-  const match = /^(?:import|export)\s+(?:[^"']*?\bfrom\s*)?["']([^"']+)["']/.exec(line);
-  if (match) specifiers.add(match[1]);
+for (const source of bundleSources) {
+  for (const line of source.split("\n")) {
+    const staticMatch =
+      /^(?:import|export)\s+(?:[^"']*?\bfrom\s*)?["']([^"']+)["']/.exec(line);
+    if (staticMatch) specifiers.add(staticMatch[1]);
+    // A dynamic import is still a runtime dependency of the bundle.
+    const dynamicMatch = /\bimport\(\s*["']([^"']+)["']\s*\)/.exec(line);
+    if (dynamicMatch) specifiers.add(dynamicMatch[1]);
+  }
 }
 
 function packageName(specifier) {

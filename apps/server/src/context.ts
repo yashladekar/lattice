@@ -1,51 +1,21 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import type { Context as ApiContext } from "@notes-learning/api/context";
 import { fromNodeHeaders } from "better-auth/node";
 import type { Request } from "express";
 
-import { auth, chatgptCallback, db } from "./services";
+import { auth, chatgptCallback, db, uploadStore } from "./services";
 import { isCollaborating, invalidateCollabState, resetCollabState } from "./collaboration";
-import { ENV, aiAgentEnabled, aiConfig, githubConfig, uploadRoot } from "./env.server";
+import { ENV, aiAgentEnabled, aiConfig, githubConfig } from "./env.server";
 
 interface CreateContextOptions {
   req: Request;
 }
 
-const MIME_BY_EXTENSION: Record<string, string> = {
-  mp3: "audio/mpeg",
-  m4a: "audio/mp4",
-  wav: "audio/wav",
-  webm: "audio/webm",
-  ogg: "audio/ogg",
-  oga: "audio/ogg",
-  opus: "audio/ogg",
-  aac: "audio/aac",
-  flac: "audio/flac",
-  mp4: "audio/mp4",
-};
-
 async function readUpload(
   url: string,
   access: { userId: string; workspaceId: string },
 ): Promise<{ bytes: Uint8Array; filename: string; mime: string } | null> {
-  if (!url.startsWith("/uploads/")) return null;
-  const filename = path.basename(url);
-  if (!filename || filename.startsWith(".")) return null;
-  const filePath = path.resolve(uploadRoot, filename);
-  if (!filePath.startsWith(uploadRoot + path.sep)) return null;
-  let uploaderId: string;
-  try {
-    const meta = JSON.parse(
-      await readFile(path.join(uploadRoot, ".meta", `${filename}.json`), "utf8"),
-    ) as { userId?: unknown };
-    if (typeof meta.userId !== "string") return null;
-    uploaderId = meta.userId;
-  } catch {
-    // No ownership record (or an unreadable one): the API cannot hand it out.
-    return null;
-  }
+  const uploaderId = await uploadStore.ownerOf(url);
+  if (!uploaderId) return null;
   if (uploaderId !== access.userId) {
     const shared = await db.workspaceMember.findFirst({
       where: {
@@ -58,17 +28,7 @@ async function readUpload(
     });
     if (!shared) return null;
   }
-  try {
-    const bytes = await readFile(filePath);
-    const extension = filename.split(".").pop()?.toLowerCase() ?? "";
-    return {
-      bytes: new Uint8Array(bytes),
-      filename,
-      mime: MIME_BY_EXTENSION[extension] ?? "application/octet-stream",
-    };
-  } catch {
-    return null;
-  }
+  return uploadStore.get(url);
 }
 
 export async function createContext(opts: CreateContextOptions): Promise<ApiContext> {
@@ -82,7 +42,7 @@ export async function createContext(opts: CreateContextOptions): Promise<ApiCont
     headers,
     uploads: { read: readUpload },
     secrets: { keyMaterial: ENV.BETTER_AUTH_SECRET },
-    chatgpt: chatgptCallback,
+    ...(chatgptCallback ? { chatgpt: chatgptCallback } : {}),
     ...(githubConfig ? { github: githubConfig } : {}),
     aiAgent: { enabled: aiAgentEnabled },
     collab: {

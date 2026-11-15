@@ -12,12 +12,21 @@ export interface UploadedFile {
   mime: string;
 }
 
+type PresignedUpload = UploadedFile & {
+  uploadUrl: string;
+  headers: Record<string, string>;
+};
+
 async function bodyFor(uri: string): Promise<Blob> {
   if (Platform.OS === "web") {
     const response = await fetch(uri);
     return response.blob();
   }
   return new File(uri) as unknown as Blob;
+}
+
+function absolute(url: string): string {
+  return url.startsWith("http") ? url : `${SERVER_URL}${url}`;
 }
 
 export async function uploadFile(input: {
@@ -28,16 +37,61 @@ export async function uploadFile(input: {
   const fetchImpl =
     Platform.OS === "web" ? globalThis.fetch : (await import("expo/fetch")).fetch;
   const cookie = Platform.OS === "web" ? null : await authClient.getCookie();
+  const credentials = Platform.OS === "web" ? "include" : "omit";
+  const authHeaders: Record<string, string> = cookie ? { Cookie: cookie } : {};
+  const mime = input.mime || "application/octet-stream";
+  const body = await bodyFor(input.uri);
+  const size =
+    typeof (body as { size?: unknown }).size === "number" ? (body as Blob).size : 0;
+
+  // Serverless hosts cap request bodies, so try the signed direct upload first.
+  let presign: Response | null = null;
+  try {
+    presign = await fetchImpl(`${SERVER_URL}/uploads/presign`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders },
+      body: JSON.stringify({ name: input.name, mime, size }),
+      credentials,
+    });
+  } catch {
+    presign = null;
+  }
+
+  if (
+    presign &&
+    presign.status !== 501 &&
+    presign.status !== 404 &&
+    presign.status !== 405
+  ) {
+    if (!presign.ok) {
+      const message = await presign.text().catch(() => "");
+      throw new Error(message || `Upload failed (${presign.status})`);
+    }
+    const direct = (await presign.json()) as PresignedUpload;
+    const put = await fetchImpl(direct.uploadUrl, {
+      method: "PUT",
+      headers: direct.headers,
+      body,
+    });
+    if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+    return {
+      id: direct.id,
+      url: absolute(direct.url),
+      name: direct.name,
+      size: direct.size,
+      mime: direct.mime,
+    };
+  }
 
   const response = await fetchImpl(`${SERVER_URL}/uploads`, {
     method: "POST",
     headers: {
-      "content-type": input.mime || "application/octet-stream",
+      "content-type": mime,
       "x-file-name": encodeURIComponent(input.name),
-      ...(cookie ? { Cookie: cookie } : {}),
+      ...authHeaders,
     },
-    body: await bodyFor(input.uri),
-    credentials: Platform.OS === "web" ? "include" : "omit",
+    body,
+    credentials,
   });
 
   if (!response.ok) {
@@ -46,10 +100,5 @@ export async function uploadFile(input: {
   }
 
   const data = (await response.json()) as UploadedFile;
-  return {
-    ...data,
-    url: data.url.startsWith("http")
-      ? data.url
-      : `${SERVER_URL}${data.url}`,
-  };
+  return { ...data, url: absolute(data.url) };
 }

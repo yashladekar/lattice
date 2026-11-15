@@ -1,0 +1,46 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "apps/web/",
+      "framework": "nextjs",
+      "buildCommand": "pnpm --filter web build && node scripts/vercel-config.mjs",
+      "headers": [
+        {
+          "source": "/sw.js",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+          ]
+        },
+        {
+          "source": "/config.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        }
+      ]
+    },
+    "server": {
+      "root": "apps/server/",
+      "framework": "express",
+      "entrypoint": "dist/app.mjs",
+      "buildCommand": "node scripts/vercel-build.mjs"
+    }
+  },
+  "rewrites": [
+    { "source": "/rpc", "destination": { "service": "server" } },
+    { "source": "/rpc/:path*", "destination": { "service": "server" } },
+    { "source": "/api/auth", "destination": { "service": "server" } },
+    { "source": "/api/auth/:path*", "destination": { "service": "server" } },
+    { "source": "/api/github", "destination": { "service": "server" } },
+    { "source": "/api/github/:path*", "destination": { "service": "server" } },
+    { "source": "/uploads", "destination": { "service": "server" } },
+    { "source": "/uploads/:path*", "destination": { "service": "server" } },
+    { "source": "/ingest/:path*", "destination": { "service": "server" } },
+    { "source": "/scim/:path*", "destination": { "service": "server" } },
+    { "source": "/polar/success", "destination": { "service": "server" } },
+    { "source": "/api-reference", "destination": { "service": "server" } },
+    { "source": "/api-reference/:path*", "destination": { "service": "server" } },
+    { "source": "/cron", "destination": { "service": "server" } },
+    { "source": "/health", "destination": { "service": "server" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
+}

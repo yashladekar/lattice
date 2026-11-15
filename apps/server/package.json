@@ -13,6 +13,8 @@
     "auth:generate": "varlock run -- pnpm dlx auth@latest generate --config src/services.ts --output ../../packages/db/prisma/schema/auth.prisma --yes"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/s3-request-presigner": "^3.1169.0",
     "@notes-learning/api": "workspace:*",
     "@notes-learning/auth": "workspace:*",
     "@notes-learning/db": "workspace:*",

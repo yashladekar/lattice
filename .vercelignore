@@ -1,0 +1,15 @@
+# Build output is regenerated on the build machine.
+apps/web/out
+apps/web/.next
+apps/server/dist
+packages/*/dist
+
+# Desktop build artifacts are large and built by the release workflow.
+apps/web/src-tauri/target
+
+# Not part of either service.
+.agents
+.claude
+brag-output
+final
+.playwright-mcp
