@@ -50,7 +50,10 @@ export function createEditorSuggestionExtensions({
     });
 
   return [
-    build("slash", "/", { pluginName: "latticeSlashSuggestion" }),
+    // Spaces stay in the query so multi-word blocks ("Heading 2", "Code block",
+    // "API request") can be searched; the editor hides the menu once a spaced
+    // query matches nothing.
+    build("slash", "/", { allowSpaces: true, pluginName: "latticeSlashSuggestion" }),
     build("page", "[[", {
       allowSpaces: true,
       allowedPrefixes: null,

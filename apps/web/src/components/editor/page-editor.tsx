@@ -548,6 +548,13 @@ export function PageEditor({
         callbacks: {
           onStart: (kind, props) => {
             setMenuIndex(0);
+            // The slash trigger tolerates spaces so "/heading 2" can match, but
+            // once a spaced query matches nothing it is ordinary text ("5 / 2
+            // is..."), so the menu must not linger or swallow Enter.
+            if (kind === "slash" && !props.items.length && /\s/.test(props.query)) {
+              setMenu(null);
+              return;
+            }
             setMenu({
               kind,
               query: props.query,
@@ -559,6 +566,10 @@ export function PageEditor({
           },
           onUpdate: (kind, props) => {
             setMenuIndex(0);
+            if (kind === "slash" && !props.items.length && /\s/.test(props.query)) {
+              setMenu(null);
+              return;
+            }
             setMenu({
               kind,
               query: props.query,
