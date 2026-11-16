@@ -1984,6 +1984,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         <div className="absolute left-3 top-14 z-20 w-52 rounded-lg border border-border/70 bg-popover/90 p-2.5 shadow-lg backdrop-blur">
           <input
             value={title}
+            aria-label="Canvas title"
             onFocus={() => {
               titleFocused.current = true;
             }}

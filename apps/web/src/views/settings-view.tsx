@@ -802,13 +802,14 @@ export function SettingsView() {
                   <label className="mb-1 block text-[9px] text-muted-foreground">Icon</label>
                   <Input
                     value={icon}
+                    aria-label="Workspace icon"
                     onChange={(event) => setIcon(event.target.value.slice(0, 4))}
                     className="h-9 rounded-lg text-center text-lg"
                   />
                 </div>
                 <div className="flex-1">
                   <label className="mb-1 block text-[9px] text-muted-foreground">Name</label>
-                  <Input value={name} onChange={(event) => setName(event.target.value)} className="h-9 rounded-lg text-[12px]" />
+                  <Input value={name} aria-label="Workspace name" onChange={(event) => setName(event.target.value)} className="h-9 rounded-lg text-[12px]" />
                 </div>
               </div>
               <div className="mt-3">

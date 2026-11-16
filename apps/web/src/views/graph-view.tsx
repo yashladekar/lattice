@@ -871,14 +871,14 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             </span>
           ) : null}
           <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-popover/90 p-0.5 backdrop-blur">
-            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.2) }))} className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
+            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.2) }))} aria-label="Zoom out" title="Zoom out" className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
               <ZoomOut className="size-3" />
             </button>
             <span className="w-8 text-center font-mono text-[8px] text-muted-foreground">{Math.round(viewport.zoom * 100)}%</span>
-            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(3, current.zoom * 1.2) }))} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
+            <button type="button" onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(3, current.zoom * 1.2) }))} aria-label="Zoom in" title="Zoom in" className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
               <ZoomIn className="size-3" />
             </button>
-            <button type="button" onClick={fit} className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
+            <button type="button" onClick={fit} aria-label="Fit graph to screen" title="Fit graph to screen" className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted tap-target">
               <Maximize2 className="size-3" />
             </button>
             <button
