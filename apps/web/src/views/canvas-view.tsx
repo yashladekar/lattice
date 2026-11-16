@@ -1793,7 +1793,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     <div className={cn("relative flex h-full w-full flex-col overflow-hidden bg-background", presentation && "bg-[oklch(0.14_0.01_75)]")}>
       {!presentation ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center p-3">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-border/70 bg-popover/95 p-1 shadow-xl backdrop-blur">
+          <div className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border/70 bg-popover/95 p-1 shadow-xl backdrop-blur">
             {(
               [
                 ["select", MousePointer2, "Select (V)"],
