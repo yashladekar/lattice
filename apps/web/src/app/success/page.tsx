@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LatticeLogo } from "@/components/brand/logo";
+
+export const metadata: Metadata = {
+  title: "Subscription active",
+  robots: { index: false, follow: false },
+};
 
 export default function SuccessPage() {
   return (
