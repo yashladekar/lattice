@@ -76,6 +76,29 @@ export const ENV = parsed.data;
 /** Packaged desktop builds serve the frontend from their own origin, not CORS_ORIGIN. */
 export const desktopOrigins = ["tauri://localhost", "http://tauri.localhost"];
 
+/**
+ * Vercel serves one deployment from several hostnames: the production alias,
+ * the per-deployment URL, and (on previews) the branch URL. The browser sends
+ * whichever one it was opened on as `Origin`, and `CORS_ORIGIN` can only name
+ * one, so sign-up from any other hostname fails the origin check and surfaces
+ * as a CORS error. Vercel injects these hostnames itself; they identify this
+ * deployment, not anything a request can influence.
+ */
+export const vercelOrigins = process.env.VERCEL
+  ? [
+      ...new Set(
+        [
+          process.env.VERCEL_URL,
+          process.env.VERCEL_BRANCH_URL,
+          process.env.VERCEL_PROJECT_PRODUCTION_URL,
+        ].flatMap((host) => {
+          const trimmed = host?.trim();
+          return trimmed ? [`https://${trimmed}`] : [];
+        }),
+      ),
+    ]
+  : [];
+
 export const aiConfig: AiConfig | null = ENV.AI_API_KEY
   ? {
       baseUrl: ENV.AI_BASE_URL ?? "https://api.openai.com/v1",
