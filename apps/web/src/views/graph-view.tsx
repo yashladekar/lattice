@@ -724,7 +724,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
       >
         <div className="pointer-events-none absolute inset-0 dot-grid opacity-70" />
 
-        <div data-graph-ui className="absolute left-3 top-3 z-20 flex flex-wrap items-center gap-1.5">
+        <div data-graph-ui className="absolute left-3 top-3 z-20 flex flex-wrap items-center gap-1.5 max-md:top-12 max-md:right-3">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -899,7 +899,7 @@ export function GraphView({ onShare }: { onShare?: () => void }) {
             role="button"
             aria-label="Minimap — click to jump"
             title="Minimap — click to jump"
-            className="absolute right-3 top-12 z-20 h-24 w-41.5 cursor-crosshair rounded-lg border border-border/70 bg-popover/90 p-2 shadow-lg backdrop-blur"
+            className="absolute right-3 top-12 z-20 h-24 w-41.5 cursor-crosshair max-md:hidden rounded-lg border border-border/70 bg-popover/90 p-2 shadow-lg backdrop-blur"
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               const padding = 8;
