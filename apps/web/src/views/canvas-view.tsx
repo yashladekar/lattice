@@ -2,6 +2,7 @@
 
 import {
   CANVAS_TEMPLATES,
+  canEditContent,
   canvasBounds,
   connectorPoint,
   createConceptMap,
@@ -158,7 +159,7 @@ function colorClass(color: StickyColor): string {
 function shapeBorder(shape: CanvasShapeElement["shape"]): string {
   switch (shape) {
     case "ellipse":
-      return "rounded-full";
+      return "rounded-[50%]";
     case "diamond":
       return "[clip-path:polygon(50%_0,100%_50%,50%_100%,0_50%)]";
     case "parallelogram":
@@ -311,7 +312,13 @@ type DragState =
 
 export function CanvasView({ canvasId }: { canvasId: string | null }) {
   const router = useRouter();
-  const { db, user, activeWorkspaceId, online } = useAppData();
+  const { db, user, activeWorkspaceId, online, role } = useAppData();
+  // Viewers and guests can look but not change the board; the server refuses
+  // their writes, so editing here would only queue changes that fail to sync.
+  // An unknown role (still loading) stays editable.
+  const readOnly = role !== null && !canEditContent(role);
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   const canvas = useCanvas(canvasId);
   const pages = useWorkspacePages();
   const canvases = useWorkspaceCanvases();
@@ -410,7 +417,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (titleTimer.current) clearTimeout(titleTimer.current);
-      if (loadedRef.current && db && canvas) {
+      if (loadedRef.current && db && canvas && !readOnlyRef.current) {
         void saveCanvasLocal(db, canvas.id, documentRef.current, { source: "session" });
       }
     };
@@ -442,6 +449,12 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
           event.preventDefault();
           changeSlide(-1);
         }
+        return;
+      }
+      if (readOnly) {
+        const key = event.key.toLowerCase();
+        if (!mod && key === "v") setTool("select");
+        if (!mod && key === "h") setTool("pan");
         return;
       }
       if (!mod && !event.altKey) {
@@ -516,7 +529,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [document, selectedIds, selectedElements, presentation, presentationIndex]);
+  }, [document, selectedIds, selectedElements, presentation, presentationIndex, readOnly]);
 
   const fitDocument = useCallback((doc: CanvasDocument) => {
     const container = containerRef.current;
@@ -554,7 +567,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   );
 
   useEffect(() => {
-    if (!loadedRef.current || !db || !canvas) return;
+    if (!loadedRef.current || !db || !canvas || readOnly) return;
     setSaveStatus("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
@@ -867,6 +880,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
     }
+    if (readOnly) return;
     if (editingId) {
       setEditingId(null);
     }
@@ -900,7 +914,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
 
   const onElementPointerDown = (event: React.PointerEvent, element: CanvasElement) => {
     event.stopPropagation();
-    if (presentation) return;
+    if (presentation || readOnly) return;
     if (tool === "connector") {
       if (!connectorStart) {
         setConnectorStart(element.id);
@@ -1216,6 +1230,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   };
 
   const beginEdit = (element: CanvasElement) => {
+    if (readOnly) return;
     if (!("text" in element) && element.type !== "frame") return;
     pushHistory();
     setEditingId(element.id);
@@ -1778,7 +1793,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     <div className={cn("relative flex h-full w-full flex-col overflow-hidden bg-background", presentation && "bg-[oklch(0.14_0.01_75)]")}>
       {!presentation ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center p-3">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-border/70 bg-popover/95 p-1 shadow-xl backdrop-blur">
+          <div className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border/70 bg-popover/95 p-1 shadow-xl backdrop-blur">
             {(
               [
                 ["select", MousePointer2, "Select (V)"],
@@ -1797,7 +1812,9 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                 ["page", FileText, "Linked note"],
                 ["image", ImageIcon, "Image"],
               ] as const
-            ).map(([value, Icon, label]) => (
+            )
+              .filter(([value]) => !readOnly || value === "select" || value === "pan")
+              .map(([value, Icon, label]) => (
               <button
                 key={value}
                 type="button"
@@ -1967,6 +1984,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
         <div className="absolute left-3 top-14 z-20 w-52 rounded-lg border border-border/70 bg-popover/90 p-2.5 shadow-lg backdrop-blur">
           <input
             value={title}
+            aria-label="Canvas title"
             onFocus={() => {
               titleFocused.current = true;
             }}
@@ -1980,8 +1998,9 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             }}
             onBlur={() => {
               titleFocused.current = false;
-              if (db) void updateCanvasLocal(db, canvas.id, { title });
+              if (db && !readOnly) void updateCanvasLocal(db, canvas.id, { title });
             }}
+            readOnly={readOnly}
             className="w-full bg-transparent text-[12px] font-semibold outline-none"
           />
           <div className="mt-1 flex items-center gap-1.5 text-[8px] text-muted-foreground">
@@ -2165,7 +2184,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
                   title="Click to select · double-click to rename"
                   onPointerDown={(event) => {
                     event.stopPropagation();
-                    if (presentation || tool === "connector") return;
+                    if (presentation || readOnly || tool === "connector") return;
                     setSelectedIds([connector.id]);
                   }}
                   onDoubleClick={(event) => {
