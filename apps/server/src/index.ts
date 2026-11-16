@@ -32,6 +32,16 @@ const app = express();
  */
 app.set("trust proxy", process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : false);
 
+// Do not announce the framework, and send the baseline headers a JSON/file API
+// should: no MIME sniffing of uploads, never framed, no referrer leakage.
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  next();
+});
+
 /**
  * One line per client error, with the path handler interceptors cannot see. A
  * 401 from a poll that ran before the session resolved is expected traffic, not
