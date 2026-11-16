@@ -218,7 +218,15 @@ function SharedContent() {
       })
       .catch((caught) => {
         if (cancelled) return;
-        setError(caught instanceof Error ? caught.message : "This link is not available.");
+        // A malformed token fails input validation before it is ever looked
+        // up; say the same thing a missing or expired link says instead of
+        // showing the validator's wording.
+        const code = (caught as { code?: unknown } | null)?.code;
+        setError(
+          caught instanceof Error && code !== "BAD_REQUEST"
+            ? caught.message
+            : "This link is not available.",
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
