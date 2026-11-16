@@ -1,0 +1,51 @@
+name: Scheduled jobs
+
+# Vercel Functions have no timers. This calls the API's protected /cron
+# endpoint so queued webhook deliveries retry and expired trash is purged.
+# Works for the Docker deployment too: point CRON_URL at it and the in-process
+# timers can stay on or be ignored.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: scheduled-jobs
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Webhook delivery
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule != '0 3 * * *'
+        env:
+          CRON_URL: ${{ secrets.CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "CRON_URL or CRON_SECRET is not configured; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 2 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$CRON_URL?job=webhooks"
+
+      - name: Retention purge
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 3 * * *'
+        env:
+          CRON_URL: ${{ secrets.CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "CRON_URL or CRON_SECRET is not configured; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 2 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$CRON_URL?job=retention"

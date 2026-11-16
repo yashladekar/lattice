@@ -9,6 +9,13 @@ const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
 const MESSAGE_SEED_REQUEST = 2;
 
+/**
+ * A host without a relay (Vercel Functions) rejects the upgrade every time.
+ * Stop after a few attempts so the editor settles on the local-first path
+ * instead of retrying for the lifetime of the tab.
+ */
+const MAX_RECONNECT_ATTEMPTS = 5;
+
 export type CollabStatus = "connecting" | "connected" | "disconnected";
 
 export interface CollabPeer {
@@ -268,6 +275,7 @@ export class CollabProvider {
       this.socket = null;
       this.setStatus("disconnected");
       if (this.closed || this.suspended || this.reconnectTimer) return;
+      if (this.retries >= MAX_RECONNECT_ATTEMPTS) return;
       const delay = Math.min(10_000, 1000 * 2 ** this.retries);
       this.retries += 1;
       this.reconnectTimer = setTimeout(() => {

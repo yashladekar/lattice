@@ -20,6 +20,7 @@ export function SiteNav() {
     { href: "#product", label: "Product" },
     { href: "#verbs", label: "Philosophy" },
     { href: "#local-first", label: "Local-first" },
+    { href: "/download", label: "Download" },
     { href: getDocsUrl(), label: "Docs", external: true },
   ];
 

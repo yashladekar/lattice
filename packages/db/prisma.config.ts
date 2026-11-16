@@ -9,6 +9,12 @@ export default defineConfig({
     path: path.join("prisma", "migrations"),
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // A pooled URL is what the application should use at runtime. Migrations
+    // need a direct connection, which providers such as Neon and Supabase
+    // expose separately (Neon names it DATABASE_URL_UNPOOLED).
+    url:
+      process.env.DIRECT_URL ||
+      process.env.DATABASE_URL_UNPOOLED ||
+      env("DATABASE_URL"),
   },
 });

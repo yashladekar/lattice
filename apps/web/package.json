@@ -6,7 +6,6 @@
     "dev": "next dev --port 3101",
     "build": "tsc -b ../../packages/api && next build",
     "check-types": "tsc -b ../../packages/api && tsc --noEmit",
-    "start": "next start",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",

@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
 
 import { CollabProvider, collaborationUrl, type CollabPeer, type CollabStatus } from "@/lib/collab";
+import { isCollabEnabled } from "@/lib/config";
 
 const ELEMENTS = "elements";
 const PUBLISH_DEBOUNCE_MS = 350;
@@ -68,7 +69,7 @@ export function useCanvasCollaboration(options: {
   onRemoteRef.current = onRemote;
 
   const provider = useMemo(() => {
-    if (!enabled || !canvasId || !workspaceId) return null;
+    if (!enabled || !canvasId || !workspaceId || !isCollabEnabled()) return null;
     return new CollabProvider();
   }, [canvasId, enabled, workspaceId]);
 

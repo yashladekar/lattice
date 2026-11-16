@@ -1,0 +1,189 @@
+---
+title: Deploy on Vercel
+description: One project with the static web app and the Express API on one domain, with object-storage uploads.
+---
+
+The repository root ships a `vercel.json` that deploys one Vercel project with two [Services](https://vercel.com/docs/services):
+
+| Service | Root | Runs |
+| --- | --- | --- |
+| `web` | `apps/web/` | Next.js static export (`out/`) |
+| `server` | `apps/server/` | Express API as a single Node Function |
+
+Both services share one domain. The API is reachable at `/rpc`, `/api/auth`, `/uploads`, `/ingest`, `/scim`, `/polar`, and `/cron`, so the session cookie is first-party and the PWA needs no CORS exceptions.
+
+Services is in beta but available on all plans, including Hobby.
+
+## Prerequisites
+
+1. **PostgreSQL** — Neon, Supabase, Vercel Postgres, or any Postgres 13+.
+   Use the **pooled** connection string for the app and the **direct** one for migrations.
+2. **An S3-compatible bucket** — Cloudflare R2, AWS S3, or MinIO.
+   Serverless functions have a read-only filesystem, so uploads must live in the bucket.
+3. **A Vercel account** on the Hobby plan (or higher).
+
+## 1. Create the bucket
+
+Create a bucket (for example `lattice-uploads`) and make `uploads/*` publicly readable, or attach a custom domain to it. That public base becomes `S3_PUBLIC_URL`.
+
+Allow the browser to PUT directly to the bucket:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://your-project.vercel.app",
+      "tauri://localhost",
+      "http://tauri.localhost"
+    ],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["content-type", "x-amz-meta-userid", "content-disposition"],
+    "ExposeHeaders": ["etag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Add your custom domain to `AllowedOrigins` once you attach one. Native builds send no `Origin` header, so a permissive `"*"` for `AllowedOrigins` is also acceptable on a dedicated uploads bucket.
+
+## 2. Import the project
+
+In Vercel, **Add New → Project**, import the repository, and leave the **Root Directory** at the repository root. `vercel.json` chooses each service and its build command; there is no root build command to configure.
+
+If Vercel guesses a framework for the project, set the project framework to **Other**. The services declare their own frameworks.
+
+## 3. Environment variables
+
+Set these for Production and Preview:
+
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | pooled Postgres URL |
+| `DIRECT_URL` | direct Postgres URL (migrations) |
+| `BETTER_AUTH_SECRET` | 32+ random characters |
+| `BETTER_AUTH_URL` | `https://<your-project>.vercel.app` (or the custom domain) |
+| `CORS_ORIGIN` | the same value as `BETTER_AUTH_URL` |
+| `TRUST_PROXY` | `1` |
+| `UPLOAD_DRIVER` | `s3` |
+| `S3_ENDPOINT` | R2: `https://<account>.r2.cloudflarestorage.com`; omit for AWS S3 |
+| `S3_REGION` | `auto` for R2, the region for AWS |
+| `S3_BUCKET` | bucket name |
+| `S3_ACCESS_KEY_ID` | access key |
+| `S3_SECRET_ACCESS_KEY` | secret key |
+| `S3_PUBLIC_URL` | public bucket or CDN base URL |
+| `S3_FORCE_PATH_STYLE` | `true` for R2 or MinIO, `false` for AWS |
+| `CRON_SECRET` | random 32+ hex value |
+| `NEXT_PUBLIC_SERVER_URL` | the same value as `BETTER_AUTH_URL` (satisfies build-time validation; runtime config overrides it) |
+| `NEXT_PUBLIC_DOCS_URL` | deployed docs URL, if you deploy `apps/fumadocs` |
+
+Optional: `DATABASE_POOL_MAX=1` (the server already defaults to 1 on Vercel), `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `POLAR_*`, `GITHUB_*`.
+
+`BETTER_AUTH_SECRET` encrypts stored workspace secrets (SSO client secrets, AI keys, ChatGPT/GitHub tokens). Back it up with the database; losing it means those connections must be reauthorized.
+
+### Preview deployments
+
+Each preview gets its own hostname while `BETTER_AUTH_URL` stays fixed at production. A preview will load, but sign-in cookies and links point at production. Either set `BETTER_AUTH_URL` to the production URL and treat previews as read-only, or add a preview-scoped value.
+
+## 4. Deploy
+
+The first production build:
+
+1. generates the Prisma client,
+2. applies committed migrations with `prisma migrate deploy`,
+3. bundles the API and the static web export.
+
+Preview builds skip migrations. If a migration fails, the deployment fails before traffic reaches the new code.
+
+To migrate manually from your machine:
+
+```bash
+DATABASE_URL="<direct-url>" pnpm --filter @notes-learning/db db:migrate:deploy
+```
+
+## 5. Schedule webhooks and retention
+
+The API no longer relies on in-process timers on Vercel. `.github/workflows/scheduled-jobs.yml` calls a protected endpoint:
+
+```text
+GET <deployment>/cron?job=webhooks    # every 5 minutes
+GET <deployment>/cron?job=retention  # daily at 03:00 UTC
+```
+
+Add two repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `CRON_URL` | `https://<your-project>.vercel.app/cron` |
+| `CRON_SECRET` | the same value as the Vercel env var |
+
+Without `CRON_SECRET`, `/cron` returns `503`. With a wrong bearer token it returns `401`.
+
+Vercel Cron on Hobby runs once per day and cannot carry the webhook retry backoff, which is why the Action is the default. The endpoint works from any scheduler, including a self-hosted cron or a hosted service.
+
+## 6. Desktop installers
+
+The desktop release workflow reads two repository **variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Value |
+| --- | --- |
+| `LATTICE_SERVER_URL` | `https://<your-project>.vercel.app` |
+| `LATTICE_DOCS_URL` | the docs URL |
+
+The workflow writes that URL into `apps/web/public/config.js` before building, so a downloaded installer talks to the hosted API. Pushing a `v*` tag builds macOS (arm64 and Intel), Windows, and Linux (AppImage and deb) installers, then publishes the release. The marketing site's `/download` page reads the latest release from GitHub.
+
+## 7. Docs site
+
+`apps/fumadocs` is a separate Next.js project. Import the same repository, set the **Root Directory** to `apps/fumadocs`, and let Vercel use the Next.js preset. Point `NEXT_PUBLIC_DOCS_URL` in the main project at the docs deployment.
+
+## What does not run on Vercel
+
+| Feature | On Vercel |
+| --- | --- |
+| Live co-editing (`/collab` WebSocket) | Off. The web build sets `collabEnabled: false`; the editor stays on the local-first Dexie path. Self-hosted Docker and desktop keep live sessions. |
+| Presence | Best effort, per function instance |
+| Rate limiting | Per function instance |
+| ChatGPT plan connection | Hidden: the OAuth callback needs a loopback listener on the same machine as the browser. Export/import a credential created locally instead. |
+| File uploads | Direct to the bucket with a presigned PUT. The API still accepts a raw POST up to 4.5 MB (Vercel's request body cap). |
+| Webhook retries | Driven by the external schedule, not the 15-second timer. |
+
+Function duration on Hobby is generous (up to 300 seconds with Fluid compute), so Ask and PDF text extraction fit. `AI_AGENT_ENABLED` remains off by default because a plan-mode question can make several model calls.
+
+## GitHub Actions
+
+The repository ships four workflows:
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yml` | Pull requests, pushes to `master`, manual | Typechecks, runs tests against Postgres, builds the API, static web export, docs, and validates the extension package |
+| `desktop-release.yml` | `v*` tags, manual | Builds macOS (arm64 + Intel), Windows, and Linux installers, uploads them to a draft release, publishes it, and optionally writes `latest.json` |
+| `scheduled-jobs.yml` | Every 5 minutes, daily, manual | Calls `/cron?job=webhooks` and `/cron?job=retention` |
+| `deploy-vercel.yml` | Manual | Optional Vercel CLI deployment. Skips itself until the Vercel secrets exist |
+
+Configure these in **Settings → Secrets and variables → Actions**:
+
+Secrets: `CRON_URL`, `CRON_SECRET`, and optionally the Apple signing secrets, `TAURI_SIGNING_PRIVATE_KEY`/password, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+
+Variables: `LATTICE_SERVER_URL` (the deployment origin baked into installers) and `LATTICE_DOCS_URL`.
+
+Vercel's Git integration already deploys on push, so `deploy-vercel.yml` is only for redeploying without a new commit. It runs remotely, which is required for Services.
+
+## Fallback: two projects
+
+If you prefer independent deployments, create two Vercel projects:
+
+- `apps/web` with the Next.js preset, plus `vercel.json` rewrites proxying `/rpc/*`, `/api/auth/*`, `/uploads/*`, `/ingest/*`, `/scim/*`, and `/polar/*` to the API project's URL.
+- `apps/server` with the **Express** preset and `entrypoint` set to `src/app.ts`.
+
+The proxy keeps cookies first-party, but the API host is a literal value in the web project's `vercel.json`. Services avoids that duplication, which is why it is the default here.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| Vercel says the repository needs a `vercel.json`, or rejects the `server` entrypoint | A service `entrypoint` must exist in the repository before the build. Keep `"entrypoint": "src/app.ts"`; never point it at a build artifact such as `dist/app.mjs`. |
+| Prisma fails at runtime with a missing query compiler | Add `"functions": { "src/app.ts": { "includeFiles": "../../packages/db/prisma/generated/**" } }` to the `server` service so the generated client and its WASM chunks ship with the function. |
+| `/health` reports `"uploads":"local"` | Set `UPLOAD_DRIVER=s3` for the environment you are testing. A serverless function cannot write to its own filesystem. |
+| Sign-in succeeds but RPC calls return 401 | `BETTER_AUTH_URL` and `CORS_ORIGIN` must match the domain in the address bar (including the scheme). |
+| Rate limits look wrong behind a proxy | Set `TRUST_PROXY` to the number of proxy hops (Vercel uses one). |
+| Presigned uploads return 403 | The bucket CORS must allow `PUT` with `content-type`, `x-amz-meta-userid`, and `content-disposition`, and the URL must not be edited after signing. |

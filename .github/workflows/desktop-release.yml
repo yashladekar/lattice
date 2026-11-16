@@ -1,7 +1,12 @@
 name: Desktop release
 
-# Builds signed Lattice desktop installers (.dmg on macOS, .msi/.exe on Windows).
-# Trigger with a v* tag or manually from the Actions tab.
+# Builds Lattice desktop installers (.dmg on macOS, .msi/.exe on Windows,
+# AppImage/.deb on Linux), uploads them to a draft GitHub Release, then
+# publishes it. Trigger with a v* tag or manually from the Actions tab.
+#
+# Signing is optional. Without APPLE_* secrets macOS builds are unsigned; without
+# TAURI_SIGNING_PRIVATE_KEY no updater artifacts are produced. The workflow
+# stays green either way.
 
 on:
   push:
@@ -17,17 +22,36 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      updater: ${{ steps.flags.outputs.updater }}
+    steps:
+      - name: Check updater signing key
+        id: flags
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "updater=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "updater=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos-latest
-            args: "--target aarch64-apple-darwin --config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'"
+            args: "--target aarch64-apple-darwin"
           - platform: macos-latest
-            args: "--target x86_64-apple-darwin --config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'"
+            args: "--target x86_64-apple-darwin"
           - platform: windows-latest
-            args: "--config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'"
+            args: ""
+          - platform: ubuntu-22.04
+            args: "--bundles appimage,deb"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -54,13 +78,63 @@ jobs:
         with:
           workspaces: apps/web/src-tauri -> target
 
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libsoup-3.0-dev \
+            libayatana-appindicator3-dev \
+            libssl-dev \
+            libxdo-dev \
+            librsvg2-dev \
+            patchelf
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Point the installer at the hosted API
+        env:
+          LATTICE_SERVER_URL: ${{ vars.LATTICE_SERVER_URL }}
+          NEXT_PUBLIC_DOCS_URL: ${{ vars.LATTICE_DOCS_URL }}
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ] && [ -z "$LATTICE_SERVER_URL" ]; then
+            echo "::error::Set the LATTICE_SERVER_URL repository variable before tagging a release."
+            exit 1
+          fi
+          node apps/web/scripts/desktop-config.mjs
+
+      - name: Resolve Tauri args
+        shell: bash
+        env:
+          MATRIX_ARGS: ${{ matrix.args }}
+          UPDATER: ${{ needs.prepare.outputs.updater }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          ARGS="$MATRIX_ARGS"
+          if [ "$REF_TYPE" = "tag" ]; then
+            # Keep the app version, installer names, and latest.json in sync.
+            VERSION="${REF_NAME#v}"
+            ARGS="$ARGS --config '{\"version\":\"$VERSION\"}'"
+          fi
+          if [ "$UPDATER" = "true" ]; then
+            ARGS="$ARGS --config '{\"bundle\":{\"createUpdaterArtifacts\":true}}'"
+          fi
+          echo "TAURI_ARGS=$ARGS" >> "$GITHUB_ENV"
+
       - name: Build and publish
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # linuxdeploy needs this on runners without FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
           # macOS signing + notarization. Add these repository secrets:
           #   APPLE_CERTIFICATE            base64 of the Developer ID .p12
           #   APPLE_CERTIFICATE_PASSWORD   password for that .p12
@@ -74,19 +148,35 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Updater signing. Generate once with `pnpm --filter web tauri signer generate`
-          # and keep the private key + password as repository secrets. The public key
-          # in apps/web/src-tauri/tauri.conf.json must match this private key.
+          # Updater signing. Optional: generate once with
+          # `pnpm --filter web tauri signer generate`, add the private key and
+          # password as repository secrets, and keep the public key in
+          # apps/web/src-tauri/tauri.conf.json in sync.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Varlock validates the web environment at build time; the runtime
+          # config written above is what the installer actually uses.
+          NEXT_PUBLIC_SERVER_URL: http://localhost:3100
           # Windows Authenticode signing is not wired up yet: import the PFX
           # into Cert:\CurrentUser\My and point bundle.windows.certificateThumbprint
           # at it (or use a signCommand). Until then Windows artifacts are unsigned.
         with:
           projectPath: apps/web
           tauriScript: pnpm tauri
-          args: ${{ matrix.args }}
+          args: ${{ env.TAURI_ARGS }}
           tagName: ${{ github.ref_name }}
           releaseName: "Lattice ${{ github.ref_name }}"
           releaseDraft: true
           prerelease: false
+          uploadUpdaterJson: ${{ needs.prepare.outputs.updater == 'true' }}
+
+  publish:
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "$TAG" --draft=false

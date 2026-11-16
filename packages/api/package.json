@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/s3-request-presigner": "^3.1169.0",
     "@notes-learning/auth": "workspace:*",
     "@notes-learning/db": "workspace:*",
     "@notes-learning/domain": "workspace:*",
@@ -18,10 +20,10 @@
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "express": "^5.3.0",
     "jose": "^6.2.15",
     "unpdf": "^2.1.0",
-    "zod": "catalog:",
-    "express": "^5.3.0"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@notes-learning/config": "workspace:*",

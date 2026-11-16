@@ -1,6 +1,12 @@
 type LatticeRuntimeConfig = {
   apiBaseUrl?: string;
   docsUrl?: string;
+  /**
+   * Set to false on a host without a WebSocket relay (Vercel Functions). The
+   * editor then stays on the local-first Dexie path instead of opening a
+   * socket that can never connect.
+   */
+  collabEnabled?: boolean;
 };
 
 declare global {
@@ -28,4 +34,9 @@ export function getDocsUrl(): string {
     if (configured) return configured;
   }
   return (process.env.NEXT_PUBLIC_DOCS_URL ?? "http://localhost:4000/docs").replace(/\/$/, "");
+}
+
+export function isCollabEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.__LATTICE_CONFIG__?.collabEnabled !== false;
 }

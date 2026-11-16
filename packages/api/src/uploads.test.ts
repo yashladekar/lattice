@@ -6,7 +6,8 @@ import path from "node:path";
 import express from "express";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createUploadHandler } from "./uploads";
+import { createLocalUploadStore } from "./upload-store";
+import { createPresignHandler, createUploadHandler } from "./uploads";
 
 describe("upload handler", () => {
   let server: Server;
@@ -16,14 +17,18 @@ describe("upload handler", () => {
 
   beforeAll(async () => {
     directory = await mkdtemp(path.join(tmpdir(), "lattice-uploads-"));
+    const store = createLocalUploadStore(directory);
+    const authenticate = async () => (signedIn ? { userId: "user" } : null);
     const app = express();
     app.post(
       "/uploads",
       express.raw({ type: "*/*", limit: "1mb" }),
-      createUploadHandler({
-        uploadRoot: directory,
-        authenticate: async () => (signedIn ? { userId: "user" } : null),
-      }),
+      createUploadHandler({ store, authenticate }),
+    );
+    app.post(
+      "/uploads/presign",
+      express.json({ limit: "16kb" }),
+      createPresignHandler({ store, authenticate }),
     );
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -81,5 +86,15 @@ describe("upload handler", () => {
     signedIn = true;
     const empty = await upload("");
     expect(empty.status).toBe(400);
+  });
+
+  it("does not offer direct uploads on a disk-backed host", async () => {
+    signedIn = true;
+    const response = await fetch(`${base}/uploads/presign`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "photo.png", mime: "image/png", size: 10 }),
+    });
+    expect(response.status).toBe(501);
   });
 });

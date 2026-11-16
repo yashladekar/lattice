@@ -770,10 +770,13 @@ export default function LandingPage() {
                 ["Android", Smartphone],
               ].map(([label, Icon], index) => (
                 <Reveal key={String(label)} delay={index * 50}>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-3 py-1.5 text-[10px] text-muted-foreground transition-[border-color,color,transform] duration-200 hover:-translate-y-0.5 hover:border-saffron/40 hover:text-foreground">
+                  <Link
+                    href="/download"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-3 py-1.5 text-[10px] text-muted-foreground transition-[border-color,color,transform] duration-200 hover:-translate-y-0.5 hover:border-saffron/40 hover:text-foreground"
+                  >
                     <Icon className="size-3" />
                     {label as string}
-                  </span>
+                  </Link>
                 </Reveal>
               ))}
             </div>
@@ -825,6 +828,7 @@ export default function LandingPage() {
             <span>Lattice · a local-first knowledge OS</span>
           </div>
           <div className="flex flex-wrap items-center gap-5">
+            <Link href="/download" className="hover:text-foreground">Download</Link>
             <a href={getDocsUrl()} target="_blank" rel="noreferrer" className="hover:text-foreground">
               Docs
             </a>
