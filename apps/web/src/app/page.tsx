@@ -503,7 +503,7 @@ const verbs = [
 
 export default function LandingPage() {
   return (
-    <main className="min-h-dvh overflow-hidden bg-background">
+    <main className="relative min-h-dvh overflow-hidden bg-background">
       <noscript>
         <style>{".reveal{opacity:1 !important;transform:none !important}"}</style>
       </noscript>
