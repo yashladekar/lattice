@@ -160,12 +160,10 @@ export function SettingsView() {
     queryFn: async () => client.workspace.members(),
     enabled: online && Boolean(activeWorkspaceId),
   });
-  // These endpoints require the ADMIN role; asking as anyone else only earns a 403.
-  const isAdmin = ["OWNER", "ADMIN"].includes(role ?? "");
   const audit = useQuery({
     queryKey: ["workspace-audit", activeWorkspaceId],
     queryFn: async () => client.workspace.audit(),
-    enabled: online && Boolean(activeWorkspaceId) && isAdmin,
+    enabled: online && Boolean(activeWorkspaceId) && ["OWNER", "ADMIN"].includes(role ?? ""),
   });
   const aiStatus = useQuery({
     queryKey: ["ai-status", activeWorkspaceId],
@@ -185,22 +183,22 @@ export function SettingsView() {
   const scimTokens = useQuery({
     queryKey: ["workspace-scim-tokens", activeWorkspaceId],
     queryFn: async () => client.workspace.scimTokens(),
-    enabled: online && Boolean(activeWorkspaceId) && isAdmin,
+    enabled: online && Boolean(activeWorkspaceId),
   });
   const ssoConnection = useQuery({
     queryKey: ["workspace-sso", activeWorkspaceId],
     queryFn: async () => client.workspace.ssoConnection(),
-    enabled: online && Boolean(activeWorkspaceId) && isAdmin,
+    enabled: online && Boolean(activeWorkspaceId),
   });
   const legalHolds = useQuery({
     queryKey: ["workspace-legal-holds", activeWorkspaceId],
     queryFn: async () => client.workspace.legalHolds(),
-    enabled: online && Boolean(activeWorkspaceId) && isAdmin,
+    enabled: online && Boolean(activeWorkspaceId),
   });
   const aiConfig = useQuery({
     queryKey: ["workspace-ai-config", activeWorkspaceId],
     queryFn: async () => client.workspace.aiConfig(),
-    enabled: online && Boolean(activeWorkspaceId) && isAdmin,
+    enabled: online && Boolean(activeWorkspaceId),
   });
   const embeddingStatus = useQuery({
     queryKey: ["ai-embeddings", activeWorkspaceId],
@@ -802,14 +800,13 @@ export function SettingsView() {
                   <label className="mb-1 block text-[9px] text-muted-foreground">Icon</label>
                   <Input
                     value={icon}
-                    aria-label="Workspace icon"
                     onChange={(event) => setIcon(event.target.value.slice(0, 4))}
                     className="h-9 rounded-lg text-center text-lg"
                   />
                 </div>
                 <div className="flex-1">
                   <label className="mb-1 block text-[9px] text-muted-foreground">Name</label>
-                  <Input value={name} aria-label="Workspace name" onChange={(event) => setName(event.target.value)} className="h-9 rounded-lg text-[12px]" />
+                  <Input value={name} onChange={(event) => setName(event.target.value)} className="h-9 rounded-lg text-[12px]" />
                 </div>
               </div>
               <div className="mt-3">

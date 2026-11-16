@@ -4,7 +4,6 @@ import type {
   CanvasCanvasElement,
   CanvasConnectorElement,
   CanvasDocument,
-  CanvasElement,
   CanvasFrameElement,
   CanvasNoteElement,
   CanvasPageElement,
@@ -85,76 +84,6 @@ export function canvasDocument(value: unknown): CanvasDocument {
     return value as CanvasDocument;
   }
   return emptyCanvas();
-}
-
-function finiteNumber(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function textOrEmpty(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-/**
- * Canvas data is stored as free-form JSON, so a collaborator (or a stale or
- * hostile client) can save a non-numeric `width` or a non-string `text`. Both
- * SVG exporters interpolate those fields straight into markup, and the public
- * share page injects the result as HTML — a string such as `1" onload="…` would
- * become script in a visitor's browser. Call this before rendering: it keeps
- * every numeric field a finite number and every text field a string, and drops
- * entries that are not objects, leaving well-formed documents unchanged.
- */
-export function sanitizeCanvasDocument(document: CanvasDocument): CanvasDocument {
-  const elements: CanvasElement[] = [];
-  for (const raw of document.elements as unknown[]) {
-    if (typeof raw !== "object" || raw === null) continue;
-    const element = raw as Record<string, unknown>;
-    if (element.type === "connector") {
-      const endpoint = (value: unknown) => {
-        const point = (typeof value === "object" && value !== null ? value : {}) as Record<
-          string,
-          unknown
-        >;
-        const clean: Record<string, unknown> = { ...point };
-        if (point.x !== undefined) clean.x = finiteNumber(point.x, 0);
-        if (point.y !== undefined) clean.y = finiteNumber(point.y, 0);
-        return clean;
-      };
-      elements.push({
-        ...element,
-        from: endpoint(element.from),
-        to: endpoint(element.to),
-      } as unknown as CanvasElement);
-      continue;
-    }
-    const next: Record<string, unknown> = {
-      ...element,
-      x: finiteNumber(element.x, 0),
-      y: finiteNumber(element.y, 0),
-      width: finiteNumber(element.width, 0),
-      height: finiteNumber(element.height, 0),
-    };
-    if ("text" in element) next.text = textOrEmpty(element.text);
-    if ("title" in element) next.title = textOrEmpty(element.title);
-    if (element.type === "image") next.src = textOrEmpty(element.src);
-    if (element.type === "text") next.fontSize = finiteNumber(element.fontSize, 20);
-    if (element.type === "freehand") {
-      next.strokeWidth = finiteNumber(element.strokeWidth, 2);
-      next.points = Array.isArray(element.points)
-        ? (element.points as unknown[]).flatMap((point) =>
-            Array.isArray(point) &&
-            typeof point[0] === "number" &&
-            Number.isFinite(point[0]) &&
-            typeof point[1] === "number" &&
-            Number.isFinite(point[1])
-              ? [[point[0], point[1]] as [number, number]]
-              : [],
-          )
-        : [];
-    }
-    elements.push(next as unknown as CanvasElement);
-  }
-  return { ...document, elements };
 }
 
 export function stickyColor(index: number): StickyColor {

@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  appendCanvasCluster,
-  buildCanvasFromOutline,
-  emptyCanvas,
-  sanitizeCanvasDocument,
-} from "./canvas";
+import { appendCanvasCluster, buildCanvasFromOutline, emptyCanvas } from "./canvas";
 import type { CanvasDocument } from "./types";
 
 const nodes = [
@@ -112,59 +107,5 @@ describe("appendCanvasCluster", () => {
     const next = appendCanvasCluster(board(), "mindmap", "Map", [{ text: "One" }]);
     const ids = next.elements.map((element) => element.id);
     expect(new Set(ids).size).toBe(ids.length);
-  });
-});
-
-describe("sanitizeCanvasDocument", () => {
-  it("leaves a well-formed document unchanged", () => {
-    const document = buildCanvasFromOutline("mindmap", "System design", nodes);
-    expect(sanitizeCanvasDocument(document)).toEqual(document);
-  });
-
-  it("forces numeric fields to finite numbers so they cannot carry markup", () => {
-    const hostile = {
-      version: 1,
-      elements: [
-        {
-          id: "n1",
-          type: "note",
-          x: 0,
-          y: 0,
-          width: '1" onload="alert(1)',
-          height: Number.NaN,
-          text: { not: "a string" },
-          color: "saffron",
-        },
-        { id: "t1", type: "text", x: "1", y: 2, width: 3, height: 4, text: "x", fontSize: "9<script>", color: "#000" },
-        {
-          id: "f1",
-          type: "freehand",
-          x: 0,
-          y: 0,
-          width: 1,
-          height: 1,
-          color: "#000",
-          strokeWidth: '2" x="',
-          points: [[1, 2], ['3" a="', 4], [5], "bad"],
-        },
-        {
-          id: "c1",
-          type: "connector",
-          from: { x: '"><script>', y: 1 },
-          to: { elementId: "n1" },
-        },
-        null,
-        "oops",
-      ],
-    } as unknown as CanvasDocument;
-
-    const clean = sanitizeCanvasDocument(hostile);
-    expect(clean.elements).toHaveLength(4);
-    const [note, text, stroke, connector] = clean.elements as unknown as Array<Record<string, any>>;
-    expect(note).toMatchObject({ width: 0, height: 0, text: "" });
-    expect(text).toMatchObject({ x: 0, fontSize: 20 });
-    expect(stroke).toMatchObject({ strokeWidth: 2, points: [[1, 2]] });
-    expect(connector?.from).toMatchObject({ x: 0, y: 1 });
-    expect(connector?.to).toEqual({ elementId: "n1" });
   });
 });

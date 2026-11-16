@@ -277,11 +277,11 @@ The production build prerenders `/`, `/app`, `/login`, `/invite`, `/share`, `/su
 
 This pass is a complete core vertical, not every enterprise subsystem in the original brief. Explicitly deferred:
 
-- End-to-end encryption.
+- CRDT/live co-editing and live cursors (async sync + comments/presence are implemented).
+- End-to-end encryption, SSO/SCIM, legal hold.
 - App-store signing (EAS profiles are configured, but credentials and store submission are not) and native admin tooling for SCIM/SSO/legal hold/plugins/webhooks/SQL.
-- Custom object-type editor and automation builder.
-
-Live co-editing with presence, SCIM/SSO, legal holds, the plugin runtime, email and audio ingestion, two-way Git sync, and the SQL console are implemented and listed above.
+- Plugin sandbox/runtime, custom object-type editor, automation builder.
+- Email ingestion, speech-to-text, two-way Git sync (one-way GitHub Markdown import is implemented), and an executable SQL console.
 
 Those interfaces are modeled/documented in the [roadmap](./apps/fumadocs/content/docs/roadmap.mdx) rather than pretended as complete.
 

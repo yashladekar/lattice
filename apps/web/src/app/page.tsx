@@ -72,7 +72,7 @@ function PagePreview() {
               <span className="size-4 rounded-full bg-saffron/50" />
             </div>
           </div>
-          <div className="grid h-[380px] grid-cols-1 md:h-[440px] md:grid-cols-[170px_1fr_190px]">
+          <div className="grid h-[380px] grid-cols-[170px_1fr_190px] md:h-[440px]">
             <div className="hidden border-r border-border/60 bg-sidebar/70 p-2.5 md:block">
               <div className="flex items-center gap-2 px-1 pb-3">
                 <LatticeMark className="size-5" />
@@ -503,7 +503,7 @@ const verbs = [
 
 export default function LandingPage() {
   return (
-    <main className="relative min-h-dvh overflow-hidden bg-background">
+    <main className="min-h-dvh overflow-hidden bg-background">
       <noscript>
         <style>{".reveal{opacity:1 !important;transform:none !important}"}</style>
       </noscript>

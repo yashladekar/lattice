@@ -156,12 +156,7 @@ function PublicCanvasView({ canvas }: { canvas: PublicCanvas }) {
   const exported = useMemo(() => canvasToSvg(canvas.data), [canvas.data]);
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-[#faf8f2] p-2">
-      {/* The SVG carries a viewBox, so let it scale down to the card instead of
-          being clipped at its fixed pixel size. */}
-      <div
-        className="[&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
-        dangerouslySetInnerHTML={{ __html: exported.svg }}
-      />
+      <div className="mx-auto w-fit" dangerouslySetInnerHTML={{ __html: exported.svg }} />
     </div>
   );
 }
@@ -218,15 +213,7 @@ function SharedContent() {
       })
       .catch((caught) => {
         if (cancelled) return;
-        // A malformed token fails input validation before it is ever looked
-        // up; say the same thing a missing or expired link says instead of
-        // showing the validator's wording.
-        const code = (caught as { code?: unknown } | null)?.code;
-        setError(
-          caught instanceof Error && code !== "BAD_REQUEST"
-            ? caught.message
-            : "This link is not available.",
-        );
+        setError(caught instanceof Error ? caught.message : "This link is not available.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

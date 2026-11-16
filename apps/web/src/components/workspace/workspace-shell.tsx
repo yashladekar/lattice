@@ -2,7 +2,7 @@
 
 import { appHref, appRouteObject, parsePaneKey, type AppRoute } from "@/lib/navigation";
 import { cn } from "@notes-learning/ui/lib/utils";
-import { Columns2, Command, Focus, X } from "lucide-react";
+import { Columns2, Command, Focus, Menu, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -448,10 +448,10 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
                 <Command className="size-2.5" /> K commands
               </span>
               <span className="flex items-center gap-1">
-                <Command className="size-2.5" /> \ sidebar
+                <Menu className="size-2.5" /> \ sidebar
               </span>
               <span className="flex items-center gap-1">
-                <Command className="size-2.5" /> N new page
+                <Plus className="size-2.5" /> N new page
               </span>
             </div>
           </footer>

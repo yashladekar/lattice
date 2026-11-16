@@ -5,9 +5,25 @@ import { z } from "zod";
 import { createToken, hashToken, isShareActive, writeAudit } from "../authz";
 import { publicProcedure, workspaceProcedure } from "../index";
 import { appendChanges, toJsonSafe } from "../services/changes";
-import { publicCanvasData } from "../services/public-canvas";
 import { publicDocument, resolvePublicPage } from "../services/share-page";
 import { assertPageAccess } from "../services/page-access";
+
+function publicCanvasData(value: unknown) {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !Array.isArray((value as { elements?: unknown }).elements)
+  ) {
+    return { version: 1, elements: [] };
+  }
+  const data = value as { version: 1; elements: Array<Record<string, unknown>>; background?: string };
+  return {
+    ...data,
+    elements: data.elements.filter(
+      (element) => element.type !== "page" && element.type !== "canvas",
+    ),
+  };
+}
 
 export const shareRouter = {
   create: workspaceProcedure("MEMBER")

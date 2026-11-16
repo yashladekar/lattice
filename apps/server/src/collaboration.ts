@@ -37,14 +37,6 @@ interface Room {
   awareness: awarenessProtocol.Awareness;
   connections: Set<Connection>;
   needsSeed: boolean;
-  /**
-   * The peer asked to push its local document into a fresh room, until some
-   * content arrives. If it disconnects first (React StrictMode mounts and
-   * drops a socket within a millisecond in development), the request is
-   * re-armed rather than lost, or the room would stay empty and the first real
-   * editor would overwrite the stored page with a blank document.
-   */
-  seeder: Connection | null;
   idleTimer: NodeJS.Timeout | null;
   persistTimer: NodeJS.Timeout | null;
   dirty: boolean;
@@ -102,7 +94,6 @@ function createRoom(
     awareness: new awarenessProtocol.Awareness(doc),
     connections: new Set(),
     needsSeed: true,
-    seeder: null,
     idleTimer: null,
     persistTimer: null,
     dirty: false,
@@ -112,10 +103,6 @@ function createRoom(
   room.doc.on("update", (update: Uint8Array, origin: unknown) => {
     room.dirty = true;
     schedulePersist(room);
-    // Content from any connected peer means the room is no longer empty.
-    if (room.seeder && origin && typeof origin === "object" && "socket" in origin) {
-      room.seeder = null;
-    }
     const message = syncMessage((encoder) => syncProtocol.writeUpdate(encoder, update));
     for (const connection of room.connections) {
       if (connection === origin) continue;
@@ -333,7 +320,6 @@ function handleConnection(room: Room, socket: WebSocket, userId: string): void {
     // The first peer in a fresh room pushes its local document in; everyone
     // else must not seed, or the merge would duplicate the whole page.
     room.needsSeed = false;
-    room.seeder = connection;
     const encoder = encoding.createEncoder();
     encoding.writeVarUint(encoder, MESSAGE_SEED_REQUEST);
     send(socket, encoding.toUint8Array(encoder));
@@ -378,13 +364,6 @@ function handleConnection(room: Room, socket: WebSocket, userId: string): void {
       null,
     );
     room.connections.delete(connection);
-    const lostSeeder = room.seeder === connection;
-    if (lostSeeder) {
-      // It left before any content arrived, so ask again — of the next peer
-      // below, or of whoever connects to the empty room next.
-      room.seeder = null;
-      room.needsSeed = true;
-    }
     if (room.connections.size === 0) {
       // Nobody left to re-send this, so make it durable before the room idles.
       void flushPersist(room);
@@ -396,7 +375,6 @@ function handleConnection(room: Room, socket: WebSocket, userId: string): void {
       const next = room.connections.values().next().value as Connection | undefined;
       if (next) {
         room.needsSeed = false;
-        room.seeder = next;
         const encoder = encoding.createEncoder();
         encoding.writeVarUint(encoder, MESSAGE_SEED_REQUEST);
         send(next.socket, encoding.toUint8Array(encoder));
