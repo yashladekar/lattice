@@ -683,6 +683,7 @@ export function PageContextPanel({
                   value={propertyKey}
                   onChange={(event) => setPropertyKey(event.target.value)}
                   placeholder="Property"
+                  aria-label="Property name"
                   className="h-6 w-16 shrink-0 rounded border border-border bg-background px-1 text-[9px] outline-none focus:border-primary/40"
                 />
                 <input
@@ -698,6 +699,7 @@ export function PageContextPanel({
                   size="sm"
                   className="h-6 rounded px-1.5 text-[8px]"
                   disabled={!propertyKey.trim()}
+                  aria-label="Add property"
                   onClick={() => void addProperty()}
                 >
                   <Plus className="size-2.5" />

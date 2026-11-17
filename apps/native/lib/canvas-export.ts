@@ -1,6 +1,7 @@
 import {
   canvasBounds,
   connectorPoint,
+  sanitizeCanvasDocument,
   type CanvasDocument,
   type CanvasShapeElement,
   type StickyColor,
@@ -65,7 +66,7 @@ function textSvg(
   const lines = wrap(value, maxChars);
   const anchor = align === "center" ? "middle" : align === "right" ? "end" : "start";
   const textX = align === "center" ? x + width / 2 : align === "right" ? x + width : x;
-  return `<text x="${textX}" y="${y}" fill="${fill}" font-family="Inter, system-ui, sans-serif" font-size="${fontSize}" text-anchor="${anchor}">${lines
+  return `<text x="${textX}" y="${y}" fill="${esc(fill)}" font-family="Inter, system-ui, sans-serif" font-size="${fontSize}" text-anchor="${anchor}">${lines
     .map(
       (line, index) =>
         `<tspan x="${textX}" dy="${index === 0 ? 0 : fontSize * lineHeight}">${esc(line)}</tspan>`,
@@ -105,9 +106,12 @@ export interface CanvasExportOptions {
 }
 
 export function canvasToSvg(
-  document: CanvasDocument,
+  rawDocument: CanvasDocument,
   options: CanvasExportOptions = {},
 ): { svg: string; width: number; height: number; x: number; y: number } {
+  // Stored canvas JSON is untrusted; the result is injected as HTML on the
+  // public share page, so every interpolated number must really be a number.
+  const document = sanitizeCanvasDocument(rawDocument);
   const bounds = canvasBounds(document);
   const padding = 80;
   const x = bounds.x - padding;
@@ -135,7 +139,7 @@ export function canvasToSvg(
           ? ' stroke-dasharray="2 5"'
           : "";
     parts.push(
-      `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${color}" stroke-width="1.5"${dash} marker-end="url(#arrow)" />`,
+      `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${esc(color)}" stroke-width="1.5"${dash} marker-end="url(#arrow)" />`,
     );
     if (connector.label) {
       parts.push(
@@ -212,7 +216,7 @@ export function canvasToSvg(
     } else if (element.type === "freehand") {
       const points = element.points.map(([px, py]) => `${base.x + px},${base.y + py}`).join(" ");
       parts.push(
-        `<polyline points="${points}" fill="none" stroke="${element.color}" stroke-width="${element.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" />`,
+        `<polyline points="${points}" fill="none" stroke="${esc(element.color)}" stroke-width="${esc(String(element.strokeWidth))}" stroke-linecap="round" stroke-linejoin="round" />`,
       );
     } else if (element.type === "image") {
       parts.push(

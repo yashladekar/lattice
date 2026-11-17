@@ -1,6 +1,7 @@
 import {
   canvasBounds,
   connectorPoint,
+  sanitizeCanvasDocument,
   type CanvasDocument,
   type CanvasElement,
   type CanvasShapeElement,
@@ -94,9 +95,12 @@ export interface CanvasExportOptions {
 }
 
 export function canvasToSvg(
-  document: CanvasDocument,
+  rawDocument: CanvasDocument,
   options: CanvasExportOptions = {},
 ): { svg: string; width: number; height: number; x: number; y: number } {
+  // Stored canvas JSON is untrusted; the result is injected as HTML on the
+  // public share page, so every interpolated number must really be a number.
+  const document = sanitizeCanvasDocument(rawDocument);
   const bounds = canvasBounds(document);
   const padding = 80;
   const x = bounds.x - padding;
