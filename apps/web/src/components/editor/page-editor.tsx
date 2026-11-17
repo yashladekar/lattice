@@ -867,12 +867,20 @@ export function PageEditor({
   }, [online, activeWorkspaceId, pageId]);
 
   useEffect(() => {
-    return () => {
+    const flush = () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      if (titleTimer.current) clearTimeout(titleTimer.current);
-      if (dirty.current && editorRef.current && !editorRef.current.isDestroyed) {
-        void persist(safeDoc(editorRef.current.getJSON()));
-      }
+      if (!dirty.current || !editorRef.current || editorRef.current.isDestroyed) return;
+      void persist(safeDoc(editorRef.current.getJSON()));
+    };
+    const onVisibility = () => {
+      if (window.document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    window.document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.document.removeEventListener("visibilitychange", onVisibility);
+      flush();
     };
   }, [persist]);
 

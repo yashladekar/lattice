@@ -666,25 +666,33 @@ export async function savePageContentLocal(
     source?: "session" | "write";
   },
 ): Promise<LocalPageDocument | null> {
-  const page = await db.pages.get(input.pageId);
-  const existing = await db.pageDocuments.get(input.pageId);
-  if (!page || !existing || page.deletedAt) return null;
   const content = safeDoc(input.content);
-  const timestamp = now();
   const source = input.source ?? "write";
-  const document: LocalPageDocument = {
-    ...existing,
-    content,
-    plainText: extractPlainText(content),
-    updatedAt: timestamp,
-    localUpdatedAt: timestamp,
-    lastChangeSource: source,
-  };
-  const updatedPage = { ...page, updatedAt: timestamp };
+  let saved: LocalPageDocument | null = null;
   await db.transaction(
     "rw",
     [db.pages, db.pageDocuments, db.nodes, db.edges, db.outbox],
     async () => {
+      // Read inside the transaction: a pull or an accepted push can advance the
+      // row between an outside read and this write, which would queue a stale
+      // baseRev and turn every later save into a phantom conflict.
+      const page = await db.pages.get(input.pageId);
+      if (!page || page.deletedAt) return;
+      const existing = await db.pageDocuments.get(input.pageId);
+      const timestamp = now();
+      const document: LocalPageDocument = {
+        ...existing,
+        pageId: input.pageId,
+        workspaceId: page.workspaceId,
+        content,
+        plainText: extractPlainText(content),
+        schemaVersion: existing?.schemaVersion ?? 1,
+        rev: existing?.rev ?? 0,
+        updatedAt: timestamp,
+        localUpdatedAt: timestamp,
+        lastChangeSource: source,
+      };
+      const updatedPage = { ...page, updatedAt: timestamp };
       await db.pages.put(updatedPage);
       await db.pageDocuments.put(document);
       await enqueueOutbox(db, {
@@ -692,14 +700,15 @@ export async function savePageContentLocal(
         entity: "pageDocument",
         entityId: page.id,
         op: "UPSERT",
-        baseRev: existing.rev,
+        baseRev: existing?.rev ?? 0,
         payload: { ...documentPayload(document), source },
       });
       await queuePage(db, updatedPage);
       await syncPageLinks(db, updatedPage, document, input.userId);
+      saved = document;
     },
   );
-  return document;
+  return saved;
 }
 
 export async function duplicatePageLocal(
@@ -978,14 +987,17 @@ export async function saveCanvasLocal(
   /** `session` marks a live editor's snapshot; anything else is a plain write. */
   options: { source?: "session" | "write" } = {},
 ): Promise<LocalCanvas | null> {
-  const existing = await db.canvases.get(canvasId);
-  if (!existing) return null;
-  const canvas: LocalCanvas = {
-    ...existing,
-    data,
-    updatedAt: now(),
-  };
+  let saved: LocalCanvas | null = null;
   await db.transaction("rw", [db.canvases, db.outbox], async () => {
+    // Same transaction for the rev read and the write, so an accepted push
+    // cannot advance the row in between and leave this op with a stale baseRev.
+    const existing = await db.canvases.get(canvasId);
+    if (!existing) return;
+    const canvas: LocalCanvas = {
+      ...existing,
+      data,
+      updatedAt: now(),
+    };
     await db.canvases.put(canvas);
     await enqueueOutbox(db, {
       workspaceId: canvas.workspaceId,
@@ -995,8 +1007,9 @@ export async function saveCanvasLocal(
       baseRev: existing.rev,
       payload: canvasPayload(canvas, options.source),
     });
+    saved = canvas;
   });
-  return canvas;
+  return saved;
 }
 
 export async function updateCanvasLocal(
@@ -1004,10 +1017,11 @@ export async function updateCanvasLocal(
   canvasId: string,
   input: Partial<Pick<LocalCanvas, "title" | "icon" | "notebookId" | "thumbnail">>,
 ): Promise<LocalCanvas | null> {
-  const existing = await db.canvases.get(canvasId);
-  if (!existing) return null;
-  const canvas: LocalCanvas = { ...existing, ...input, updatedAt: now() };
+  let saved: LocalCanvas | null = null;
   await db.transaction("rw", [db.canvases, db.nodes, db.outbox], async () => {
+    const existing = await db.canvases.get(canvasId);
+    if (!existing) return;
+    const canvas: LocalCanvas = { ...existing, ...input, updatedAt: now() };
     await db.canvases.put(canvas);
     await enqueueOutbox(db, {
       workspaceId: canvas.workspaceId,
@@ -1025,8 +1039,9 @@ export async function updateCanvasLocal(
         await queueNode(db, updated);
       }
     }
+    saved = canvas;
   });
-  return canvas;
+  return saved;
 }
 
 export async function deleteCanvasLocal(db: LatticeDB, canvasId: string): Promise<void> {

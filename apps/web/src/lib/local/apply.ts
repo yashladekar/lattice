@@ -1,4 +1,5 @@
 import {
+  emptyDoc,
   encodeCursor,
   decodeCursor,
   type SyncChange,
@@ -204,38 +205,66 @@ export async function applyChange(db: LatticeDB, change: SyncChange): Promise<vo
     case "notebook":
       await db.notebooks.put(data as never);
       break;
-    case "page":
+    case "page": {
       await db.pages.put(data as never);
+      const pageId = typeof data.id === "string" ? data.id : change.entityId;
+      const workspaceId = typeof data.workspaceId === "string" ? data.workspaceId : null;
+      // The server keeps a starter document for every page but never broadcasts
+      // it. Without a local row the editor had nothing to save into and dropped
+      // every keystroke, then reloaded the server's empty body.
+      if (workspaceId && !(await db.pageDocuments.get(pageId))) {
+        const timestamp =
+          typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString();
+        await db.pageDocuments.put({
+          pageId,
+          workspaceId,
+          content: emptyDoc(),
+          plainText: "",
+          schemaVersion: 1,
+          rev: 0,
+          updatedAt: timestamp,
+          localUpdatedAt: timestamp,
+          lastChangeSource: null,
+        });
+      }
       break;
+    }
     case "pageDocument": {
       const pageId = change.entityId;
       const { source, ...rest } = data as Record<string, unknown> & { source?: unknown };
       const incomingRev = typeof data.rev === "number" ? data.rev : 0;
       const existing = await db.pageDocuments.get(pageId);
-      // Defence in depth: a page's empty starter document must never replace
-      // real local content. Same revision means nothing has been written since.
-      if (
-        existing &&
-        incomingRev <= existing.rev &&
-        existing.plainText.length > 0 &&
-        typeof data.plainText === "string" &&
-        !data.plainText
-      ) {
-        break;
-      }
+      // Revisions are unique per document and the change log stores state. A
+      // change at or below the local revision is already applied; applying it
+      // again is what let a stale delta replace newer local content.
+      if (existing && incomingRev <= existing.rev) break;
+      const sameContent = existing
+        ? JSON.stringify(existing.content) === JSON.stringify(data.content)
+        : false;
       const document = {
         ...rest,
         pageId,
         localUpdatedAt:
           typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-        lastChangeSource: source === "session" || source === "write" ? source : null,
+        // Identical content means this is an echo of a write this device already
+        // has. The server labels non-live writes `write`, so the label alone
+        // must not tell the editor that a foreign body landed.
+        lastChangeSource: sameContent
+          ? (existing?.lastChangeSource ?? null)
+          : source === "session" || source === "write"
+            ? source
+            : null,
       };
       await db.pageDocuments.put(document as never);
       break;
     }
-    case "canvas":
+    case "canvas": {
+      const incomingRev = typeof data.rev === "number" ? data.rev : 0;
+      const existing = await db.canvases.get(change.entityId);
+      if (existing && incomingRev <= existing.rev) break;
       await db.canvases.put(data as never);
       break;
+    }
     case "node":
       await db.nodes.put(data as never);
       break;
@@ -287,25 +316,35 @@ export async function applyAccepted(
   },
 ): Promise<void> {
   if (accepted.entity === "pageDocument") {
-    const document = await db.pageDocuments.get(accepted.entityId);
-    if (document) {
+    // Re-read inside the transaction: a local save landing between a read and
+    // this write would be overwritten with the older body it just replaced.
+    await db.transaction("rw", db.pageDocuments, async () => {
+      const document = await db.pageDocuments.get(accepted.entityId);
+      if (!document) return;
       await db.pageDocuments.put({
         ...document,
-        rev: accepted.rev ?? document.rev,
+        rev:
+          accepted.rev === undefined
+            ? document.rev
+            : Math.max(document.rev, accepted.rev),
         updatedAt: accepted.updatedAt,
       });
-    }
+    });
     return;
   }
   if (accepted.entity === "canvas") {
-    const canvas = await db.canvases.get(accepted.entityId);
-    if (canvas) {
+    await db.transaction("rw", db.canvases, async () => {
+      const canvas = await db.canvases.get(accepted.entityId);
+      if (!canvas) return;
       await db.canvases.put({
         ...canvas,
-        rev: accepted.rev ?? canvas.rev,
+        rev:
+          accepted.rev === undefined
+            ? canvas.rev
+            : Math.max(canvas.rev, accepted.rev),
         updatedAt: accepted.updatedAt,
       });
-    }
+    });
     return;
   }
   if (accepted.entity === "page") {
