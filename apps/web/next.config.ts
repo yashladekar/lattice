@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   typedRoutes: false,
   reactCompiler: true,
   output: "export",
+  experimental: {
+    agentUpgrade: "security",
+  },
 };
 
 export default withVarlock(withPwa(nextConfig));
