@@ -288,6 +288,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         bootErrorSource.current = "sync";
         setBootError(message);
       },
+      onDiscarded: ({ workspaceId, count }) => {
+        void db.workspaces.get(workspaceId).then((workspace) => {
+          toast.warning(
+            `${count} ${count === 1 ? "change" : "changes"} could not be saved to ${workspace?.name ?? "a workspace"}`,
+            { description: "You have view-only access there, so the server's copy was restored." },
+          );
+        });
+      },
     });
     engineRef.current = engine;
     engine.start();

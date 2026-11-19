@@ -1,11 +1,14 @@
 import {
+  canEditContent,
   createId,
   encodeCursor,
   orderSyncOps,
+  type Role,
   type SyncChange,
   type SyncCursor,
   type SyncEntity,
 } from "@notes-learning/domain";
+import type { Table } from "dexie";
 
 import { workspaceClient } from "@/utils/orpc";
 
@@ -31,6 +34,31 @@ export interface SyncEngineOptions {
   onState: (state: SyncState) => void;
   onConflict?: (conflict: LocalConflict) => void;
   onError?: (message: string) => void;
+  /** Local changes dropped because the member cannot write to that workspace. */
+  onDiscarded?: (event: { workspaceId: string; count: number }) => void;
+}
+
+/** The local table that holds a synced entity, keyed by the outbox entityId. */
+function localTable(db: LatticeDB, entity: SyncEntity): Table | null {
+  const tables: Partial<Record<SyncEntity, Table>> = {
+    notebook: db.notebooks,
+    page: db.pages,
+    pageDocument: db.pageDocuments,
+    canvas: db.canvases,
+    node: db.nodes,
+    edge: db.edges,
+    tag: db.tags,
+    pageTag: db.pageTags,
+    capture: db.captures,
+    template: db.templates,
+    deck: db.decks,
+    flashcard: db.flashcards,
+    comment: db.comments,
+    suggestedEdit: db.suggestedEdits,
+    objectType: db.objectTypes,
+    attachment: db.attachments,
+  };
+  return tables[entity] ?? null;
 }
 
 interface LockManagerLike {
@@ -45,6 +73,15 @@ function isOnline(): boolean {
   return typeof navigator === "undefined" ? true : navigator.onLine;
 }
 
+function errorCode(error: unknown): unknown {
+  return typeof error === "object" && error !== null ? (error as { code?: unknown }).code : null;
+}
+
+/** A signed-out session fails every workspace the same way; stop at the first. */
+function isUnauthorized(error: unknown): boolean {
+  return errorCode(error) === "UNAUTHORIZED";
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Sync failed";
@@ -57,6 +94,7 @@ export class SyncEngine {
   private onState: (state: SyncState) => void;
   private onConflict?: (conflict: LocalConflict) => void;
   private onError?: (message: string) => void;
+  private onDiscarded?: SyncEngineOptions["onDiscarded"];
   private started = false;
   private running = false;
   private interval: ReturnType<typeof setInterval> | null = null;
@@ -80,6 +118,7 @@ export class SyncEngine {
     this.onState = options.onState;
     this.onConflict = options.onConflict;
     this.onError = options.onError;
+    this.onDiscarded = options.onDiscarded;
   }
 
   private async counts(): Promise<{ pending: number; conflicts: number }> {
@@ -172,15 +211,66 @@ export class SyncEngine {
     }
     await this.emit("syncing");
     const workspaceIds = await this.getWorkspaceIds();
+    // Each workspace syncs on its own. A push the server refuses in one
+    // workspace used to abort the whole run, so every other workspace stopped
+    // pulling too; now the first failure is reported after the rest have run.
+    let failure: unknown = null;
     for (const workspaceId of workspaceIds) {
-      await this.bootstrapWorkspace(workspaceId);
-      await this.pushWorkspace(workspaceId);
+      try {
+        await this.bootstrapWorkspace(workspaceId);
+        await this.pushWorkspace(workspaceId);
+      } catch (error) {
+        if (isUnauthorized(error)) throw error;
+        if (await this.discardUnwritableChanges(workspaceId, error)) continue;
+        failure ??= error;
+      }
     }
     for (const workspaceId of workspaceIds) {
-      await this.pullWorkspace(workspaceId);
+      try {
+        await this.pullWorkspace(workspaceId);
+      } catch (error) {
+        if (isUnauthorized(error)) throw error;
+        failure ??= error;
+      }
     }
+    if (failure) throw failure;
     this.lastSyncedAt = new Date().toISOString();
     await this.emit("idle");
+  }
+
+  /**
+   * Pushing needs editor access. When the server refuses a push for that
+   * reason and this device also knows the member is below editor, nothing in
+   * the queue can ever be accepted: retrying would fail every cycle and keep
+   * the workspace's pull stuck behind it. Drop those changes, remove rows that
+   * only ever existed locally, and reload the workspace from the server.
+   */
+  private async discardUnwritableChanges(workspaceId: string, error: unknown): Promise<boolean> {
+    if (errorCode(error) !== "FORBIDDEN") return false;
+    const role = await getMeta<Role>(this.db, `role:${workspaceId}`);
+    if (!role || canEditContent(role)) return false;
+
+    const rows = await this.db.outbox.where("workspaceId").equals(workspaceId).toArray();
+    if (!rows.length) return false;
+    const tables = new Set<Table>();
+    for (const row of rows) {
+      const table = localTable(this.db, row.entity);
+      if (table) tables.add(table);
+    }
+    await this.db.transaction(
+      "rw",
+      [this.db.outbox, this.db.meta, ...tables],
+      async () => {
+        for (const row of rows) {
+          await localTable(this.db, row.entity)?.delete(row.entityId);
+          await this.db.outbox.delete(row.id);
+        }
+        await setMeta(this.db, `snapshot:${workspaceId}`, false);
+      },
+    );
+    this.onDiscarded?.({ workspaceId, count: rows.length });
+    await this.bootstrapWorkspace(workspaceId);
+    return true;
   }
 
   async bootstrapWorkspace(workspaceId: string): Promise<void> {
