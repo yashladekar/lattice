@@ -113,7 +113,9 @@ export function SearchView({ initialQuery }: { initialQuery: string }) {
               updatedAt: canvas.updatedAt,
             }))
         : []),
-      ...(!tagFiltered && wantsType("capture")
+      // Captures sit in the inbox, outside any notebook, so a notebook filter
+      // leaves them out just as a tag filter does.
+      ...(!tagFiltered && !parsed.notebooks.length && wantsType("capture")
         ? index.captures.map((capture) => ({
             type: "capture" as const,
             id: capture.id,
