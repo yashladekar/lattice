@@ -23,7 +23,39 @@ export interface EnqueueInput {
   baseRev?: number;
 }
 
+/**
+ * Workspaces where this member is below editor. The server refuses every push
+ * from them, so a change queued there could only ever be dropped later.
+ */
+const readOnlyWorkspaces = new Set<string>();
+
+export function setWorkspaceReadOnly(workspaceId: string, readOnly: boolean): void {
+  if (readOnly) readOnlyWorkspaces.add(workspaceId);
+  else readOnlyWorkspaces.delete(workspaceId);
+}
+
+export class ReadOnlyWorkspaceError extends Error {
+  constructor() {
+    super("You have view-only access to this workspace.");
+    this.name = "ReadOnlyWorkspaceError";
+  }
+}
+
+const readOnlyListeners = new Set<() => void>();
+
+/** Called whenever a write is refused, so the UI can explain it once. */
+export function onReadOnlyWrite(listener: () => void): () => void {
+  readOnlyListeners.add(listener);
+  return () => readOnlyListeners.delete(listener);
+}
+
 export async function enqueueOutbox(db: LatticeDB, input: EnqueueInput): Promise<void> {
+  if (readOnlyWorkspaces.has(input.workspaceId)) {
+    // Repository writes queue inside the same transaction as their local
+    // change, so throwing here rolls that change back as well.
+    for (const listener of readOnlyListeners) listener();
+    throw new ReadOnlyWorkspaceError();
+  }
   const id = `${input.entity}:${input.entityId}`;
   await db.transaction("rw", db.outbox, async () => {
     const existing = await db.outbox.get(id);
