@@ -325,7 +325,8 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [document, setDocument] = useState<CanvasDocument>(emptyCanvas());
   const documentRef = useRef(document);
-  const loadedRef = useRef(false);
+  const loadedRef = useRef<string | null>(null);
+  const hydratedData = useRef<CanvasDocument | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [tool, setTool] = useState<Tool>("select");
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
@@ -400,11 +401,18 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
 
   useEffect(() => {
     if (!canvas) return;
-    if (loadedRef.current) return;
+    if (loadedRef.current === canvas.id) return;
+    const previous = loadedRef.current;
+    loadedRef.current = canvas.id;
+    hydratedData.current = canvas.data;
     setDocument(canvas.data);
     documentRef.current = canvas.data;
     setTitle(canvas.title);
-    loadedRef.current = true;
+    if (previous !== null) {
+      setSelectedIds([]);
+      setHistory({ past: [], future: [] });
+      setEditingId(null);
+    }
     requestAnimationFrame(() => fitDocument(canvas.data));
   }, [canvas?.id]);
 
@@ -417,7 +425,13 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (titleTimer.current) clearTimeout(titleTimer.current);
-      if (loadedRef.current && db && canvas && !readOnlyRef.current) {
+      if (
+        db &&
+        canvas &&
+        !readOnlyRef.current &&
+        loadedRef.current === canvas.id &&
+        documentRef.current !== hydratedData.current
+      ) {
         void saveCanvasLocal(db, canvas.id, documentRef.current, { source: "session" });
       }
     };
@@ -567,18 +581,42 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   );
 
   useEffect(() => {
-    if (!loadedRef.current || !db || !canvas || readOnly) return;
+    if (!db || !canvas || readOnly || loadedRef.current !== canvas.id) return;
+    // The hydration pass runs before this effect has the loaded document in
+    // state; saving that first snapshot would write the previous board back.
+    if (document === hydratedData.current) return;
     setSaveStatus("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
         await saveCanvasLocal(db, canvas.id, document, { source: "session" });
+        hydratedData.current = document;
         setSaveStatus("saved");
       } catch {
         setSaveStatus("error");
       }
     }, 650);
-  }, [document, db, canvas?.id]);
+  }, [document, db, canvas?.id, readOnly]);
+
+  useEffect(() => {
+    const flush = () => {
+      if (!db || !canvas || readOnlyRef.current || loadedRef.current !== canvas.id) return;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      const pending = documentRef.current;
+      if (pending === hydratedData.current) return;
+      hydratedData.current = pending;
+      void saveCanvasLocal(db, canvas.id, pending, { source: "session" });
+    };
+    const onVisibility = () => {
+      if (window.document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    window.document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [db, canvas?.id]);
 
   const collab = useCanvasCollaboration({
     canvasId: canvasId ?? "",
@@ -631,11 +669,11 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
   // lands in the same state the autosave and the CRDT publish read from.
   const appendElements = useCallback(
     (elements: CanvasElement[]) => {
-      if (!loadedRef.current) return false;
+      if (loadedRef.current !== canvasId) return false;
       mutate((current) => ({ ...current, elements: [...current.elements, ...elements] }));
       return true;
     },
-    [mutate],
+    [mutate, canvasId],
   );
 
   useEffect(() => {

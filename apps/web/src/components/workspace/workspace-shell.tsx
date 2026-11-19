@@ -271,7 +271,7 @@ export function WorkspaceShell({ route }: { route: AppRoute }) {
           />
         );
       case "canvas":
-        return <CanvasView canvasId={target.id} />;
+        return <CanvasView key={target.id} canvasId={target.id} />;
       case "graph":
         return <GraphView onShare={() => setShareOpen(true)} />;
       case "inbox":
