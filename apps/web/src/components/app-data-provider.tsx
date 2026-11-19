@@ -359,6 +359,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         bootErrorSource.current = "sync";
         setBootError(message);
       },
+      onRejected: ({ entity, entityId, message }) => {
+        const label =
+          entity === "pageDocument" ? "page text" : entity === "pageTag" ? "page tag" : entity;
+        toast.error(`A ${label} change could not be saved`, {
+          id: `rejected:${entity}:${entityId}`,
+          description: `${message}. Your other changes are still syncing.`,
+        });
+      },
       onDiscarded: ({ workspaceId, count }) => {
         void db.workspaces.get(workspaceId).then((workspace) => {
           toast.warning(
