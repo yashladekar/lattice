@@ -1,11 +1,14 @@
 import {
+  canEditContent,
   createId,
   encodeCursor,
   orderSyncOps,
+  type Role,
   type SyncChange,
   type SyncCursor,
   type SyncEntity,
 } from "@notes-learning/domain";
+import type { Table } from "dexie";
 
 import { workspaceClient } from "@/utils/orpc";
 
@@ -31,7 +34,44 @@ export interface SyncEngineOptions {
   onState: (state: SyncState) => void;
   onConflict?: (conflict: LocalConflict) => void;
   onError?: (message: string) => void;
+  /** Local changes dropped because the member cannot write to that workspace. */
+  onDiscarded?: (event: { workspaceId: string; count: number }) => void;
+  /** One change the server refused on its own; the rest of the queue went on. */
+  onRejected?: (event: {
+    workspaceId: string;
+    entity: SyncEntity;
+    entityId: string;
+    message: string;
+  }) => void;
 }
+
+/** The local table that holds a synced entity, keyed by the outbox entityId. */
+function localTable(db: LatticeDB, entity: SyncEntity): Table | null {
+  const tables: Partial<Record<SyncEntity, Table>> = {
+    notebook: db.notebooks,
+    page: db.pages,
+    pageDocument: db.pageDocuments,
+    canvas: db.canvases,
+    node: db.nodes,
+    edge: db.edges,
+    tag: db.tags,
+    pageTag: db.pageTags,
+    capture: db.captures,
+    template: db.templates,
+    deck: db.decks,
+    flashcard: db.flashcards,
+    comment: db.comments,
+    suggestedEdit: db.suggestedEdits,
+    objectType: db.objectTypes,
+    attachment: db.attachments,
+  };
+  return tables[entity] ?? null;
+}
+
+/** How long a change the server refused waits before it is offered again. */
+const PARKED_RETRY_MS = 5 * 60 * 1000;
+
+type PushResponse =Awaited<ReturnType<ReturnType<typeof workspaceClient>["sync"]["push"]>>;
 
 interface LockManagerLike {
   request: (
@@ -43,6 +83,15 @@ interface LockManagerLike {
 
 function isOnline(): boolean {
   return typeof navigator === "undefined" ? true : navigator.onLine;
+}
+
+function errorCode(error: unknown): unknown {
+  return typeof error === "object" && error !== null ? (error as { code?: unknown }).code : null;
+}
+
+/** A signed-out session fails every workspace the same way; stop at the first. */
+function isUnauthorized(error: unknown): boolean {
+  return errorCode(error) === "UNAUTHORIZED";
 }
 
 function errorMessage(error: unknown): string {
@@ -57,6 +106,8 @@ export class SyncEngine {
   private onState: (state: SyncState) => void;
   private onConflict?: (conflict: LocalConflict) => void;
   private onError?: (message: string) => void;
+  private onDiscarded?: SyncEngineOptions["onDiscarded"];
+  private onRejected?: SyncEngineOptions["onRejected"];
   private started = false;
   private running = false;
   private interval: ReturnType<typeof setInterval> | null = null;
@@ -80,11 +131,15 @@ export class SyncEngine {
     this.onState = options.onState;
     this.onConflict = options.onConflict;
     this.onError = options.onError;
+    this.onDiscarded = options.onDiscarded;
+    this.onRejected = options.onRejected;
   }
 
   private async counts(): Promise<{ pending: number; conflicts: number }> {
     const [pending, conflicts] = await Promise.all([
-      this.db.outbox.count(),
+      // Parked changes are reported when they are refused; they are not
+      // waiting to go out, so they do not count as queued.
+      this.db.outbox.filter((row) => !row.rejected).count(),
       this.db.conflicts.filter((conflict) => !conflict.resolvedAt).count(),
     ]);
     return { pending, conflicts };
@@ -172,15 +227,66 @@ export class SyncEngine {
     }
     await this.emit("syncing");
     const workspaceIds = await this.getWorkspaceIds();
+    // Each workspace syncs on its own. A push the server refuses in one
+    // workspace used to abort the whole run, so every other workspace stopped
+    // pulling too; now the first failure is reported after the rest have run.
+    let failure: unknown = null;
     for (const workspaceId of workspaceIds) {
-      await this.bootstrapWorkspace(workspaceId);
-      await this.pushWorkspace(workspaceId);
+      try {
+        await this.bootstrapWorkspace(workspaceId);
+        await this.pushWorkspace(workspaceId);
+      } catch (error) {
+        if (isUnauthorized(error)) throw error;
+        if (await this.discardUnwritableChanges(workspaceId, error)) continue;
+        failure ??= error;
+      }
     }
     for (const workspaceId of workspaceIds) {
-      await this.pullWorkspace(workspaceId);
+      try {
+        await this.pullWorkspace(workspaceId);
+      } catch (error) {
+        if (isUnauthorized(error)) throw error;
+        failure ??= error;
+      }
     }
+    if (failure) throw failure;
     this.lastSyncedAt = new Date().toISOString();
     await this.emit("idle");
+  }
+
+  /**
+   * Pushing needs editor access. When the server refuses a push for that
+   * reason and this device also knows the member is below editor, nothing in
+   * the queue can ever be accepted: retrying would fail every cycle and keep
+   * the workspace's pull stuck behind it. Drop those changes, remove rows that
+   * only ever existed locally, and reload the workspace from the server.
+   */
+  private async discardUnwritableChanges(workspaceId: string, error: unknown): Promise<boolean> {
+    if (errorCode(error) !== "FORBIDDEN") return false;
+    const role = await getMeta<Role>(this.db, `role:${workspaceId}`);
+    if (!role || canEditContent(role)) return false;
+
+    const rows = await this.db.outbox.where("workspaceId").equals(workspaceId).toArray();
+    if (!rows.length) return false;
+    const tables = new Set<Table>();
+    for (const row of rows) {
+      const table = localTable(this.db, row.entity);
+      if (table) tables.add(table);
+    }
+    await this.db.transaction(
+      "rw",
+      [this.db.outbox, this.db.meta, ...tables],
+      async () => {
+        for (const row of rows) {
+          await localTable(this.db, row.entity)?.delete(row.entityId);
+          await this.db.outbox.delete(row.id);
+        }
+        await setMeta(this.db, `snapshot:${workspaceId}`, false);
+      },
+    );
+    this.onDiscarded?.({ workspaceId, count: rows.length });
+    await this.bootstrapWorkspace(workspaceId);
+    return true;
   }
 
   async bootstrapWorkspace(workspaceId: string): Promise<void> {
@@ -268,10 +374,16 @@ export class SyncEngine {
 
   private async pushWorkspace(workspaceId: string): Promise<void> {
     const api = workspaceClient(workspaceId);
-    const rows = await this.db.outbox
+    const all = await this.db.outbox
       .where("workspaceId")
       .equals(workspaceId)
       .toArray();
+    // A parked change waits until it is edited (which queues a fresh row) or
+    // until enough time has passed that whatever blocked it may be fixed.
+    const now = Date.now();
+    const rows = all.filter(
+      (row) => !row.rejected || now - Date.parse(row.rejected.at) >= PARKED_RETRY_MS,
+    );
     if (!rows.length) return;
     rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const batch = orderSyncOps(rows).slice(0, 40);
@@ -292,17 +404,94 @@ export class SyncEngine {
       return entries;
     });
     if (!prepared.length) return;
-    const response = await api.sync.push({
-      ops: prepared.map(({ row, opId }) => ({
-        opId,
-        entity: row.entity,
-        entityId: row.entityId,
-        op: row.op,
-        ...(row.baseRev !== undefined ? { baseRev: row.baseRev } : {}),
-        payload: row.payload,
-      })),
-    });
+    await this.sendOps(workspaceId, api, prepared);
+  }
 
+  /**
+   * The server applies a push in one transaction, so a single change it
+   * refuses (its notebook was deleted elsewhere, its parent is gone) fails the
+   * whole batch, and every later edit in the workspace queued up behind it
+   * forever. When that happens the batch is sent one change at a time: the
+   * rest go through, and the refused change is parked with the reason.
+   */
+  private async sendOps(
+    workspaceId: string,
+    api: ReturnType<typeof workspaceClient>,
+    prepared: Array<{ row: OutboxItem; opId: string }>,
+  ): Promise<boolean> {
+    let response: PushResponse;
+    try {
+      response = await api.sync.push({
+        ops: prepared.map(({ row, opId }) => ({
+          opId,
+          entity: row.entity,
+          entityId: row.entityId,
+          op: row.op,
+          ...(row.baseRev !== undefined ? { baseRev: row.baseRev } : {}),
+          payload: row.payload,
+        })),
+      });
+    } catch (error) {
+      if (!(await this.isRefusedChange(workspaceId, error))) throw error;
+      if (prepared.length === 1) {
+        await this.park(workspaceId, prepared[0]!, error);
+        return false;
+      }
+      let progressed = false;
+      for (const entry of prepared) {
+        if (await this.sendOps(workspaceId, api, [entry])) progressed = true;
+      }
+      return progressed;
+    }
+    await this.applyPushResponse(workspaceId, prepared, response);
+    return response.accepted.length > 0 || response.conflicts.length > 0;
+  }
+
+  /**
+   * A refusal about the change itself, as opposed to the connection, the
+   * session, or (for a viewer) the whole workspace, which is handled before
+   * a push is ever split.
+   */
+  private async isRefusedChange(workspaceId: string, error: unknown): Promise<boolean> {
+    const code = errorCode(error);
+    if (code === "BAD_REQUEST" || code === "NOT_FOUND" || code === "CONFLICT") return true;
+    if (code !== "FORBIDDEN") return false;
+    const role = await getMeta<Role>(this.db, `role:${workspaceId}`);
+    return Boolean(role && canEditContent(role));
+  }
+
+  private async park(
+    workspaceId: string,
+    entry: { row: OutboxItem; opId: string },
+    error: unknown,
+  ): Promise<void> {
+    const message = errorMessage(error);
+    const parked = await this.db.transaction("rw", this.db.outbox, async () => {
+      const current = await this.db.outbox.get(entry.row.id);
+      // Edited since it was sent: the new version gets its own attempt.
+      if (!current || current.revision !== entry.row.revision) return false;
+      await this.db.outbox.put({
+        ...current,
+        opId: null,
+        rejected: { message, at: new Date().toISOString() },
+      });
+      return true;
+    });
+    if (parked) {
+      this.onRejected?.({
+        workspaceId,
+        entity: entry.row.entity,
+        entityId: entry.row.entityId,
+        message,
+      });
+    }
+  }
+
+  private async applyPushResponse(
+    workspaceId: string,
+    prepared: Array<{ row: OutboxItem; opId: string }>,
+    response: PushResponse,
+  ): Promise<void> {
     for (const accepted of response.accepted) {
       await applyAccepted(this.db, accepted);
     }
@@ -381,12 +570,31 @@ export class SyncEngine {
         .equals(workspaceId)
         .toArray();
       const pending = new Set(
-        pendingItems.map((item) => `${item.entity}:${item.entityId}`),
+        pendingItems
+          .filter((item) => !item.rejected)
+          .map((item) => `${item.entity}:${item.entityId}`),
+      );
+      const parked = new Map<string, OutboxItem>(
+        pendingItems
+          .filter((item) => item.rejected)
+          .map((item) => [`${item.entity}:${item.entityId}`, item]),
       );
       let lastApplied: SyncCursor | null = null;
       let skipped = false;
       for (const change of changes) {
         const key = `${change.entity}:${change.entityId}`;
+        const refused = parked.get(key);
+        if (refused) {
+          // The server refused this local change and now has a newer version
+          // of the same item. Its version wins; holding the pull back for a
+          // change that cannot be saved would stall the whole workspace.
+          await this.db.transaction("rw", this.db.outbox, async () => {
+            const current = await this.db.outbox.get(refused.id);
+            if (current?.rejected && current.revision === refused.revision) {
+              await this.db.outbox.delete(refused.id);
+            }
+          });
+        }
         if (pending.has(key)) {
           // Do not consume a delta we could not apply: stop before it and let
           // the next pull start from the last change we did apply.

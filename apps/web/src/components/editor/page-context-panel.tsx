@@ -2,6 +2,7 @@
 
 import type { OutlineItem, PropertyValue, Visibility } from "@notes-learning/domain";
 import {
+  canEditContent,
   coercePropertyValue,
   commentStats,
   filterCommentThreads,
@@ -45,7 +46,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { useAppData } from "@/components/app-data-provider";
+import { useAppData, useWorkspaceRole } from "@/components/app-data-provider";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useBacklinks,
@@ -69,6 +70,7 @@ import {
 import type { LocalComment, LocalPage } from "@/lib/local/types";
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
+import { countLabel } from "@/lib/plural";
 
 type Tab = "info" | "backlinks" | "comments";
 
@@ -97,11 +99,13 @@ function PropertyRow({
   value,
   onCommit,
   onRemove,
+  readOnly = false,
 }: {
   name: string;
   value: unknown;
   onCommit: (next: string) => void;
   onRemove: () => void;
+  readOnly?: boolean;
 }) {
   const initial = propertyText(value);
   const [draft, setDraft] = useState(initial);
@@ -121,6 +125,7 @@ function PropertyRow({
       <input
         value={draft}
         aria-label={`Value for ${name}`}
+        readOnly={readOnly}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {
           if (draft !== initial) onCommit(draft);
@@ -134,14 +139,16 @@ function PropertyRow({
         }}
         className="h-6 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[10px] outline-none hover:border-border focus:border-primary/40 focus:bg-background"
       />
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${name}`}
-        className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground transition-opacity hover:bg-destructive/10 hover:text-destructive hover-quiet tap-target"
-      >
-        <X className="size-2.5" />
-      </button>
+      {readOnly ? null : (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${name}`}
+          className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground transition-opacity hover:bg-destructive/10 hover:text-destructive hover-quiet tap-target"
+        >
+          <X className="size-2.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -161,6 +168,10 @@ export function PageContextPanel({
 }) {
   const router = useRouter();
   const { db, user, activeWorkspaceId } = useAppData();
+  const role = useWorkspaceRole();
+  // The server only accepts writes from editors and above. Viewers and guests
+  // see the panel without the controls that would queue a change it refuses.
+  const readOnly = role !== null && !canEditContent(role);
   const [tab, setTab] = useState<Tab>("info");
   const [commentText, setCommentText] = useState("");
   const [statusFilter, setStatusFilter] = useState<CommentStatusFilter>("open");
@@ -319,7 +330,7 @@ export function PageContextPanel({
       pageId: page.id,
     });
     toast.success(
-      created.length ? `${created.length} cards added to Daily review` : "No new cards found",
+      created.length ? `${countLabel(created.length, "card")} added to Daily review` : "No new cards found",
     );
   };
 
@@ -376,6 +387,7 @@ export function PageContextPanel({
             <CircleDot className="size-2" /> Jump to block
           </button>
         ) : null}
+        {readOnly ? null : (
         <div className="mt-1.5 flex items-center gap-2 text-[8px] text-muted-foreground">
           {thread.resolvedAt ? (
             <button
@@ -415,12 +427,14 @@ export function PageContextPanel({
           )}
           <button
             type="button"
+            aria-label="Delete thread"
             onClick={() => db && void deleteCommentLocal(db, thread.id)}
             className="ml-auto hover:text-destructive"
           >
             <Trash2 className="size-2.5" />
           </button>
         </div>
+        )}
         {shown.map((reply) => (
           <div key={reply.id} className="mt-2 border-l border-border/70 pl-2">
             <div className="flex items-center gap-1.5">
@@ -510,6 +524,9 @@ export function PageContextPanel({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Visibility</span>
+                  {readOnly ? (
+                    <span className="capitalize">{page.visibility.toLowerCase()}</span>
+                  ) : (
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
@@ -537,6 +554,7 @@ export function PageContextPanel({
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Type</span>
@@ -546,7 +564,8 @@ export function PageContextPanel({
                   <span className="text-muted-foreground">Object type</span>
                   <select
                     value={assignedType?.id ?? ""}
-                    disabled={!db || !objectTypes.length}
+                    aria-label="Object type"
+                    disabled={!db || !objectTypes.length || readOnly}
                     onChange={(event) => void setObjectType(event.target.value)}
                     className="h-6 max-w-[140px] rounded-md border border-border/60 bg-background px-1 text-[9px] outline-none focus:border-primary/40 disabled:opacity-50"
                   >
@@ -592,6 +611,7 @@ export function PageContextPanel({
                           <input
                             type="checkbox"
                             checked={value === true}
+                            disabled={readOnly}
                             onChange={(event) =>
                               void setTypedValue(definition.key, event.target.checked)
                             }
@@ -608,6 +628,7 @@ export function PageContextPanel({
                           </span>
                           <select
                             value={typeof value === "string" ? value : ""}
+                            disabled={readOnly}
                             onChange={(event) => void setTypedValue(definition.key, event.target.value)}
                             className="h-7 w-full rounded-md border border-border/60 bg-background px-1.5 text-[10px] outline-none focus:border-primary/40"
                           >
@@ -635,6 +656,7 @@ export function PageContextPanel({
                                 : "text"
                           }
                           value={value === null || value === undefined ? "" : String(value)}
+                          readOnly={readOnly}
                           onChange={(event) => {
                             const raw = event.target.value;
                             if (definition.type === "number") {
@@ -672,12 +694,14 @@ export function PageContextPanel({
                     value={value}
                     onCommit={(next) => void setProperty(key, next)}
                     onRemove={() => void removeProperty(key)}
+                    readOnly={readOnly}
                   />
                 ))}
                 {!propertyEntries.length ? (
                   <p className="text-[9px] text-muted-foreground">No properties yet.</p>
                 ) : null}
               </div>
+              {readOnly ? null : (
               <div className="mt-2 flex gap-1">
                 <input
                   value={propertyKey}
@@ -705,6 +729,7 @@ export function PageContextPanel({
                   <Plus className="size-2.5" />
                 </Button>
               </div>
+              )}
             </section>
 
             <section>
@@ -712,7 +737,7 @@ export function PageContextPanel({
                 <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Outline
                 </div>
-                <span className="text-[8px] text-muted-foreground">{outline.length} items</span>
+                <span className="text-[8px] text-muted-foreground">{countLabel(outline.length, "item")}</span>
               </div>
               <div className="mt-2 space-y-0.5">
                 {outline.length ? (
@@ -748,7 +773,15 @@ export function PageContextPanel({
                 <Plus className="size-3 text-muted-foreground/50" />
               </div>
               <div className="mt-2 flex flex-wrap gap-1">
-                {tags.map((tag) => (
+                {tags.map((tag) =>
+                  readOnly ? (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[8px] text-muted-foreground"
+                    >
+                      <TagIcon className="size-2" /> {tag.name}
+                    </span>
+                  ) : (
                   <button
                     key={tag.id}
                     type="button"
@@ -766,11 +799,14 @@ export function PageContextPanel({
                     <TagIcon className="size-2" /> {tag.name}
                     <X className="size-2" />
                   </button>
-                ))}
+                  ),
+                )}
                 {!tags.length ? (
                   <span className="text-[9px] text-muted-foreground">No tags yet.</span>
                 ) : null}
               </div>
+              {readOnly ? null : (
+              <>
               <div className="mt-2 flex gap-1">
                 <Input
                   value={tagText}
@@ -807,6 +843,8 @@ export function PageContextPanel({
                     ))}
                 </div>
               ) : null}
+              </>
+              )}
             </section>
 
             <section>
@@ -814,32 +852,36 @@ export function PageContextPanel({
                 <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Learning
                 </div>
-                <span className="text-[8px] text-muted-foreground">{cards.length} cards</span>
+                <span className="text-[8px] text-muted-foreground">{countLabel(cards.length, "card")}</span>
               </div>
               <div className="mt-2 space-y-1">
                 {cards.slice(0, 3).map((card) => (
                   <div key={card.id} className="group flex items-start gap-1.5 rounded-md border border-border/60 bg-card/50 px-2 py-1.5">
                     <span className="mt-0.5">◒</span>
                     <span className="line-clamp-2 min-w-0 flex-1 text-[9px] leading-snug">{card.front}</span>
-                    <button
-                      type="button"
-                      aria-label="Delete card"
-                      onClick={() => db && void deleteFlashcardLocal(db, card.id)}
-                      className="hover:text-destructive hover-quiet"
-                    >
-                      <Trash2 className="size-2.5" />
-                    </button>
+                    {readOnly ? null : (
+                      <button
+                        type="button"
+                        aria-label="Delete card"
+                        onClick={() => db && void deleteFlashcardLocal(db, card.id)}
+                        className="hover:text-destructive hover-quiet"
+                      >
+                        <Trash2 className="size-2.5" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 h-7 w-full rounded-md text-[9px]"
-                onClick={() => void generateCards()}
-              >
-                <Brain className="size-3" /> Generate cards from this page
-              </Button>
+              {readOnly ? null : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 h-7 w-full rounded-md text-[9px]"
+                  onClick={() => void generateCards()}
+                >
+                  <Brain className="size-3" /> Generate cards from this page
+                </Button>
+              )}
             </section>
 
             <section className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
@@ -1036,6 +1078,12 @@ export function PageContextPanel({
                 </button>
               ) : null}
             </div>
+            {readOnly ? (
+              <p className="sticky bottom-0 rounded-lg border border-border/60 bg-background/80 px-2.5 py-2 text-[9px] leading-relaxed text-muted-foreground backdrop-blur">
+                You have view-only access to this workspace, so you can read the discussion but
+                not add to it. Ask an admin for editor access to comment.
+              </p>
+            ) : (
             <div className="sticky bottom-0 bg-background/80 pt-2 backdrop-blur">
               <Textarea
                 value={commentText}
@@ -1094,6 +1142,7 @@ export function PageContextPanel({
                 </Button>
               </div>
             </div>
+            )}
           </div>
         ) : null}
       </div>

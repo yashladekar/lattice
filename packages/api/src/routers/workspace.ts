@@ -18,6 +18,7 @@ import {
   maskApiKey,
   normalizeAiBaseUrl,
   normalizeModelName,
+  type Role,
 } from "@notes-learning/domain";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -653,11 +654,27 @@ export const workspaceRouter = {
           workspaceId_userId: { workspaceId: invite.workspaceId, userId: user.id },
         },
       });
+      // An admin suspended this member without removing them. An invite sent
+      // before that must not quietly switch them back on.
+      if (existing && !existing.deletedAt && existing.status !== "ACTIVE") {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Your access to this workspace is suspended. Ask an admin to restore it.",
+        });
+      }
+      const alreadyActive = existing && !existing.deletedAt;
       await context.db.$transaction(async (tx) => {
         if (existing) {
           await tx.workspaceMember.update({
             where: { id: existing.id },
-            data: { status: "ACTIVE", role: invite.role, deletedAt: null },
+            data: {
+              status: "ACTIVE",
+              // Joining never lowers the role someone already holds here.
+              role:
+                alreadyActive && hasRole(existing.role as Role, invite.role as Role)
+                  ? existing.role
+                  : invite.role,
+              deletedAt: null,
+            },
           });
         } else {
           await tx.workspaceMember.create({
@@ -673,6 +690,17 @@ export const workspaceRouter = {
         await tx.workspaceInvite.update({
           where: { id: invite.id },
           data: { acceptedAt: new Date() },
+        });
+        // Any other link sent to this address is spent too, so a spare one
+        // cannot be kept to rejoin after a later removal.
+        await tx.workspaceInvite.updateMany({
+          where: {
+            workspaceId: invite.workspaceId,
+            email: invite.email,
+            acceptedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+          data: { expiresAt: new Date() },
         });
       });
       await writeAudit(context.db, {
@@ -738,11 +766,28 @@ export const workspaceRouter = {
       if (member.userId === context.userId) {
         throw new ORPCError("BAD_REQUEST", { message: "Use leave instead" });
       }
+      const removedUser = await context.db.user.findUnique({
+        where: { id: member.userId },
+        select: { email: true },
+      });
       const removed = await context.db.$transaction(async (tx) => {
         const result = await tx.workspaceMember.update({
           where: { id: member.id },
           data: { deletedAt: new Date(), status: "SUSPENDED" },
         });
+        // Removal is final until an admin invites them again: links already
+        // sent to this person stop working instead of letting them back in.
+        if (removedUser?.email) {
+          await tx.workspaceInvite.updateMany({
+            where: {
+              workspaceId: context.workspaceId,
+              email: removedUser.email.toLowerCase(),
+              acceptedAt: null,
+              expiresAt: { gt: new Date() },
+            },
+            data: { expiresAt: new Date() },
+          });
+        }
         await appendChanges(tx, context.workspaceId, context.userId, [
           { entity: "member", entityId: result.id, op: "DELETE", data: toJsonSafe(result) },
         ]);

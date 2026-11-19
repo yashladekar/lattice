@@ -3,7 +3,7 @@ import { createPrismaClient } from "@notes-learning/db";
 import { createUploadStore } from "@notes-learning/api/upload-store";
 
 import { createChatGptCallbackListener } from "./chatgpt-callback";
-import { ENV, desktopOrigins, uploadConfig, uploadRoot } from "./env.server";
+import { ENV, desktopOrigins, uploadConfig, uploadRoot, vercelOrigins } from "./env.server";
 
 export const db = createPrismaClient({
   DATABASE_URL: ENV.DATABASE_URL,
@@ -12,7 +12,7 @@ export const db = createPrismaClient({
   poolMax: ENV.DATABASE_POOL_MAX ?? (process.env.VERCEL ? 1 : undefined),
 });
 
-export const auth = createAuth(ENV, db, desktopOrigins);
+export const auth = createAuth(ENV, db, [...desktopOrigins, ...vercelOrigins]);
 
 export const uploadStore = createUploadStore({
   driver: uploadConfig.driver,

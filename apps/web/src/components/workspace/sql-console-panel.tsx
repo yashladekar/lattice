@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/components/app-data-provider";
 import { humanizeError } from "@/lib/errors";
 import { client } from "@/utils/orpc";
+import { countLabel } from "@/lib/plural";
 
 interface ConsoleView {
   name: string;
@@ -153,7 +154,7 @@ export function SqlConsolePanel() {
             <TableProperties className="size-3 text-muted-foreground" />
             <span className="text-[10px] font-medium">Result</span>
             <span className="ml-auto text-[8.5px] text-muted-foreground">
-              {result.rowCount} rows{result.truncated ? " (capped at 500)" : ""}
+              {countLabel(result.rowCount, "row")}{result.truncated ? " (capped at 500)" : ""}
             </span>
           </div>
           {result.rows.length ? (

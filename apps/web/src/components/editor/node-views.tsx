@@ -35,6 +35,7 @@ import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { usePage, usePageDocument } from "@/hooks/use-local-data";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 
 import { ReadOnlyDocument } from "./read-only-document";
 
@@ -443,7 +444,7 @@ export function DatabaseNodeView({ node, selected, updateAttributes }: NodeViewP
           ))}
         </div>
         <div className="flex items-center gap-1">
-          <span className="mr-1 text-[9px] text-muted-foreground">{rows.length} rows</span>
+          <span className="mr-1 text-[9px] text-muted-foreground">{countLabel(rows.length, "row")}</span>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={

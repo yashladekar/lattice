@@ -83,7 +83,7 @@ Optional: `DATABASE_POOL_MAX=1` (the server already defaults to 1 on Vercel), `A
 
 ### Preview deployments
 
-Each preview gets its own hostname while `BETTER_AUTH_URL` stays fixed at production. A preview will load, but sign-in cookies and links point at production. Either set `BETTER_AUTH_URL` to the production URL and treat previews as read-only, or add a preview-scoped value.
+Each preview gets its own hostname while `BETTER_AUTH_URL` stays fixed at production. The server automatically trusts the hostnames Vercel assigns to the running deployment (`VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`), so sign-up and sign-in work on a preview, on the per-deployment URL, and on the `.vercel.app` alias even when `CORS_ORIGIN` names a custom domain. Links the server generates (invites, SSO redirects) still point at production unless you add a preview-scoped `BETTER_AUTH_URL`.
 
 ## 4. Deploy
 
@@ -184,6 +184,7 @@ The proxy keeps cookies first-party, but the API host is a literal value in the 
 | Vercel says the repository needs a `vercel.json`, or rejects the `server` entrypoint | A service `entrypoint` must exist in the repository before the build. Keep `"entrypoint": "src/app.ts"`; never point it at a build artifact such as `dist/app.mjs`. |
 | Prisma fails at runtime with a missing query compiler | Add `"functions": { "src/app.ts": { "includeFiles": "../../packages/db/prisma/generated/**" } }` to the `server` service so the generated client and its WASM chunks ship with the function. |
 | `/health` reports `"uploads":"local"` | Set `UPLOAD_DRIVER=s3` for the environment you are testing. A serverless function cannot write to its own filesystem. |
+| Sign-up or sign-in fails with `Invalid origin` (shown in the browser as a CORS error) | The page was opened on a hostname the server does not trust. Vercel hostnames are trusted automatically; for any other domain, set `CORS_ORIGIN` to it exactly, including the scheme. |
 | Sign-in succeeds but RPC calls return 401 | `BETTER_AUTH_URL` and `CORS_ORIGIN` must match the domain in the address bar (including the scheme). |
 | Rate limits look wrong behind a proxy | Set `TRUST_PROXY` to the number of proxy hops (Vercel uses one). |
 | Presigned uploads return 403 | The bucket CORS must allow `PUT` with `content-type`, `x-amz-meta-userid`, and `content-disposition`, and the URL must not be edited after signing. |

@@ -32,7 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppData } from "@/components/app-data-provider";
@@ -56,6 +56,7 @@ import {
   updateFlashcardLocal,
 } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 
 type Tab = "review" | "decks" | "quiz" | "path";
 
@@ -134,15 +135,30 @@ export function LearnView() {
   const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
   const [quizScore, setQuizScore] = useState(0);
 
-  const rate = async (rating: ReviewRating) => {
-    if (!current || !db || !user) return;
-    await reviewFlashcardLocal(db, current.id, rating, user.id);
+  // One rating at a time. Until the review is stored and the queue moves on,
+  // a second press (a double click, or a held key) would grade the same card
+  // again, or grade the next card before it was ever revealed.
+  const rating = useRef(false);
+  const revealedRef = useRef(revealed);
+  revealedRef.current = revealed;
+  const rate = async (value: ReviewRating) => {
+    if (!current || !db || !user || rating.current || !revealedRef.current) return;
+    rating.current = true;
+    // Hidden again before the write, so a press that lands before React
+    // re-renders sees an unrevealed card and is ignored.
+    revealedRef.current = false;
     setRevealed(false);
+    try {
+      await reviewFlashcardLocal(db, current.id, value, user.id);
+    } finally {
+      rating.current = false;
+    }
   };
 
   useEffect(() => {
     if (tab !== "review" || !current) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
       const target = event.target as HTMLElement | null;
       if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
       if (event.key === " " || event.key === "Enter") {
@@ -165,7 +181,7 @@ export function LearnView() {
       workspaceId: activeWorkspaceId,
       pageId: pageToGenerate,
     });
-    toast.success(cards.length ? `${cards.length} cards generated` : "No new cards found");
+    toast.success(cards.length ? `${countLabel(cards.length, "card")} generated` : "No new cards found");
     setTab("review");
   };
 
@@ -424,7 +440,7 @@ export function LearnView() {
                     <div>
                       <div className="text-[11px] font-medium">{entry.deck?.name ?? "Deck"}</div>
                       <div className="text-[8px] text-muted-foreground">
-                        {entry.cards.length} cards · {entry.due} due
+                        {countLabel(entry.cards.length, "card")} · {entry.due} due
                       </div>
                     </div>
                   </div>

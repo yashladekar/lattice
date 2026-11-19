@@ -49,6 +49,7 @@ import type { LocalCapture } from "@/lib/local/types";
 import { getApiBaseUrl } from "@/lib/config";
 import { uploadFile } from "@/lib/upload";
 import { client } from "@/utils/orpc";
+import { countLabel } from "@/lib/plural";
 
 const STATUS_TABS = [
   { id: "INBOX" as const, label: "Inbox" },
@@ -648,7 +649,7 @@ export function InboxView({ onQuickCapture }: { onQuickCapture: () => void }) {
               </option>
             ))}
           </select>
-          {visibleCaptures.length} items
+          {countLabel(visibleCaptures.length, "item")}
         </span>
       </div>
 

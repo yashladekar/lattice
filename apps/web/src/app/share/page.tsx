@@ -13,6 +13,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { ReadOnlyDocument } from "@/components/editor/read-only-document";
 import { canvasToSvg } from "@/lib/canvas-export";
 import { client } from "@/utils/orpc";
+import { countLabel } from "@/lib/plural";
 
 interface PublicPage {
   id: string;
@@ -470,7 +471,7 @@ function SharedContent() {
                   {payload.workspace.name} graph
                 </h1>
                 <p className="mb-4 text-[10px] text-[#6b6a60]">
-                  {payload.nodes.length} nodes · {payload.edges.length} connections · read-only
+                  {countLabel(payload.nodes.length, "node")} · {countLabel(payload.edges.length, "connection")} · read-only
                 </p>
                 <PublicGraph nodes={payload.nodes} edges={payload.edges} />
               </section>

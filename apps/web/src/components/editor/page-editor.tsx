@@ -120,6 +120,7 @@ import { registerEditorBlockApplier } from "@/lib/local/editor-bridge";
 import { appRouteObject } from "@/lib/navigation";
 import { useInstalledPlugins, type StoredPlugin } from "@/lib/plugins";
 import { client } from "@/utils/orpc";
+import { countLabel } from "@/lib/plural";
 
 import { EditorMenu } from "./editor-menu";
 import { CanvasPlanPreview } from "./canvas-plan-preview";
@@ -629,6 +630,9 @@ export function PageEditor({
       },
     },
     onUpdate: ({ editor: instance }) => {
+      // A viewer's editor still updates when a teammate's live change lands,
+      // but persist() never writes for them, so "Saving locally…" would stick.
+      if (readOnlyRef.current) return;
       dirty.current = true;
       setSaveStatus("saving");
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -854,6 +858,19 @@ export function PageEditor({
   }, [db, activeWorkspaceId]);
 
   useEffect(() => {
+    if (readOnly) {
+      // The live relay only admits editors, so a viewer's session never
+      // connects and the body stayed as it was when the page opened. A viewer
+      // has no edits to lose, so show each newer synced version directly.
+      if (collab && collabStatus === "connected") return;
+      if (!document || !editor || editor.isDestroyed || document.rev === lastRev.current) return;
+      lastRev.current = document.rev;
+      const content = withUniqueBlockIds(document.content);
+      queueMicrotask(() => {
+        if (!editor.isDestroyed) editor.commands.setContent(content, { emitUpdate: false });
+      });
+      return;
+    }
     if (collab) return;
     if (!document || !editor || dirty.current || document.rev === lastRev.current) return;
     const currentText = extractPlainText(safeDoc(editor.getJSON()));
@@ -862,7 +879,7 @@ export function PageEditor({
     } else {
       lastRev.current = document.rev;
     }
-  }, [document?.rev, editor, collab]);
+  }, [document?.rev, editor, collab, readOnly, collabStatus]);
 
   useEffect(() => {
     if (!online || !activeWorkspaceId) return;
@@ -1274,7 +1291,7 @@ export function PageEditor({
       workspaceId: activeWorkspaceId,
       pageId,
     });
-    toast.success(created.length ? `${created.length} cards added` : "No new cards found");
+    toast.success(created.length ? `${countLabel(created.length, "card")} added` : "No new cards found");
   };
 
   const createMindMapCanvas = async () => {
@@ -1377,7 +1394,7 @@ export function PageEditor({
         source: "NOTE",
       });
     }
-    toast.success(`${aiResult.cards.length} cards added`);
+    toast.success(`${countLabel(aiResult.cards.length, "card")} added`);
     setAiResult(null);
   };
 
@@ -1426,12 +1443,6 @@ export function PageEditor({
     );
   }
 
-  const state = editor
-    ? {
-        words: editor.getText().split(/\s+/).filter(Boolean).length,
-      }
-    : { words: 0 };
-
   const livePeers = collab
     ? collabPeers.map((peer) => ({ id: String(peer.clientId), name: peer.name }))
     : peers.map((peer) => ({ id: peer.userId, name: peer.name }));
@@ -1447,9 +1458,7 @@ export function PageEditor({
           {documentLoading ? (
             <span aria-live="polite">Loading the text…</span>
           ) : (
-            <span>
-              {state.words} {state.words === 1 ? "word" : "words"}
-            </span>
+            <EditorWordCount editor={editor} />
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -2134,6 +2143,25 @@ function currentBlockId(editor: Editor): string | null {
   return null;
 }
 
+/**
+ * Tracks the document like the character count does. Reading the text during
+ * the page render only refreshed when something else re-rendered the page, so
+ * a viewer (whose edits never re-render it) saw "0 words" under a full page.
+ */
+function EditorWordCount({ editor }: { editor: Editor | null }) {
+  const words = useEditorState({
+    editor,
+    selector: ({ editor: current }) =>
+      current ? current.getText().split(/\s+/).filter(Boolean).length : 0,
+  });
+  const count = words ?? 0;
+  return (
+    <span>
+      {count} {count === 1 ? "word" : "words"}
+    </span>
+  );
+}
+
 function EditorCharacterCount({ editor }: { editor: Editor }) {
   const count = useEditorState({
     editor,
@@ -2441,7 +2469,7 @@ function AiResultDialog({
                 </div>
               ))}
               <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={onAddCards}>
-                Add {result.cards.length} cards
+                Add {countLabel(result.cards.length, "card")}
               </Button>
             </div>
           ) : null}

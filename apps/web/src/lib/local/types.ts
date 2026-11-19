@@ -41,6 +41,12 @@ export interface OutboxItem {
   revision: number;
   opId: string | null;
   createdAt: string;
+  /**
+   * Set when the server refused this change on its own (for example its
+   * notebook was deleted elsewhere). A parked change is not sent again until
+   * it is edited or a few minutes have passed.
+   */
+  rejected?: { message: string; at: string } | null;
 }
 
 export interface LocalConflict {

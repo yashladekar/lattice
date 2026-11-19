@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useWorkspaceSearchIndex } from "@/hooks/use-local-data";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 
 export function SearchView({ initialQuery }: { initialQuery: string }) {
   const router = useRouter();
@@ -113,7 +114,9 @@ export function SearchView({ initialQuery }: { initialQuery: string }) {
               updatedAt: canvas.updatedAt,
             }))
         : []),
-      ...(!tagFiltered && wantsType("capture")
+      // Captures sit in the inbox, outside any notebook, so a notebook filter
+      // leaves them out just as a tag filter does.
+      ...(!tagFiltered && !parsed.notebooks.length && wantsType("capture")
         ? index.captures.map((capture) => ({
             type: "capture" as const,
             id: capture.id,
@@ -217,7 +220,7 @@ export function SearchView({ initialQuery }: { initialQuery: string }) {
           </button>
         ) : null}
         <span className="ml-auto text-[9px] text-muted-foreground">
-          {query ? `${results.length} results` : "Type to search"}
+          {query ? countLabel(results.length, "result") : "Type to search"}
         </span>
       </div>
 

@@ -20,7 +20,7 @@ import cors from "cors";
 import express from "express";
 
 import { createContext } from "./context";
-import { ENV, desktopOrigins, githubConfig, uploadConfig } from "./env.server";
+import { ENV, desktopOrigins, githubConfig, uploadConfig, vercelOrigins } from "./env.server";
 import { createGithubCallbackHandler } from "./github-callback";
 import { auth, db, uploadStore } from "./services";
 
@@ -107,6 +107,7 @@ app.use((req, res, next) => {
 const corsOrigins = [
   ENV.CORS_ORIGIN,
   ...desktopOrigins,
+  ...vercelOrigins,
   ...(ENV.NODE_ENV === "production" ? [] : ["http://localhost:3001", "http://localhost:8081"]),
 ];
 app.use(

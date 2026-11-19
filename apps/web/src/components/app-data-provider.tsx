@@ -1,12 +1,17 @@
 "use client";
 
-import type { Role, Workspace } from "@notes-learning/domain";
+import { canEditContent, type Role, type Workspace } from "@notes-learning/domain";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
-import { getLocalDb, getMeta, setMeta, type LatticeDB } from "@/lib/local/db";
+import { getLocalDb, getMeta, removeWorkspaceLocal, setMeta, type LatticeDB } from "@/lib/local/db";
+import {
+  ReadOnlyWorkspaceError,
+  onReadOnlyWrite,
+  setWorkspaceReadOnly,
+} from "@/lib/local/outbox";
 import { createSyncEngine, type SyncEngine, type SyncState } from "@/lib/local/sync-engine";
 import type { LocalConflict } from "@/lib/local/types";
 import { client, setWorkspaceHeader } from "@/utils/orpc";
@@ -199,12 +204,56 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         .equals([activeWorkspaceId, effectiveUser.id])
         .first();
       const storedRole = await getMeta<Role>(db, `role:${activeWorkspaceId}`);
-      if (!cancelled) setRole((member?.role as Role | undefined) ?? storedRole ?? null);
+      const resolved = (member?.role as Role | undefined) ?? storedRole ?? null;
+      if (resolved) setWorkspaceReadOnly(activeWorkspaceId, !canEditContent(resolved));
+      // The synced member row is the newest word on a role change made while
+      // this tab was open; keep the stored copy the sync engine reads in step.
+      if (member?.role && member.role !== storedRole) {
+        await setMeta(db, `role:${activeWorkspaceId}`, member.role);
+      }
+      if (!cancelled) setRole(resolved);
     })();
     return () => {
       cancelled = true;
     };
   }, [db, effectiveUser?.id, activeWorkspaceId, syncState.lastSyncedAt, syncState.status]);
+
+  // Every workspace this device knows, not just the open one: background
+  // writes (imports, captures, reviews) can target any of them. Offline, the
+  // role saved at the last sign-in still applies.
+  useEffect(() => {
+    if (!db || !effectiveUser) return;
+    void (async () => {
+      for (const workspace of workspaces) {
+        const member = await db.members
+          .where("[workspaceId+userId]")
+          .equals([workspace.id, effectiveUser.id])
+          .first();
+        const storedRole = await getMeta<Role>(db, `role:${workspace.id}`);
+        const resolved = (member?.role as Role | undefined) ?? storedRole;
+        if (resolved) setWorkspaceReadOnly(workspace.id, !canEditContent(resolved));
+      }
+    })();
+  }, [db, effectiveUser?.id, workspaces, syncState.lastSyncedAt]);
+
+  // A refused write explains itself once, and the rejection it leaves behind in
+  // fire-and-forget handlers is expected rather than an error to report.
+  useEffect(() => {
+    const off = onReadOnlyWrite(() => {
+      toast.error("You have view-only access to this workspace", {
+        id: "read-only-write",
+        description: "Ask an admin for editor access to make changes.",
+      });
+    });
+    const onRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason instanceof ReadOnlyWorkspaceError) event.preventDefault();
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      off();
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
 
   const refreshWorkspaces = useCallback(async () => {
     if (!db || !effectiveUser || !online) return;
@@ -219,6 +268,28 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           await setMeta(db, `role:${workspace.id}`, membership.role);
         }
       });
+      for (const membership of response.memberships) {
+        setWorkspaceReadOnly(membership.workspace.id, !canEditContent(membership.role as Role));
+      }
+      // The server's list is the whole truth about where this member belongs.
+      // A workspace they were removed from would otherwise stay in the switcher
+      // with its content readable, and fail every sync with "not found".
+      const current = new Set(response.memberships.map((membership) => membership.workspace.id));
+      const removed = (await db.workspaces.toArray()).filter(
+        (workspace) => !current.has(workspace.id),
+      );
+      for (const workspace of removed) {
+        await removeWorkspaceLocal(db, workspace.id);
+        setWorkspaceReadOnly(workspace.id, false);
+      }
+      if (removed.length) {
+        toast.info(
+          removed.length === 1
+            ? `You no longer have access to ${removed[0]!.name}`
+            : `You no longer have access to ${removed.length} workspaces`,
+          { description: "Its content was removed from this device." },
+        );
+      }
       setBootError(null);
       bootErrorSource.current = null;
     } catch (error) {
@@ -287,6 +358,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       onError: (message) => {
         bootErrorSource.current = "sync";
         setBootError(message);
+      },
+      onRejected: ({ entity, entityId, message }) => {
+        const label =
+          entity === "pageDocument" ? "page text" : entity === "pageTag" ? "page tag" : entity;
+        toast.error(`A ${label} change could not be saved`, {
+          id: `rejected:${entity}:${entityId}`,
+          description: `${message}. Your other changes are still syncing.`,
+        });
+      },
+      onDiscarded: ({ workspaceId, count }) => {
+        void db.workspaces.get(workspaceId).then((workspace) => {
+          toast.warning(
+            `${count} ${count === 1 ? "change" : "changes"} could not be saved to ${workspace?.name ?? "a workspace"}`,
+            { description: "You have view-only access there, so the server's copy was restored." },
+          );
+        });
       },
     });
     engineRef.current = engine;
