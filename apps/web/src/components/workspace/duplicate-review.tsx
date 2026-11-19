@@ -12,6 +12,7 @@ import { useAppData } from "@/components/app-data-provider";
 import { useWorkspacePages } from "@/hooks/use-local-data";
 import { deletePageLocal } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 
 const REASON_LABELS: Record<DuplicateCluster["reason"], string> = {
   "same-title": "Same title",
@@ -115,7 +116,7 @@ export function DuplicateReviewPanel() {
                 {REASON_LABELS[cluster.reason]}
               </span>
               <span className="text-[8.5px] text-muted-foreground">
-                {Math.round(cluster.score * 100)}% match · {cluster.members.length} pages
+                {Math.round(cluster.score * 100)}% match · {countLabel(cluster.members.length, "page")}
               </span>
               <Button
                 variant="outline"

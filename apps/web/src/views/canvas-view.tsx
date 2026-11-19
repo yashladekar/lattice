@@ -121,6 +121,7 @@ import { runPluginCommand, useInstalledPlugins } from "@/lib/plugins";
 import type { LocalCanvas } from "@/lib/local/types";
 import { client } from "@/utils/orpc";
 import { usePage, usePageDocument } from "@/hooks/use-local-data";
+import { countLabel } from "@/lib/plural";
 
 type Tool =
   | "select"
@@ -2045,7 +2046,7 @@ export function CanvasView({ canvasId }: { canvasId: string | null }) {
             <span className={cn("status-dot", saveStatus === "error" ? "bg-destructive" : "bg-moss")} />
             {saveStatus === "saving" ? "Saving locally…" : saveStatus === "error" ? "Save failed" : "Saved locally"}
             <span className="opacity-40">·</span>
-            <span>{document.elements.length} elements</span>
+            <span>{countLabel(document.elements.length, "element")}</span>
             {collab.status !== "disconnected" || collab.peers.length ? (
               <>
                 <span className="opacity-40">·</span>

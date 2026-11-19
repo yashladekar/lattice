@@ -54,6 +54,7 @@ import {
 } from "@/hooks/use-local-data";
 import { createCaptureLocal, createCanvasLocal, createPageLocal } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 import { emptyCanvas } from "@notes-learning/domain";
 
 type WidgetId =
@@ -395,8 +396,9 @@ export function HomeView({
           </h1>
           {ready ? (
             <p className="mt-2 max-w-lg text-[12px] leading-relaxed text-muted-foreground">
-              {activeWorkspace?.name ?? "Your workspace"} · {pages.length} pages ·{" "}
-              {graph.edges.length} connections · {due.length} cards due.
+              {activeWorkspace?.name ?? "Your workspace"} · {countLabel(pages.length, "page")} ·{" "}
+              {countLabel(graph.edges.length, "connection")} ·{" "}
+              {countLabel(due.length, "card")} due.
             </p>
           ) : (
             <Skeleton className="mt-3 h-4 w-64 rounded" />
@@ -756,14 +758,14 @@ export function HomeView({
                 </div>
                 <div className="text-[9px] text-muted-foreground">
                   {ready ? (
-                    `cards across ${learning.decks.length} decks`
+                    `${learning.cards.length === 1 ? "card" : "cards"} across ${countLabel(learning.decks.length, "deck")}`
                   ) : (
                     <Skeleton className="h-4 w-32 rounded" />
                   )}
                 </div>
               </div>
               <span className="rounded-full border border-border px-2 py-0.5 text-[9px] text-muted-foreground">
-                {learning.logs.length} reviews / 60d
+                {countLabel(learning.logs.length, "review")} / 60d
               </span>
             </div>
             <div className="mt-3 space-y-2">

@@ -120,6 +120,7 @@ import { registerEditorBlockApplier } from "@/lib/local/editor-bridge";
 import { appRouteObject } from "@/lib/navigation";
 import { useInstalledPlugins, type StoredPlugin } from "@/lib/plugins";
 import { client } from "@/utils/orpc";
+import { countLabel } from "@/lib/plural";
 
 import { EditorMenu } from "./editor-menu";
 import { CanvasPlanPreview } from "./canvas-plan-preview";
@@ -1290,7 +1291,7 @@ export function PageEditor({
       workspaceId: activeWorkspaceId,
       pageId,
     });
-    toast.success(created.length ? `${created.length} cards added` : "No new cards found");
+    toast.success(created.length ? `${countLabel(created.length, "card")} added` : "No new cards found");
   };
 
   const createMindMapCanvas = async () => {
@@ -1393,7 +1394,7 @@ export function PageEditor({
         source: "NOTE",
       });
     }
-    toast.success(`${aiResult.cards.length} cards added`);
+    toast.success(`${countLabel(aiResult.cards.length, "card")} added`);
     setAiResult(null);
   };
 
@@ -2468,7 +2469,7 @@ function AiResultDialog({
                 </div>
               ))}
               <Button size="sm" className="h-8 rounded-lg text-[10px]" onClick={onAddCards}>
-                Add {result.cards.length} cards
+                Add {countLabel(result.cards.length, "card")}
               </Button>
             </div>
           ) : null}

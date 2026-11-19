@@ -70,6 +70,7 @@ import {
 import type { LocalComment, LocalPage } from "@/lib/local/types";
 import { appRouteObject } from "@/lib/navigation";
 import { client } from "@/utils/orpc";
+import { countLabel } from "@/lib/plural";
 
 type Tab = "info" | "backlinks" | "comments";
 
@@ -329,7 +330,7 @@ export function PageContextPanel({
       pageId: page.id,
     });
     toast.success(
-      created.length ? `${created.length} cards added to Daily review` : "No new cards found",
+      created.length ? `${countLabel(created.length, "card")} added to Daily review` : "No new cards found",
     );
   };
 
@@ -736,7 +737,7 @@ export function PageContextPanel({
                 <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Outline
                 </div>
-                <span className="text-[8px] text-muted-foreground">{outline.length} items</span>
+                <span className="text-[8px] text-muted-foreground">{countLabel(outline.length, "item")}</span>
               </div>
               <div className="mt-2 space-y-0.5">
                 {outline.length ? (
@@ -851,7 +852,7 @@ export function PageContextPanel({
                 <div className="text-[8px] font-medium uppercase tracking-[0.15em] text-muted-foreground/60">
                   Learning
                 </div>
-                <span className="text-[8px] text-muted-foreground">{cards.length} cards</span>
+                <span className="text-[8px] text-muted-foreground">{countLabel(cards.length, "card")}</span>
               </div>
               <div className="mt-2 space-y-1">
                 {cards.slice(0, 3).map((card) => (

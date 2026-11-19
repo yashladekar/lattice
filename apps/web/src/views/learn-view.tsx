@@ -56,6 +56,7 @@ import {
   updateFlashcardLocal,
 } from "@/lib/local/repository";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 
 type Tab = "review" | "decks" | "quiz" | "path";
 
@@ -180,7 +181,7 @@ export function LearnView() {
       workspaceId: activeWorkspaceId,
       pageId: pageToGenerate,
     });
-    toast.success(cards.length ? `${cards.length} cards generated` : "No new cards found");
+    toast.success(cards.length ? `${countLabel(cards.length, "card")} generated` : "No new cards found");
     setTab("review");
   };
 
@@ -439,7 +440,7 @@ export function LearnView() {
                     <div>
                       <div className="text-[11px] font-medium">{entry.deck?.name ?? "Deck"}</div>
                       <div className="text-[8px] text-muted-foreground">
-                        {entry.cards.length} cards · {entry.due} due
+                        {countLabel(entry.cards.length, "card")} · {entry.due} due
                       </div>
                     </div>
                   </div>

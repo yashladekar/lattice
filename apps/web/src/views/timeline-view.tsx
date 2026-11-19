@@ -12,6 +12,7 @@ import {
   useWorkspacePages,
 } from "@/hooks/use-local-data";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 
 export function TimelineView() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export function TimelineView() {
           </p>
         </div>
         <div className="ml-auto rounded-full border border-border px-2 py-1 text-[9px] text-muted-foreground">
-          {cards.length} cards due
+          {countLabel(cards.length, "card")} due
         </div>
       </div>
 
@@ -79,7 +80,7 @@ export function TimelineView() {
               <div className="sticky top-0 z-10 -mx-2 flex items-center gap-2 bg-background/90 px-2 py-1.5 backdrop-blur">
                 <span className="text-[10px] font-medium">{day}</span>
                 <span className="h-px flex-1 bg-border/60" />
-                <span className="text-[8px] text-muted-foreground">{entries.length} updates</span>
+                <span className="text-[8px] text-muted-foreground">{countLabel(entries.length, "update")}</span>
               </div>
               <div className="mt-2 space-y-1 border-l border-border/60 pl-4">
                 {entries.map((entry) => (

@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useWorkspaceSearchIndex } from "@/hooks/use-local-data";
 import { appRouteObject } from "@/lib/navigation";
+import { countLabel } from "@/lib/plural";
 
 export function SearchView({ initialQuery }: { initialQuery: string }) {
   const router = useRouter();
@@ -219,7 +220,7 @@ export function SearchView({ initialQuery }: { initialQuery: string }) {
           </button>
         ) : null}
         <span className="ml-auto text-[9px] text-muted-foreground">
-          {query ? `${results.length} results` : "Type to search"}
+          {query ? countLabel(results.length, "result") : "Type to search"}
         </span>
       </div>
 
