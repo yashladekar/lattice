@@ -857,6 +857,19 @@ export function PageEditor({
   }, [db, activeWorkspaceId]);
 
   useEffect(() => {
+    if (readOnly) {
+      // The live relay only admits editors, so a viewer's session never
+      // connects and the body stayed as it was when the page opened. A viewer
+      // has no edits to lose, so show each newer synced version directly.
+      if (collab && collabStatus === "connected") return;
+      if (!document || !editor || editor.isDestroyed || document.rev === lastRev.current) return;
+      lastRev.current = document.rev;
+      const content = withUniqueBlockIds(document.content);
+      queueMicrotask(() => {
+        if (!editor.isDestroyed) editor.commands.setContent(content, { emitUpdate: false });
+      });
+      return;
+    }
     if (collab) return;
     if (!document || !editor || dirty.current || document.rev === lastRev.current) return;
     const currentText = extractPlainText(safeDoc(editor.getJSON()));
@@ -865,7 +878,7 @@ export function PageEditor({
     } else {
       lastRev.current = document.rev;
     }
-  }, [document?.rev, editor, collab]);
+  }, [document?.rev, editor, collab, readOnly, collabStatus]);
 
   useEffect(() => {
     if (!online || !activeWorkspaceId) return;
