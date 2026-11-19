@@ -629,6 +629,9 @@ export function PageEditor({
       },
     },
     onUpdate: ({ editor: instance }) => {
+      // A viewer's editor still updates when a teammate's live change lands,
+      // but persist() never writes for them, so "Saving locally…" would stick.
+      if (readOnlyRef.current) return;
       dirty.current = true;
       setSaveStatus("saving");
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -1426,12 +1429,6 @@ export function PageEditor({
     );
   }
 
-  const state = editor
-    ? {
-        words: editor.getText().split(/\s+/).filter(Boolean).length,
-      }
-    : { words: 0 };
-
   const livePeers = collab
     ? collabPeers.map((peer) => ({ id: String(peer.clientId), name: peer.name }))
     : peers.map((peer) => ({ id: peer.userId, name: peer.name }));
@@ -1447,9 +1444,7 @@ export function PageEditor({
           {documentLoading ? (
             <span aria-live="polite">Loading the text…</span>
           ) : (
-            <span>
-              {state.words} {state.words === 1 ? "word" : "words"}
-            </span>
+            <EditorWordCount editor={editor} />
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -2132,6 +2127,25 @@ function currentBlockId(editor: Editor): string | null {
     if (typeof id === "string" && id) return id;
   }
   return null;
+}
+
+/**
+ * Tracks the document like the character count does. Reading the text during
+ * the page render only refreshed when something else re-rendered the page, so
+ * a viewer (whose edits never re-render it) saw "0 words" under a full page.
+ */
+function EditorWordCount({ editor }: { editor: Editor | null }) {
+  const words = useEditorState({
+    editor,
+    selector: ({ editor: current }) =>
+      current ? current.getText().split(/\s+/).filter(Boolean).length : 0,
+  });
+  const count = words ?? 0;
+  return (
+    <span>
+      {count} {count === 1 ? "word" : "words"}
+    </span>
+  );
 }
 
 function EditorCharacterCount({ editor }: { editor: Editor }) {
