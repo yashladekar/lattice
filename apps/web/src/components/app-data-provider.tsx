@@ -6,7 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
-import { getLocalDb, getMeta, setMeta, type LatticeDB } from "@/lib/local/db";
+import { getLocalDb, getMeta, removeWorkspaceLocal, setMeta, type LatticeDB } from "@/lib/local/db";
 import {
   ReadOnlyWorkspaceError,
   onReadOnlyWrite,
@@ -270,6 +270,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       });
       for (const membership of response.memberships) {
         setWorkspaceReadOnly(membership.workspace.id, !canEditContent(membership.role as Role));
+      }
+      // The server's list is the whole truth about where this member belongs.
+      // A workspace they were removed from would otherwise stay in the switcher
+      // with its content readable, and fail every sync with "not found".
+      const current = new Set(response.memberships.map((membership) => membership.workspace.id));
+      const removed = (await db.workspaces.toArray()).filter(
+        (workspace) => !current.has(workspace.id),
+      );
+      for (const workspace of removed) {
+        await removeWorkspaceLocal(db, workspace.id);
+        setWorkspaceReadOnly(workspace.id, false);
+      }
+      if (removed.length) {
+        toast.info(
+          removed.length === 1
+            ? `You no longer have access to ${removed[0]!.name}`
+            : `You no longer have access to ${removed.length} workspaces`,
+          { description: "Its content was removed from this device." },
+        );
       }
       setBootError(null);
       bootErrorSource.current = null;

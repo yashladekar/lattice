@@ -105,6 +105,49 @@ export async function deleteLocalDb(userId: string): Promise<void> {
   await Dexie.delete(`lattice-${userId}`);
 }
 
+/**
+ * Drops everything this device holds for one workspace: its rows, any queued
+ * changes and conflicts, and its sync bookkeeping. Used when the server no
+ * longer lists the member in that workspace.
+ */
+export async function removeWorkspaceLocal(db: LatticeDB, workspaceId: string): Promise<void> {
+  const scoped: Table[] = [
+    db.members,
+    db.notebooks,
+    db.pages,
+    db.pageDocuments,
+    db.canvases,
+    db.nodes,
+    db.edges,
+    db.tags,
+    db.captures,
+    db.templates,
+    db.decks,
+    db.flashcards,
+    db.reviewLogs,
+    db.comments,
+    db.suggestedEdits,
+    db.objectTypes,
+    db.attachments,
+    db.conflicts,
+    db.outbox,
+  ];
+  await db.transaction("rw", [...scoped, db.pageTags, db.workspaces, db.meta], async () => {
+    // Page tags carry no workspace id; they go with their pages.
+    const pageIds = await db.pages.where("workspaceId").equals(workspaceId).primaryKeys();
+    if (pageIds.length) await db.pageTags.where("pageId").anyOf(pageIds).delete();
+    for (const table of scoped) {
+      await table.where("workspaceId").equals(workspaceId).delete();
+    }
+    await db.workspaces.delete(workspaceId);
+    await db.meta.bulkDelete([
+      `cursor:${workspaceId}`,
+      `snapshot:${workspaceId}`,
+      `role:${workspaceId}`,
+    ]);
+  });
+}
+
 export async function getMeta<T>(db: LatticeDB, key: string): Promise<T | null> {
   const row = await db.meta.get(key);
   if (!row) return null;
